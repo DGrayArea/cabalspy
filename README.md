@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cabalspy
 
-## Getting Started
+Real-time token tracking and trading platform.
 
-First, run the development server:
+## Quick Setup
 
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Get Turnkey API Keys
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+**Step-by-step:**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. **Sign up**: Go to [Turnkey Dashboard](https://dashboard.turnkey.com) and create an account
 
-## Learn More
+2. **Create Organization**: After login, create your organization
 
-To learn more about Next.js, take a look at the following resources:
+3. **Get Organization ID**:
+   - Click your user icon (top-right)
+   - Go to "User Details" or "Organization Settings"
+   - Copy your **Organization ID** (looks like `org_xxxxx`)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+4. **Generate API Keys**:
+   - Go to "API Keys" section in dashboard
+   - Click "Create API Key"
+   - Choose a name (e.g., "Production Key")
+   - Select "In-browser" generation method
+   - Authenticate
+   - **IMPORTANT**: Copy both keys immediately:
+     - **API Public Key** → `NEXT_PUBLIC_TURNKEY_API_KEY`
+     - **API Private Key** → `TURNKEY_API_PRIVATE_KEY` (⚠️ Keep secret!)
+   - ⚠️ Private key won't be shown again - save it now!
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 3. Create `.env.local`
 
-## Deploy on Vercel
+```bash
+# Required - Turnkey
+TURNKEY_API_PRIVATE_KEY=your_private_key_here
+NEXT_PUBLIC_TURNKEY_ORG_ID=your_org_id_here
+NEXT_PUBLIC_TURNKEY_API_KEY=your_public_key_here
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+# Optional (has defaults)
+NEXT_PUBLIC_TURNKEY_BASE_URL=https://api.turnkey.com
+NEXT_PUBLIC_PUMPAPI_URL=wss://pumpportal.fun/api/data
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Note**: PumpAPI is free - no API key needed!
+
+### 4. Run Development Server
+```bash
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000)
+
+## Features
+
+- ✅ Real-time token data from Axiom API
+- ✅ Responsive design (mobile-friendly)
+- ✅ Token images with fallback
+- ✅ Turnkey wallet integration
+- ✅ Trading interface
+- ✅ Pagination (15 tokens per page)
+
