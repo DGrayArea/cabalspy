@@ -5,6 +5,30 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   
+  // Performance optimizations
+  reactStrictMode: true,
+  
+  // ESLint configuration (treat lint errors as warnings during build)
+  eslint: {
+    ignoreDuringBuilds: false,
+  },
+  
+  // TypeScript configuration
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  
+  // Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**',
+      },
+    ],
+  },
+  
   // Security headers
   async headers() {
     return [
@@ -38,7 +62,12 @@ const nextConfig: NextConfig = {
           {
             key: 'Permissions-Policy',
             value: 'camera=(), microphone=(), geolocation=()'
-          }
+          },
+          // Performance headers
+          {
+            key: 'Connection',
+            value: 'keep-alive'
+          },
         ],
       },
     ];

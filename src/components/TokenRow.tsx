@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
+import Image from 'next/image';
 import { TokenRowProps } from '@/types/token';
-import TradingPanel from './TradingPanel';
 import { 
   Link, 
   Search, 
@@ -12,6 +12,9 @@ import {
   TrendingDown,
   ExternalLink
 } from 'lucide-react';
+
+// Lazy load TradingPanel to reduce initial bundle size
+const TradingPanel = lazy(() => import('./TradingPanel'));
 
 export default function TokenRow({ token }: TokenRowProps) {
   const [showTradingPanel, setShowTradingPanel] = useState(false);
@@ -38,12 +41,18 @@ export default function TokenRow({ token }: TokenRowProps) {
         {/* Left Section - Token Info */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           {token.image && !imageError ? (
-            <img 
-              src={token.image} 
-              alt={token.symbol} 
-              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 object-cover" 
-              onError={() => setImageError(true)}
-            />
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full flex-shrink-0 overflow-hidden relative">
+              <Image 
+                src={token.image} 
+                alt={token.symbol} 
+                width={40}
+                height={40}
+                className="w-full h-full object-cover" 
+                onError={() => setImageError(true)}
+                unoptimized
+                loading="lazy"
+              />
+            </div>
           ) : (
             <div className="text-xl sm:text-2xl flex-shrink-0">{token.icon}</div>
           )}
@@ -114,10 +123,18 @@ export default function TokenRow({ token }: TokenRowProps) {
 
       {/* Trading Panel Modal */}
       {showTradingPanel && (
-        <TradingPanel 
-          token={token} 
-          onClose={() => setShowTradingPanel(false)} 
-        />
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-gray-800 rounded-lg p-6">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+            </div>
+          </div>
+        }>
+          <TradingPanel 
+            token={token} 
+            onClose={() => setShowTradingPanel(false)} 
+          />
+        </Suspense>
       )}
     </div>
   );

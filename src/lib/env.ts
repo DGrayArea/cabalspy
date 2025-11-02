@@ -45,10 +45,18 @@ export function validateEnv() {
   }
 
   if (missing.length > 0) {
-    throw new Error(
+    const error = new Error(
       `Missing required environment variables: ${missing.join(', ')}\n` +
       'Please check your .env.local file.'
     );
+    
+    // Only throw in production; warn in development
+    if (process.env.NODE_ENV === 'production') {
+      throw error;
+    } else {
+      console.warn('Environment validation warning:', error.message);
+      return;
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TokenRow from '@/components/TokenRow';
@@ -15,22 +15,27 @@ export default function Home() {
   const { login } = useAuth();
   const { tokens: allTokens, isLoading: tokensLoading, error: tokensError } = useTokens();
   
-  // Split tokens into categories (you can adjust logic based on API response)
-  const newPairs = allTokens.filter((_, i) => i % 3 === 0);
-  const finalStretch = allTokens.filter((_, i) => i % 3 === 1);
-  const migrated = allTokens.filter((_, i) => i % 3 === 2);
+  // Memoize token splits to avoid recalculation on every render
+  const { newPairs, finalStretch, migrated } = useMemo(() => ({
+    newPairs: allTokens.filter((_, i) => i % 3 === 0),
+    finalStretch: allTokens.filter((_, i) => i % 3 === 1),
+    migrated: allTokens.filter((_, i) => i % 3 === 2),
+  }), [allTokens]);
+
   const [pageNew, setPageNew] = useState(0);
   const [pageFinal, setPageFinal] = useState(0);
   const [pageMigrated, setPageMigrated] = useState(0);
   const pageSize = 15;
 
-  const pagedNew = newPairs.slice(pageNew * pageSize, (pageNew + 1) * pageSize);
-  const pagedFinal = finalStretch.slice(pageFinal * pageSize, (pageFinal + 1) * pageSize);
-  const pagedMigrated = migrated.slice(pageMigrated * pageSize, (pageMigrated + 1) * pageSize);
-
-  const totalNewPages = Math.max(1, Math.ceil(newPairs.length / pageSize));
-  const totalFinalPages = Math.max(1, Math.ceil(finalStretch.length / pageSize));
-  const totalMigratedPages = Math.max(1, Math.ceil(migrated.length / pageSize));
+  // Memoize paginated results
+  const { pagedNew, pagedFinal, pagedMigrated, totalNewPages, totalFinalPages, totalMigratedPages } = useMemo(() => ({
+    pagedNew: newPairs.slice(pageNew * pageSize, (pageNew + 1) * pageSize),
+    pagedFinal: finalStretch.slice(pageFinal * pageSize, (pageFinal + 1) * pageSize),
+    pagedMigrated: migrated.slice(pageMigrated * pageSize, (pageMigrated + 1) * pageSize),
+    totalNewPages: Math.max(1, Math.ceil(newPairs.length / pageSize)),
+    totalFinalPages: Math.max(1, Math.ceil(finalStretch.length / pageSize)),
+    totalMigratedPages: Math.max(1, Math.ceil(migrated.length / pageSize)),
+  }), [newPairs, finalStretch, migrated, pageNew, pageFinal, pageMigrated, pageSize]);
 
   // Handle OAuth callback
   useEffect(() => {

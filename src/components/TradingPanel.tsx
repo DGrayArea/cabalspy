@@ -226,7 +226,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
                 </div>
                 {tradeType === 'buy' && (
                   <div className="flex justify-between">
-                    <span>You'll receive:</span>
+                    <span>You&apos;ll receive:</span>
                     <span>{(parseFloat(amount) / token.price).toFixed(6)} {token.symbol}</span>
                   </div>
                 )}
