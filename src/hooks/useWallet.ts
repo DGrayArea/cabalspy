@@ -73,7 +73,7 @@ export const useWallet = () => {
         
         const walletInfo: WalletInfo = {
           id: walletId,
-          name: walletDetails.name || 'My Wallet',
+          name: walletDetails.walletName || 'My Wallet',
           address,
           balance: balance.balance,
           network: balance.network

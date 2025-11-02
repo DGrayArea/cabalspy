@@ -73,20 +73,21 @@ export class AxiomService {
       // Try to fetch tokens - adjust endpoint as needed
       for (const endpoint of endpoints.slice(1)) {
         try {
-          const data = await this.fetchWithAuth<any>(endpoint);
+          const data = await this.fetchWithAuth<unknown>(endpoint);
           
           // Handle different response formats
+          const dataObj = data as Record<string, unknown>;
           if (Array.isArray(data)) {
-            tokens = data;
+            tokens = data as AxiomTokenResponse[];
             break;
-          } else if (data.tokens && Array.isArray(data.tokens)) {
-            tokens = data.tokens;
+          } else if (dataObj.tokens && Array.isArray(dataObj.tokens)) {
+            tokens = dataObj.tokens as AxiomTokenResponse[];
             break;
-          } else if (data.data && Array.isArray(data.data)) {
-            tokens = data.data;
+          } else if (dataObj.data && Array.isArray(dataObj.data)) {
+            tokens = dataObj.data as AxiomTokenResponse[];
             break;
           }
-        } catch (e) {
+        } catch {
           // Try next endpoint
           continue;
         }

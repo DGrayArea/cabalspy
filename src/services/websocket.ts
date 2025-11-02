@@ -1,12 +1,14 @@
 import { TokenData } from '@/types/token';
 
+type WebSocketCallback = (data?: unknown) => void;
+
 export class WebSocketService {
   private ws: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
-  private listeners: Map<string, Function[]> = new Map();
-  private heartbeatIntervalId: any = null;
+  private listeners: Map<string, WebSocketCallback[]> = new Map();
+  private heartbeatIntervalId: NodeJS.Timeout | null = null;
   private heartbeatMs = 20000; // 20s
 
   constructor(private url: string) {}
@@ -80,7 +82,7 @@ export class WebSocketService {
     }
   }
 
-  send(data: any): void {
+  send(data: unknown): void {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(data));
     } else {
@@ -88,14 +90,14 @@ export class WebSocketService {
     }
   }
 
-  subscribe(event: string, callback: Function): void {
+  subscribe(event: string, callback: WebSocketCallback): void {
     if (!this.listeners.has(event)) {
       this.listeners.set(event, []);
     }
     this.listeners.get(event)!.push(callback);
   }
 
-  unsubscribe(event: string, callback: Function): void {
+  unsubscribe(event: string, callback: WebSocketCallback): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       const index = callbacks.indexOf(callback);
@@ -105,7 +107,7 @@ export class WebSocketService {
     }
   }
 
-  private emit(event: string, data?: any): void {
+  private emit(event: string, data?: unknown): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       callbacks.forEach(callback => callback(data));
@@ -140,16 +142,16 @@ export class PumpAPIService {
       this.subscribeNewToken();
     });
 
-    this.wsService.subscribe('message', (data: any) => {
+    this.wsService.subscribe('message', (data: unknown) => {
       this.routeIncomingMessage(data);
     });
 
-    this.wsService.subscribe('error', (error: any) => {
+    this.wsService.subscribe('error', (error: unknown) => {
       console.error('PumpAPI WebSocket error:', error);
     });
   }
 
-  private handleTokenUpdateSafe(data: any): void {
+  private handleTokenUpdateSafe(data: unknown): void {
     if (!data) return;
     try {
       this.handleTokenUpdate(data);
@@ -158,26 +160,27 @@ export class PumpAPIService {
     }
   }
 
-  private handleTokenUpdate(data: any): void {
+  private handleTokenUpdate(data: unknown): void {
     // Transform incoming data (new token/trade) to our TokenData format
+    const d = data as Record<string, unknown>;
     const tokenData: TokenData = {
-      id: data.mint || data.id || data.address || crypto.randomUUID(),
-      name: data.name || data.symbol || data.ticker || 'Token',
-      symbol: data.symbol || data.ticker || 'TKN',
-      icon: this.getTokenIcon(data.symbol),
-      image: data.image || data.imageUrl || data.logo || undefined,
-      time: this.formatTime(data.timestamp || data.ts || Date.now()),
-      marketCap: data.marketCap || data.mc || 0,
-      volume: data.volume || data.vol || 0,
-      fee: data.fee || 0,
-      transactions: data.transactions || data.txCount || data.trades || 0,
-      percentages: this.calculatePercentages(data.priceChange || data.pct || 0),
-      price: data.price || data.p || data.solPrice || 0,
+      id: (d.mint || d.id || d.address || crypto.randomUUID()) as string,
+      name: (d.name || d.symbol || d.ticker || 'Token') as string,
+      symbol: (d.symbol || d.ticker || 'TKN') as string,
+      icon: this.getTokenIcon((d.symbol as string) || ''),
+      image: (d.image || d.imageUrl || d.logo || undefined) as string | undefined,
+      time: this.formatTime((d.timestamp || d.ts || Date.now()) as number),
+      marketCap: (d.marketCap || d.mc || 0) as number,
+      volume: (d.volume || d.vol || 0) as number,
+      fee: (d.fee || 0) as number,
+      transactions: (d.transactions || d.txCount || d.trades || 0) as number,
+      percentages: this.calculatePercentages((d.priceChange || d.pct || 0) as number),
+      price: (d.price || d.p || d.solPrice || 0) as number,
       activity: {
-        Q: data.quality || 0,
-        views: data.views || 0,
-        holders: data.holders || 0,
-        trades: data.trades || data.txCount || 0
+        Q: (d.quality || 0) as number,
+        views: (d.views || 0) as number,
+        holders: (d.holders || 0) as number,
+        trades: (d.trades || d.txCount || 0) as number
       }
     };
 
@@ -185,7 +188,7 @@ export class PumpAPIService {
     this.wsService.emit('tokenUpdate', tokenData);
   }
 
-  private routeIncomingMessage(raw: any): void {
+  private routeIncomingMessage(raw: unknown): void {
     // PumpPortal emits direct JSON messages for subscriptions
     // We accept both string and object
     const payload = typeof raw === 'string' ? safeParse(raw) : raw;
@@ -200,7 +203,8 @@ export class PumpAPIService {
     }
 
     // If payload contains a nested data field
-    const data = payload.data || payload;
+    const payloadData = payload as Record<string, unknown>;
+    const data = (payloadData.data || payloadData) as Record<string, unknown>;
 
     // Migration detection
     if (this.isMigrationEvent(data)) {
@@ -289,7 +293,7 @@ export class PumpAPIService {
     this.wsService.subscribe('disconnected', callback);
   }
 
-  onError(callback: (err: any) => void): void {
+  onError(callback: (err: Error | unknown) => void): void {
     this.wsService.subscribe('error', callback);
   }
 
@@ -338,39 +342,42 @@ export class PumpAPIService {
     this.wsService.subscribe('migrationUpdate', callback);
   }
 
-  private isMigrationEvent(d: any): boolean {
+  private isMigrationEvent(d: unknown): boolean {
     if (!d) return false;
+    const data = d as Record<string, unknown>;
     return Boolean(
-      d.migration || d.migrated || d.event === 'migration' || d.type === 'migration' || d.isMigrated === true
+      data.migration || data.migrated || data.event === 'migration' || data.type === 'migration' || data.isMigrated === true
     );
   }
 
-  private isFinalStretchEvent(d: any): boolean {
+  private isFinalStretchEvent(d: unknown): boolean {
     if (!d) return false;
-    const pct = d.progressPct ?? d.progress ?? d.saleProgressPct ?? 0;
-    const stage = (d.stage || d.state || '').toString().toLowerCase();
-    return Boolean(d.finalStretch === true || stage.includes('final') || pct >= 90);
+    const data = d as Record<string, unknown>;
+    const pct = (data.progressPct ?? data.progress ?? data.saleProgressPct ?? 0) as number;
+    const stage = ((data.stage || data.state || '') as string).toLowerCase();
+    return Boolean(data.finalStretch === true || stage.includes('final') || pct >= 90);
   }
 
-  private toTokenData(data: any): TokenData {
+  private toTokenData(data: unknown): TokenData {
+    const d = data as Record<string, unknown>;
     return {
-      id: data.mint || data.id || data.address || crypto.randomUUID(),
-      name: data.name || data.symbol || data.ticker || 'Token',
-      symbol: data.symbol || data.ticker || 'TKN',
-      icon: this.getTokenIcon(data.symbol),
-      image: data.image || data.imageUrl || data.logo || undefined,
-      time: this.formatTime(data.timestamp || data.ts || Date.now()),
-      marketCap: data.marketCap || data.mc || 0,
-      volume: data.volume || data.vol || 0,
-      fee: data.fee || 0,
-      transactions: data.transactions || data.txCount || data.trades || 0,
-      percentages: this.calculatePercentages(data.priceChange || data.pct || 0),
-      price: data.price || data.p || data.solPrice || 0,
+      id: (d.mint || d.id || d.address || crypto.randomUUID()) as string,
+      name: (d.name || d.symbol || d.ticker || 'Token') as string,
+      symbol: (d.symbol || d.ticker || 'TKN') as string,
+      icon: this.getTokenIcon((d.symbol as string) || ''),
+      image: (d.image || d.imageUrl || d.logo || undefined) as string | undefined,
+      time: this.formatTime((d.timestamp || d.ts || Date.now()) as number),
+      marketCap: (d.marketCap || d.mc || 0) as number,
+      volume: (d.volume || d.vol || 0) as number,
+      fee: (d.fee || 0) as number,
+      transactions: (d.transactions || d.txCount || d.trades || 0) as number,
+      percentages: this.calculatePercentages((d.priceChange || d.pct || 0) as number),
+      price: (d.price || d.p || d.solPrice || 0) as number,
       activity: {
-        Q: data.quality || 0,
-        views: data.views || 0,
-        holders: data.holders || 0,
-        trades: data.trades || data.txCount || 0
+        Q: (d.quality || 0) as number,
+        views: (d.views || 0) as number,
+        holders: (d.holders || 0) as number,
+        trades: (d.trades || d.txCount || 0) as number
       }
     };
   }

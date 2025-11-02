@@ -17,8 +17,8 @@ export interface QuoteRequest {
 export interface QuoteResponse {
   expectedOut: string;
   priceImpactPct?: number;
-  route?: any;
-  tx?: any; // optional prebuilt tx if API provides it
+  route?: unknown;
+  tx?: unknown; // optional prebuilt tx if API provides it
 }
 
 export interface TradeRequest extends QuoteRequest {

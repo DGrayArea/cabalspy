@@ -13,10 +13,26 @@ export interface User {
   createdAt: Date;
 }
 
+interface GoogleAuthData {
+  id: string;
+  name: string;
+  email?: string;
+  picture?: string;
+}
+
+interface TelegramAuthData {
+  id: number;
+  first_name: string;
+  last_name?: string;
+  photo_url?: string;
+}
+
+type AuthData = GoogleAuthData | TelegramAuthData;
+
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (provider: 'google' | 'telegram', data: any) => Promise<void>;
+  login: (provider: 'google' | 'telegram', data: AuthData) => Promise<void>;
   logout: () => void;
   connectWallet: (address: string) => void;
 }
@@ -61,27 +77,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     checkSession();
   }, []);
 
-  const login = async (provider: 'google' | 'telegram', data: any) => {
+  const login = async (provider: 'google' | 'telegram', data: AuthData) => {
     try {
       setIsLoading(true);
       
       let userData: User;
       
       if (provider === 'google') {
+        const googleData = data as GoogleAuthData;
         userData = {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          googleId: data.id,
-          avatar: data.picture,
+          id: googleData.id,
+          name: googleData.name,
+          email: googleData.email,
+          googleId: googleData.id,
+          avatar: googleData.picture,
           createdAt: new Date()
         };
       } else {
+        const telegramData = data as TelegramAuthData;
         userData = {
-          id: data.id.toString(),
-          name: `${data.first_name} ${data.last_name || ''}`.trim(),
-          telegramId: data.id.toString(),
-          avatar: data.photo_url,
+          id: telegramData.id.toString(),
+          name: `${telegramData.first_name} ${telegramData.last_name || ''}`.trim(),
+          telegramId: telegramData.id.toString(),
+          avatar: telegramData.photo_url,
           createdAt: new Date()
         };
       }

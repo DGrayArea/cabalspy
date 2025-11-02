@@ -43,7 +43,10 @@ export const useWebSocket = () => {
     // Set up connection status listeners
     const handleConnected = () => setIsConnected(true);
     const handleDisconnected = () => setIsConnected(false);
-    const handleError = (err: any) => setError(err?.message || 'WebSocket error');
+    const handleError = (err: Error | unknown) => {
+      const message = err instanceof Error ? err.message : 'WebSocket error';
+      setError(message);
+    };
 
     pumpAPIService.onConnected(handleConnected);
     pumpAPIService.onDisconnected(handleDisconnected);
@@ -54,7 +57,7 @@ export const useWebSocket = () => {
     };
   }, [handleTokenUpdate]);
 
-  const sendMessage = useCallback((message: any) => {
+  const sendMessage = useCallback((message: Record<string, unknown>) => {
     // This would send a message through the WebSocket
     console.log('Sending message:', message);
   }, []);

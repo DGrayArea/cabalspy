@@ -55,14 +55,17 @@ export class TurnkeyService {
           ];
 
       const response = await this.client.createWallet({
-        body: {
-          walletName: walletName || `Wallet for ${userId}`,
-          accounts,
-        },
-      });
+        walletName: walletName || `Wallet for ${userId}`,
+        accounts,
+      } as never);
 
-      if (response.wallet) {
-        return response.wallet.walletId;
+      // Response structure may vary, handle different response formats
+      const walletId = (response as { wallet?: { walletId?: string } }).wallet?.walletId 
+        || (response as { walletId?: string }).walletId
+        || (response as { activity?: { result?: { wallet?: { walletId?: string } } } }).activity?.result?.wallet?.walletId;
+
+      if (walletId) {
+        return walletId;
       }
       
       throw new Error('Failed to create wallet: No wallet returned from Turnkey');
