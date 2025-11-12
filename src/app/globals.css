@@ -7,6 +7,21 @@
   --panel: #121214;          /* panel base */
   --panel-elev: #17181a;     /* elevated hover/inner */
   --muted: #9aa0a6;          /* muted ash */
+  
+  /* Primary color - easily changeable */
+  /* To change the primary color, update these values:
+   * Example for purple: --primary: #a855f7; --primary-dark: #9333ea; etc.
+   * Example for green: --primary: #10b981; --primary-dark: #059669; etc.
+   * Example for orange: --primary: #f97316; --primary-dark: #ea580c; etc.
+   */
+  --primary: #3b82f6;        /* blue-500 - main primary color */
+  --primary-dark: #2563eb;   /* blue-600 - darker shade for buttons */
+  --primary-darker: #1d4ed8;  /* blue-700 - darkest shade for hover */
+  --primary-light: #60a5fa;   /* blue-400 - lighter shade */
+  --primary-lighter: #93c5fd; /* blue-300 - lightest shade */
+  --primary-bg: rgba(59, 130, 246, 0.1);     /* blue-500/10 - subtle background */
+  --primary-border: rgba(59, 130, 246, 0.2); /* blue-500/20 - border color */
+  --primary-text: #60a5fa;    /* blue-400 - text color */
 }
 
 @theme inline {
@@ -28,6 +43,14 @@ body {
 .bg-panel-elev { background-color: var(--panel-elev); }
 .text-muted { color: var(--muted); }
 .border-panel { border-color: #222326; }
+
+/* Primary color utility classes */
+.bg-primary { background-color: var(--primary); }
+.bg-primary-dark { background-color: var(--primary-dark); }
+.bg-primary-darker { background-color: var(--primary-darker); }
+.text-primary { color: var(--primary-text); }
+.border-primary { border-color: var(--primary-border); }
+.bg-primary-subtle { background-color: var(--primary-bg); }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

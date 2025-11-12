@@ -63,6 +63,12 @@ export default function Home() {
             <div>
               <h1 className="text-4xl font-bold mb-2">Pulse</h1>
               <p className="text-gray-400">Real-time token tracking and trading</p>
+              <Link 
+                href="/pulse"
+                className="inline-block mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                View Table Layout →
+              </Link>
             </div>
             <div className="flex items-center gap-4">
               {tokensLoading && (

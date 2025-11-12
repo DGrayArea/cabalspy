@@ -1,0 +1,340 @@
+[X] 1. Set up Next.js Project and Structure
+  [X] 1.1. Initialize a new Next.js project
+      ✓ Next.js 15.5.6 with React 19.1.0
+      ✓ TypeScript configured
+      ✓ Tailwind CSS v4 setup
+  
+  [X] 1.2. Set up clean folder structure
+      ✓ src/app/ - Next.js app router pages and API routes
+      ✓ src/components/ - React components (TokenRow, TradingPanel, WalletManager, AuthButton, ErrorBoundary)
+      ✓ src/hooks/ - Custom hooks (useTokens, useWallet, useWebSocket)
+      ✓ src/services/ - Service classes (turnkey, websocket, pumpapi, axiom)
+      ✓ src/lib/ - Utilities (env, logger)
+      ✓ src/types/ - TypeScript type definitions
+      ✓ src/context/ - React context providers (AuthContext)
+
+
+[X] 2. Build a Basic Website Layout
+  [X] 2.1. Create the base layout of the website
+      ✓ Root layout with fonts (Geist Sans, Geist Mono)
+      ✓ ErrorBoundary wrapper
+      ✓ AuthProvider wrapper
+  
+  [X] 2.2. No header or footer (as requested)
+      ✓ Clean layout without header/footer
+  
+  [X] 2.3. Layout serves as main overlay for all content
+      ✓ Container-based layout with proper spacing
+      ✓ Responsive design with mobile support
+
+
+[ ] 3. Implement the Turnkey API/CLI
+  
+  [X] 3.1. Integrate Turnkey API for authentication and wallet functionality
+      ✓ TurnkeyService class created (src/services/turnkey.ts)
+      ✓ TurnkeyClient initialized with ApiKeyStamper
+      ✓ Environment variables configured (TURNKEY_API_PRIVATE_KEY, NEXT_PUBLIC_TURNKEY_ORG_ID)
+      ⚠️ Service structure exists but some methods need fixes
+  
+  [X] 3.2. Configure Turnkey service
+      ✓ Base URL: https://api.turnkey.com (configurable via env)
+      ✓ API key authentication setup
+      ✓ Organization ID configuration
+  
+  [X] 3.3. Integrate wallet creation for each user
+      ✓ createWallet() method implemented (supports Solana/Ethereum)
+      ✓ getWallet() method to fetch wallet details
+      ✓ getWalletAddresses() method to get wallet addresses
+      ✓ getWalletBalance() method to fetch balance from blockchain RPC
+      ✓ Used in WalletManager component
+      ⚠️ Works but needs testing with real Turnkey credentials
+  
+  [ ] 3.4. Integrate trading for users
+      ✓ TradingPanel component created (src/components/TradingPanel.tsx)
+      ✓ Buy/Sell UI with amount and slippage inputs
+      ✓ Uses pumpApiService for trade requests
+      ❌ Missing: Turnkey transaction signing integration
+      ❌ Missing: Transaction submission to blockchain
+      ❌ Missing: Error handling for failed trades
+  
+  [X] 3.5. Integrate profile & settings for user
+      ✓ Profile page at /profile (src/app/profile/page.tsx)
+      ✓ WalletManager component integrated
+      ✓ User information display
+      ✓ Settings toggles (notifications, auto-trading, dark mode)
+
+
+[ ] 4. User Connection (Telegram + Google)
+  
+  [ ] 4.1. Telegram authentication route
+      ✓ Route created: /api/auth/telegram (src/app/api/auth/telegram/route.ts)
+      ✓ Hash verification logic implemented
+      ✓ Auth date validation (24-hour expiry)
+      ❌ Missing: Telegram WebApp SDK integration
+      ❌ Missing: AuthButton shows alert instead of real Telegram login
+      ❌ Missing: Integration with Telegram WebApp.initData
+  
+  [X] 4.2. Google OAuth routes
+      ✓ GET /api/auth/google - Initiates OAuth flow
+      ✓ POST /api/auth/google - Handles OAuth callback
+      ✓ GET /api/auth/google/callback - Redirect handler
+      ✓ OAuth token exchange implemented
+      ✓ User info fetching from Google API
+      ✓ Redirect with user data (temporary - needs session token)
+  
+  [X] 4.3. AuthContext for managing user state
+      ✓ AuthContext created (src/context/AuthContext.tsx)
+      ✓ User state management
+      ✓ Login/logout functions
+      ✓ LocalStorage for session persistence
+      ⚠️ Uses localStorage (should use secure cookies in production)
+  
+  [X] 4.4. AuthButton component for login/logout
+      ✓ AuthButton component (src/components/AuthButton.tsx)
+      ✓ Google login button with OAuth flow
+      ✓ Telegram button (shows alert - needs WebApp SDK)
+      ✓ User profile display when logged in
+      ✓ Logout functionality
+  
+  [ ] 4.5. Auto-create Turnkey wallet on signup
+      ❌ Missing: Wallet creation in Telegram auth route (TODO at line 70)
+      ❌ Missing: Wallet creation in Google auth callback (TODO at line 63, 69)
+      ❌ Missing: User-wallet mapping storage
+      ❌ Missing: Session token generation
+
+
+[X] 5. Token Row Design (Similar to Axiom Pulse)
+  
+  [X] 5.1. Three vertical columns layout
+      ✓ New Pairs column
+      ✓ Final Stretch column
+      ✓ Migrated column
+      ✓ Responsive grid (1 col mobile, 2 cols tablet, 3 cols desktop)
+  
+  [X] 5.2. Clean, modern, responsive TokenRow component
+      ✓ TokenRow component (src/components/TokenRow.tsx)
+      ✓ Token image/icon display
+      ✓ Token name and time display
+      ✓ Activity icons (Link, Search, User, BarChart, Trending)
+      ✓ Hover effects and transitions
+      ✓ Mobile-responsive design
+  
+  [X] 5.3. Pagination
+      ✓ 15 tokens per page
+      ✓ Previous/Next buttons
+      ✓ Page counter display
+      ✓ Disabled state for first/last page
+  
+  [X] 5.4. Token metrics display
+      ✓ Market Cap (MC)
+      ✓ Volume (V)
+      ✓ Fee (F)
+      ✓ Transactions (TX)
+      ✓ Currency formatting (K, M)
+  
+  [X] 5.5. Percentage indicators and activity icons
+      ✓ 5-bar percentage indicator
+      ✓ Color coding (green/red/gray)
+      ✓ Activity metrics (Q, views, holders, trades)
+
+
+[ ] 6. Real-Time Token Data (WebSocket)
+  
+  [X] 6.1. WebSocket service setup
+      ✓ WebSocketService class (src/services/websocket.ts)
+      ✓ Connection handling with reconnection logic
+      ✓ Heartbeat mechanism (20s interval)
+      ✓ Event listener system
+      ✓ Max reconnection attempts (5)
+  
+  [X] 6.2. PumpAPIService class with connection handling
+      ✓ PumpAPIService wraps WebSocketService
+      ✓ Default URL: wss://pumpportal.fun/api/data
+      ✓ Token data storage (Map-based)
+      ✓ Separate maps for new tokens, final stretch, migrated
+  
+  [X] 6.3. Token update handlers and routing
+      ✓ handleTokenUpdate() - transforms incoming data to TokenData
+      ✓ routeIncomingMessage() - routes messages by type
+      ✓ Migration event detection
+      ✓ Final stretch event detection
+      ✓ Token update event emission
+  
+  [X] 6.4. useWebSocket hook created
+      ✓ useWebSocket hook (src/hooks/useWebSocket.ts)
+      ✓ Connection state management
+      ✓ Token state management
+      ✓ Error handling
+      ✓ Cleanup on unmount
+  
+  [ ] 6.5. WebSocket actually used in UI
+      ❌ Main page (src/app/page.tsx) uses useTokens hook (HTTP polling)
+      ❌ useTokens hook polls /api/tokens every 30 seconds
+      ❌ WebSocket service exists but not connected to main page
+      ❌ Need to replace useTokens with useWebSocket in page.tsx
+
+
+[ ] 7. Complete Real Trading Integration
+  
+  [ ] 7.1. Fix Turnkey signTransaction method
+      ⚠️ Current: signTransaction() has incorrect API structure
+      ⚠️ Issue: Uses wrong parameters (organizationId in body instead of path)
+      ⚠️ Issue: Missing proper activity creation structure
+      ❌ Need: Correct Turnkey API call structure
+      ❌ Need: Proper activity type handling
+  
+  [ ] 7.2. Fix Turnkey sendTransaction method
+      ⚠️ Current: sendTransaction() constructs transaction but doesn't submit
+      ⚠️ Issue: Only signs transaction, doesn't broadcast to blockchain
+      ❌ Need: Submit signed transaction to Solana/Ethereum network
+      ❌ Need: Transaction confirmation handling
+  
+  [ ] 7.3. Integrate Turnkey transaction signing in TradingPanel
+      ✓ TradingPanel calls pumpApiService.buyToken/sellToken
+      ❌ Missing: Get unsigned transaction from PumpAPI
+      ❌ Missing: Sign transaction with Turnkey
+      ❌ Missing: Submit signed transaction back to PumpAPI or blockchain
+      ❌ Missing: Transaction status tracking
+  
+  [ ] 7.4. Verify PumpAPI endpoints
+      ⚠️ Current: Uses /v1/quote, /v1/trade/buy, /v1/trade/sell
+      ❌ Need: Verify these endpoints exist and work correctly
+      ❌ Need: Check PumpAPI documentation for correct endpoints
+      ❌ Need: Handle API errors properly
+  
+  [ ] 7.5. Handle transaction submission to blockchain
+      ❌ Missing: Transaction broadcasting logic
+      ❌ Missing: RPC connection for Solana/Ethereum
+      ❌ Missing: Transaction confirmation waiting
+      ❌ Missing: Error handling for failed transactions
+  
+  [ ] 7.6. Test end-to-end trading flow
+      ❌ Need: Test wallet creation
+      ❌ Need: Test transaction signing
+      ❌ Need: Test transaction submission
+      ❌ Need: Test transaction confirmation
+      ❌ Need: Test error scenarios
+
+
+[ ] 8. Fetch Real Data from PumpSwap.io / Axiom
+  
+  [ ] 8.1. Replace Axiom API with direct PumpSwap.io data fetching
+      ⚠️ Current: Using Axiom API (https://axiom-fra.gateway.astralane.io)
+      ⚠️ Current: Falls back to demo data when API fails
+      ❌ Need: Research PumpSwap.io API endpoints
+      ❌ Need: Implement PumpSwap.io data fetching
+      ❌ Need: Replace AxiomService with PumpSwapService
+  
+  [ ] 8.2. Fix Axiom API integration
+      ⚠️ Current: Tries multiple endpoints (/gethealth, /tokens, /api/tokens, /v1/tokens)
+      ⚠️ Current: Falls back to generateDemoTokens() if all fail
+      ❌ Need: Verify correct Axiom API endpoint
+      ❌ Need: Fix API key authentication
+      ❌ Need: Handle API responses correctly
+      ❌ Need: Remove demo data fallback
+  
+  [ ] 8.3. Integrate PumpSwap.io API endpoints for token data
+      ❌ Need: Find PumpSwap.io API documentation
+      ❌ Need: Implement token list endpoint
+      ❌ Need: Implement token details endpoint
+      ❌ Need: Handle rate limiting
+      ❌ Need: Error handling
+  
+  [ ] 8.4. Connect WebSocket to PumpSwap.io real-time feed
+      ⚠️ Current: WebSocket connects to wss://pumpportal.fun/api/data
+      ❌ Need: Verify if this is PumpSwap.io or different service
+      ❌ Need: Connect to correct PumpSwap.io WebSocket endpoint
+      ❌ Need: Subscribe to token updates
+      ❌ Need: Handle WebSocket message format
+  
+  [ ] 8.5. Remove demo/fallback data generation
+      ⚠️ Current: generateDemoTokens() creates 50 fake tokens
+      ❌ Need: Remove demo data generation
+      ❌ Need: Show error state when API fails instead of demo data
+      ❌ Need: Add loading states
+
+
+[ ] 9. Complete Authentication Flow
+  
+  [ ] 9.1. Auto-create Turnkey wallet on user signup
+      ⚠️ Current: TODOs in auth routes (lines 70, 63, 69)
+      ❌ Need: Call turnkeyService.createWallet() in Telegram auth route
+      ❌ Need: Call turnkeyService.createWallet() in Google auth callback
+      ❌ Need: Handle wallet creation errors
+      ❌ Need: Store wallet ID with user data
+  
+  [ ] 9.2. Link Turnkey organization/user with Telegram/Google accounts
+      ❌ Need: Create user mapping system
+      ❌ Need: Store Telegram ID → Turnkey user mapping
+      ❌ Need: Store Google ID → Turnkey user mapping
+      ❌ Need: Handle account linking (same user, multiple providers)
+  
+  [ ] 9.3. Store user-wallet mapping in database or session
+      ⚠️ Current: Uses localStorage (not secure)
+      ❌ Need: Database schema for users and wallets
+      ❌ Need: Session management (JWT tokens or secure cookies)
+      ❌ Need: User-wallet relationship storage
+      ❌ Need: Migration from localStorage to database
+  
+  [ ] 9.4. Integrate Telegram WebApp SDK
+      ⚠️ Current: AuthButton shows alert with instructions
+      ❌ Need: Load Telegram WebApp SDK script
+      ❌ Need: Initialize Telegram.WebApp.ready()
+      ❌ Need: Get user data from Telegram.WebApp.initData
+      ❌ Need: Send initData to /api/auth/telegram
+      ❌ Need: Handle Telegram WebApp events
+
+
+[ ] 10. Real-Time WebSocket Integration
+  
+  [ ] 10.1. Connect WebSocket service to UI
+      ⚠️ Current: WebSocket service exists but not used
+      ⚠️ Current: Main page uses HTTP polling (useTokens hook)
+      ❌ Need: Replace useTokens with useWebSocket in page.tsx
+      ❌ Need: Connect WebSocket on component mount
+      ❌ Need: Handle WebSocket connection errors
+  
+  [ ] 10.2. Update token rows in real-time from WebSocket messages
+      ❌ Need: Subscribe to tokenUpdate events
+      ❌ Need: Update token state when WebSocket receives data
+      ❌ Need: Merge WebSocket updates with existing tokens
+      ❌ Need: Handle token removal/archival
+  
+  [ ] 10.3. Replace polling with WebSocket updates in useTokens hook
+      ⚠️ Current: useTokens polls /api/tokens every 30 seconds
+      ❌ Need: Modify useTokens to use WebSocket instead
+      ❌ Need: Keep HTTP fallback for initial load
+      ❌ Need: Remove polling interval
+      ❌ Need: Handle WebSocket reconnection
+
+
+[ ] 11. Testing & Validation
+  
+  [ ] 11.1. Test wallet creation with real Turnkey credentials
+      ❌ Need: Set up Turnkey account
+      ❌ Need: Configure environment variables
+      ❌ Need: Test createWallet() with real API
+      ❌ Need: Verify wallet creation success
+      ❌ Need: Test error handling
+  
+  [ ] 11.2. Test buy/sell transactions on testnet or mainnet
+      ❌ Need: Set up testnet environment
+      ❌ Need: Fund test wallet
+      ❌ Need: Test buy transaction flow
+      ❌ Need: Test sell transaction flow
+      ❌ Need: Verify transaction on blockchain explorer
+      ❌ Need: Test error scenarios (insufficient funds, etc.)
+  
+  [ ] 11.3. Verify WebSocket connection and data flow
+      ❌ Need: Test WebSocket connection
+      ❌ Need: Verify message reception
+      ❌ Need: Test reconnection logic
+      ❌ Need: Verify token updates in UI
+      ❌ Need: Test WebSocket error handling
+  
+  [ ] 11.4. Test authentication flows
+      ❌ Need: Test Google OAuth flow end-to-end
+      ❌ Need: Test Telegram auth (once WebApp SDK integrated)
+      ❌ Need: Test session persistence
+      ❌ Need: Test logout functionality
+      ❌ Need: Test wallet auto-creation on signup

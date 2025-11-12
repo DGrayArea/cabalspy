@@ -6,25 +6,31 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { validateEnv } from "@/lib/env";
 
 // Validate environment on server startup
-validateEnv();
+// Note: validateEnv() handles build-time gracefully (warns instead of throwing)
+if (typeof window === "undefined") {
+  validateEnv();
+}
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: 'swap', // Optimize font loading
+  display: "swap", // Optimize font loading
   preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-  display: 'swap', // Optimize font loading
+  display: "swap", // Optimize font loading
   preload: false, // Only preload primary font
 });
 
 export const metadata: Metadata = {
   title: "Cabalspy - Real-time Token Pulse",
   description: "Real-time token tracking and trading platform",
+  icons: {
+    icon: "/logo.jpg",
+  },
 };
 
 export default function RootLayout({
@@ -38,9 +44,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ErrorBoundary>
-          <AuthProvider>
-            {children}
-          </AuthProvider>
+          <AuthProvider>{children}</AuthProvider>
         </ErrorBoundary>
       </body>
     </html>
