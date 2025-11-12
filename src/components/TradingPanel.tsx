@@ -1,11 +1,16 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useWallet } from '@/hooks/useWallet';
-import { useAuth } from '@/context/AuthContext';
-import { TokenData } from '@/types/token';
-import { TrendingUp, TrendingDown, DollarSign, AlertCircle } from 'lucide-react';
-import { pumpApiService } from '@/services/pumpapi';
+import { useState } from "react";
+import { useWallet } from "@/hooks/useWallet";
+import { useAuth } from "@/context/AuthContext";
+import { TokenData } from "@/types/token";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  AlertCircle,
+} from "lucide-react";
+import { pumpApiService } from "@/services/pumpapi";
 
 interface TradingPanelProps {
   token: TokenData;
@@ -15,19 +20,19 @@ interface TradingPanelProps {
 export default function TradingPanel({ token, onClose }: TradingPanelProps) {
   const { user } = useAuth();
   const { wallet, sendTransaction, isLoading } = useWallet();
-  const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
-  const [amount, setAmount] = useState('');
-  const [slippage, setSlippage] = useState('0.5');
+  const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
+  const [amount, setAmount] = useState("");
+  const [slippage, setSlippage] = useState("0.5");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleTrade = async () => {
     if (!user || !wallet) {
-      alert('Please connect your wallet first');
+      alert("Please connect your wallet first");
       return;
     }
 
     if (!amount || parseFloat(amount) <= 0) {
-      alert('Please enter a valid amount');
+      alert("Please enter a valid amount");
       return;
     }
 
@@ -48,19 +53,21 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
       // const quote = await pumpApiService.getQuote(requestBase);
 
       const trade =
-        tradeType === 'buy'
+        tradeType === "buy"
           ? await pumpApiService.buyToken(requestBase)
           : await pumpApiService.sellToken(requestBase);
 
-      if (trade.status === 'failed') {
-        throw new Error(trade.message || 'Trade failed');
+      if (trade.status === "failed") {
+        throw new Error(trade.message || "Trade failed");
       }
 
-      alert(`${tradeType === 'buy' ? 'Buy' : 'Sell'} submitted${trade.txId ? `: ${trade.txId}` : ''}`);
+      alert(
+        `${tradeType === "buy" ? "Buy" : "Sell"} submitted${trade.txId ? `: ${trade.txId}` : ""}`
+      );
       onClose();
     } catch (error) {
-      console.error('Trading error:', error);
-      alert('Failed to place trade. Please try again.');
+      console.error("Trading error:", error);
+      alert("Failed to place trade. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -68,15 +75,19 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
 
   if (!user) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-800 rounded-lg p-6 w-96">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md sm:w-96">
           <div className="text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-yellow-400 mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
-            <p className="text-gray-400 mb-4">Please sign in to start trading</p>
+            <AlertCircle className="w-12 h-12 mx-auto text-yellow-400 mb-4 cursor-pointer" />
+            <h3 className="text-lg font-semibold mb-2">
+              Authentication Required
+            </h3>
+            <p className="text-gray-400 mb-4">
+              Please sign in to start trading
+            </p>
             <button
               onClick={onClose}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
             >
               Close
             </button>
@@ -88,15 +99,17 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
 
   if (!wallet) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-gray-800 rounded-lg p-6 w-96">
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md sm:w-96">
           <div className="text-center">
-            <AlertCircle className="w-12 h-12 mx-auto text-yellow-400 mb-4" />
+            <AlertCircle className="w-12 h-12 mx-auto text-yellow-400 mb-4 cursor-pointer" />
             <h3 className="text-lg font-semibold mb-2">Wallet Required</h3>
-            <p className="text-gray-400 mb-4">Please connect your wallet to start trading</p>
+            <p className="text-gray-400 mb-4">
+              Please connect your wallet to start trading
+            </p>
             <button
               onClick={onClose}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors cursor-pointer"
             >
               Close
             </button>
@@ -107,13 +120,13 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-96 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md sm:w-96 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Trade {token.symbol}</h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white"
+            className="text-gray-400 hover:text-white cursor-pointer"
           >
             ×
           </button>
@@ -130,7 +143,9 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
               </div>
               <div className="ml-auto text-right">
                 <div className="font-semibold">${token.price}</div>
-                <div className="text-sm text-gray-400">MC: ${token.marketCap.toLocaleString()}</div>
+                <div className="text-sm text-gray-400">
+                  MC: ${token.marketCap.toLocaleString()}
+                </div>
               </div>
             </div>
           </div>
@@ -138,25 +153,25 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
           {/* Trade Type Toggle */}
           <div className="flex bg-gray-700 rounded-lg p-1">
             <button
-              onClick={() => setTradeType('buy')}
-              className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 ${
-                tradeType === 'buy'
-                  ? 'bg-green-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+              onClick={() => setTradeType("buy")}
+              className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                tradeType === "buy"
+                  ? "bg-green-600 text-white"
+                  : "text-gray-400 hover:text-white"
               }`}
             >
-              <TrendingUp className="w-4 h-4" />
+              <TrendingUp className="w-4 h-4 cursor-pointer" />
               Buy
             </button>
             <button
-              onClick={() => setTradeType('sell')}
-              className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 ${
-                tradeType === 'sell'
-                  ? 'bg-red-600 text-white'
-                  : 'text-gray-400 hover:text-white'
+              onClick={() => setTradeType("sell")}
+              className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                tradeType === "sell"
+                  ? "bg-red-600 text-white"
+                  : "text-gray-400 hover:text-white"
               }`}
             >
-              <TrendingDown className="w-4 h-4" />
+              <TrendingDown className="w-4 h-4 cursor-pointer" />
               Sell
             </button>
           </div>
@@ -164,7 +179,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
           {/* Amount Input */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Amount ({tradeType === 'buy' ? 'SOL' : token.symbol})
+              Amount ({tradeType === "buy" ? "SOL" : token.symbol})
             </label>
             <div className="relative">
               <input
@@ -175,7 +190,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
                 className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <div className="absolute right-3 top-2 text-gray-400 text-sm">
-                {tradeType === 'buy' ? 'SOL' : token.symbol}
+                {tradeType === "buy" ? "SOL" : token.symbol}
               </div>
             </div>
           </div>
@@ -186,14 +201,14 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
               Slippage Tolerance (%)
             </label>
             <div className="flex gap-2">
-              {['0.1', '0.5', '1.0'].map((value) => (
+              {["0.1", "0.5", "1.0"].map((value) => (
                 <button
                   key={value}
                   onClick={() => setSlippage(value)}
-                  className={`px-3 py-1 rounded text-sm transition-colors ${
+                  className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
                     slippage === value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-700 text-gray-400 hover:text-white'
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-700 text-gray-400 hover:text-white"
                   }`}
                 >
                   {value}%
@@ -216,18 +231,27 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>Type:</span>
-                  <span className={tradeType === 'buy' ? 'text-green-400' : 'text-red-400'}>
-                    {tradeType === 'buy' ? 'Buy' : 'Sell'}
+                  <span
+                    className={
+                      tradeType === "buy" ? "text-green-400" : "text-red-400"
+                    }
+                  >
+                    {tradeType === "buy" ? "Buy" : "Sell"}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Amount:</span>
-                  <span>{amount} {tradeType === 'buy' ? 'SOL' : token.symbol}</span>
+                  <span>
+                    {amount} {tradeType === "buy" ? "SOL" : token.symbol}
+                  </span>
                 </div>
-                {tradeType === 'buy' && (
+                {tradeType === "buy" && (
                   <div className="flex justify-between">
                     <span>You&apos;ll receive:</span>
-                    <span>{(parseFloat(amount) / token.price).toFixed(6)} {token.symbol}</span>
+                    <span>
+                      {(parseFloat(amount) / token.price).toFixed(6)}{" "}
+                      {token.symbol}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -247,11 +271,11 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
             <button
               onClick={handleTrade}
               disabled={isSubmitting || !amount || parseFloat(amount) <= 0}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${
-                tradeType === 'buy'
-                  ? 'bg-green-600 hover:bg-green-700 disabled:bg-gray-600'
-                  : 'bg-red-600 hover:bg-red-700 disabled:bg-gray-600'
-              } text-white`}
+              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                tradeType === "buy"
+                  ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-600"
+                  : "bg-red-600 hover:bg-red-700 disabled:bg-gray-600"
+              } text-white disabled:cursor-not-allowed`}
             >
               {isSubmitting ? (
                 <>
@@ -260,14 +284,14 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
                 </>
               ) : (
                 <>
-                  <DollarSign className="w-4 h-4" />
-                  {tradeType === 'buy' ? 'Buy' : 'Sell'} {token.symbol}
+                  <DollarSign className="w-4 h-4 cursor-pointer" />
+                  {tradeType === "buy" ? "Buy" : "Sell"} {token.symbol}
                 </>
               )}
             </button>
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -277,9 +301,3 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
     </div>
   );
 }
-
-
-
-
-
-

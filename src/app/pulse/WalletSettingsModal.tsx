@@ -35,25 +35,25 @@ export function WalletSettingsModal({
         onClick={onClose}
       />
       {/* Modal */}
-      <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-panel border border-gray-800/50 rounded-lg shadow-xl z-50 overflow-hidden">
+      <div className="absolute top-full mt-2 w-80 max-w-[calc(100vw-2rem)] sm:max-w-sm bg-panel border border-gray-800/50 rounded-lg shadow-xl z-50 overflow-hidden right-0 sm:right-0 left-auto sm:left-auto">
         <div className="p-4 max-h-[90vh] overflow-y-auto">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Trading Wallets</h3>
             <button
               onClick={onClose}
-              className="p-1 hover:bg-panel-elev rounded transition-colors flex-shrink-0"
+              className="p-1 hover:bg-panel-elev rounded transition-colors flex-shrink-0 cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 cursor-pointer" />
             </button>
           </div>
 
           {/* Chain Tabs */}
           <div className="flex gap-2 mb-4 border-b border-gray-800/50 pb-2">
-            <button className="px-3 py-1 text-sm font-medium text-primary border-b-2 border-primary">
+            <button className="px-3 py-1 text-sm font-medium text-primary border-b-2 border-primary cursor-pointer">
               Solana
             </button>
-            <button className="px-3 py-1 text-sm font-medium text-gray-400 hover:text-white transition-colors">
+            <button className="px-3 py-1 text-sm font-medium text-gray-400 hover:text-white transition-colors cursor-pointer">
               Perps
             </button>
           </div>
@@ -75,7 +75,7 @@ export function WalletSettingsModal({
                 <button
                   key={value}
                   onClick={() => setSlippage(value)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 cursor-pointer ${
                     slippage === value
                       ? "bg-primary-dark text-white"
                       : "bg-panel-elev text-gray-400 hover:text-white"
@@ -114,13 +114,13 @@ export function WalletSettingsModal({
                 {solWallet && (
                   <button
                     onClick={() => copyToClipboard(solWallet, "sol")}
-                    className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0"
+                    className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0 cursor-pointer"
                     title="Copy address"
                   >
                     {copied === "sol" ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
                     ) : (
-                      <Copy className="w-4 h-4 text-gray-400" />
+                      <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
                     )}
                   </button>
                 )}
@@ -146,13 +146,13 @@ export function WalletSettingsModal({
                 {bscWallet && (
                   <button
                     onClick={() => copyToClipboard(bscWallet, "bsc")}
-                    className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0"
+                    className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0 cursor-pointer"
                     title="Copy address"
                   >
                     {copied === "bsc" ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
                     ) : (
-                      <Copy className="w-4 h-4 text-gray-400" />
+                      <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
                     )}
                   </button>
                 )}
@@ -166,16 +166,16 @@ export function WalletSettingsModal({
 
           {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-2 mt-4">
-            <button className="px-4 py-2 bg-primary-dark hover:bg-primary-darker text-white text-sm font-medium rounded-lg transition-colors">
+            <button className="px-4 py-2 bg-primary-dark hover:bg-primary-darker text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
               Deposit
             </button>
-            <button className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors">
+            <button className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
               Withdraw
             </button>
-            <button className="px-4 py-2 bg-primary-dark hover:bg-primary-darker text-white text-sm font-medium rounded-lg transition-colors">
+            <button className="px-4 py-2 bg-primary-dark hover:bg-primary-darker text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
               Create
             </button>
-            <button className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors">
+            <button className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
               Import
             </button>
           </div>

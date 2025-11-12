@@ -6,6 +6,8 @@ import Image from "next/image";
 import { useTokens } from "@/hooks/useTokens";
 import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
+import { CompactTokenCard } from "@/components/CompactTokenCard";
+import { TokenListCard } from "@/components/TokenListCard";
 import {
   Search,
   Filter,
@@ -50,6 +52,12 @@ import {
   Menu,
   ChevronDown as ChevronDownIcon,
   X,
+  Volume2,
+  Calendar,
+  Bell,
+  HelpCircle as HelpCircleIcon,
+  BookOpen,
+  Twitter,
 } from "lucide-react";
 
 // Lazy load TradingPanel
@@ -57,6 +65,11 @@ const TradingPanel = lazy(() => import("@/components/TradingPanel"));
 const WalletSettingsModal = lazy(() =>
   import("./WalletSettingsModal").then((mod) => ({
     default: mod.WalletSettingsModal,
+  }))
+);
+const DisplaySettingsModal = lazy(() =>
+  import("./DisplaySettingsModal").then((mod) => ({
+    default: mod.DisplaySettingsModal,
   }))
 );
 
@@ -68,12 +81,41 @@ export default function PulsePage() {
   >("marketCap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filter, setFilter] = useState<"all" | "trending" | "new" | "migrated">(
-    "all"
-  );
+  const [filter, setFilter] = useState<"new" | "final" | "migrated">("new");
   const [chain, setChain] = useState<"all" | "sol" | "bsc">("all");
   const [showWalletSettings, setShowWalletSettings] = useState(false);
+  const [showDisplaySettings, setShowDisplaySettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
+  const [displaySettings, setDisplaySettings] = useState({
+    metricsSize: "small" as "small" | "large",
+    quickBuySize: "small" as "small" | "large" | "mega" | "ultra",
+    grey: false,
+    showSearchBar: false,
+    noDecimals: false,
+    showHiddenTokens: true,
+    unhideOnMigrated: true,
+    circleImages: false,
+    progressBar: true,
+    spacedTables: false,
+  });
+
+  // Helper function to parse time string to seconds
+  const parseTimeToSeconds = (timeStr: string): number => {
+    const match = timeStr.match(/(\d+)([smh])/);
+    if (!match) return 0;
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    switch (unit) {
+      case "s":
+        return value;
+      case "m":
+        return value * 60;
+      case "h":
+        return value * 3600;
+      default:
+        return 0;
+    }
+  };
 
   // Filter and sort tokens
   const filteredAndSortedTokens = useMemo(() => {
@@ -101,22 +143,8 @@ export default function PulsePage() {
     }
     // "all" shows all tokens
 
-    // Category filter
-    if (filter === "new") {
-      // Filter tokens created less than 5 minutes ago
-      filtered = filtered.filter((token) => {
-        const timeSeconds = parseTimeToSeconds(token.time);
-        return timeSeconds < 300; // Less than 5 minutes
-      });
-    } else if (filter === "migrated") {
-      // Filter tokens with high market cap (likely migrated to DEX)
-      filtered = filtered.filter((token) => token.marketCap > 50000);
-    } else if (filter === "trending") {
-      // Filter tokens with high volume (trending)
-      filtered = filtered.filter(
-        (token) => token.volume > 1000 || token.transactions > 100
-      );
-    }
+    // Category filter - will be handled by column display
+    // We'll categorize tokens for the three columns
 
     // Sort
     const sorted = [...filtered].sort((a, b) => {
@@ -148,7 +176,28 @@ export default function PulsePage() {
     });
 
     return sorted;
-  }, [tokens, searchQuery, sortBy, sortOrder, filter]);
+  }, [tokens, searchQuery, sortBy, sortOrder, chain]);
+
+  // Categorize tokens for three columns
+  const categorizedTokens = useMemo(() => {
+    const newPairs = filteredAndSortedTokens.filter((token) => {
+      const timeSeconds = parseTimeToSeconds(token.time);
+      return timeSeconds < 300; // Less than 5 minutes
+    });
+
+    const finalStretch = filteredAndSortedTokens.filter((token) => {
+      const timeSeconds = parseTimeToSeconds(token.time);
+      return (
+        timeSeconds >= 300 && timeSeconds < 3600 && token.marketCap > 10000
+      ); // 5 min to 1 hour, decent market cap
+    });
+
+    const migrated = filteredAndSortedTokens.filter((token) => {
+      return token.marketCap > 50000; // High market cap (likely migrated)
+    });
+
+    return { newPairs, finalStretch, migrated };
+  }, [filteredAndSortedTokens]);
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000000) {
@@ -170,33 +219,16 @@ export default function PulsePage() {
     return value.toString();
   };
 
-  const parseTimeToSeconds = (timeStr: string): number => {
-    const match = timeStr.match(/(\d+)([smh])/);
-    if (!match) return 0;
-    const value = parseInt(match[1]);
-    const unit = match[2];
-    switch (unit) {
-      case "s":
-        return value;
-      case "m":
-        return value * 60;
-      case "h":
-        return value * 3600;
-      default:
-        return 0;
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-app text-white">
+    <div className="min-h-screen bg-app text-white pb-16">
       {/* Header */}
       <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4 sm:gap-6">
               <Link
                 href="/"
-                className="flex items-center gap-2 text-xl font-bold"
+                className="flex items-center gap-2 text-xl font-bold cursor-pointer"
               >
                 <Image
                   src="/logo.jpg"
@@ -213,16 +245,19 @@ export default function PulsePage() {
               <nav className="hidden md:flex items-center gap-4">
                 <Link
                   href="/"
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                  className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   Home
                 </Link>
-                <Link href="/pulse" className="text-sm text-white font-medium">
+                <Link
+                  href="/pulse"
+                  className="text-sm text-white font-medium cursor-pointer"
+                >
                   Pulse
                 </Link>
                 <Link
                   href="/profile"
-                  className="text-sm text-gray-400 hover:text-white transition-colors"
+                  className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   Profile
                 </Link>
@@ -231,19 +266,19 @@ export default function PulsePage() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => refresh()}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
                 title="Refresh"
               >
                 <RefreshCw
-                  className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
                 />
               </button>
               <Link
                 href="/profile"
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
                 title="Profile"
               >
-                <User className="w-4 h-4" />
+                <User className="w-4 h-4 cursor-pointer" />
               </Link>
               <AuthButton />
             </div>
@@ -255,22 +290,74 @@ export default function PulsePage() {
       <div className="container mx-auto px-4 py-6">
         {/* Page Header */}
         <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              {/* <h1 className="text-3xl font-bold mb-2">Pulse</h1> */}
-              <p className="text-gray-400">
-                Real-time token tracking and analytics
-              </p>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
+            <div className="flex items-center gap-3">
+              {/* <h1 className="text-2xl sm:text-3xl font-bold">All</h1> */}
+              {/* Chain Tabs */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setChain("all")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
+                    chain === "all"
+                      ? "bg-primary-dark text-white"
+                      : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
+                  }`}
+                >
+                  <span>ALL</span>
+                </button>
+                <button
+                  onClick={() => setChain("sol")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
+                    chain === "sol"
+                      ? "bg-primary-dark text-white"
+                      : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    S
+                  </div>
+                  <span>SOL</span>
+                </button>
+                <button
+                  onClick={() => setChain("bsc")}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
+                    chain === "bsc"
+                      ? "bg-primary-dark text-white"
+                      : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
+                  }`}
+                >
+                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    B
+                  </div>
+                  <span>BSC</span>
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => refresh()}
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                title="Refresh"
+              >
+                <RefreshCw
+                  className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
+                />
+              </button>
+              <Link
+                href="/profile"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                title="Profile"
+              >
+                <User className="w-4 h-4 cursor-pointer" />
+              </Link>
               {/* Wallet Settings */}
               <div className="relative">
                 <button
                   onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1"
+                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
                   title="Wallet Settings"
                 >
-                  <Menu className="w-4 h-4" />
+                  <Wallet className="w-4 h-4 cursor-pointer" />
                 </button>
                 {showWalletSettings && (
                   <Suspense fallback={null}>
@@ -282,137 +369,228 @@ export default function PulsePage() {
                   </Suspense>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* Filter Tabs with Counts */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            {[
+              {
+                id: "new",
+                label: "New Pairs",
+                count: categorizedTokens.newPairs.length,
+              },
+              {
+                id: "final",
+                label: "Final Stretch",
+                count: categorizedTokens.finalStretch.length,
+              },
+              {
+                id: "migrated",
+                label: "Migrated",
+                count: categorizedTokens.migrated.length,
+              },
+            ].map(({ id, label, count }) => (
               <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-lg transition-colors ${
-                  viewMode === "grid"
-                    ? "bg-primary-dark text-white"
-                    : "bg-panel text-gray-400 hover:bg-panel-elev"
+                key={id}
+                onClick={() => setFilter(id as typeof filter)}
+                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 border-2 ${
+                  filter === id
+                    ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
+                    : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
                 }`}
               >
-                <Grid3x3 className="w-4 h-4" />
+                {label}
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                    filter === id
+                      ? "bg-white/20 text-white"
+                      : "bg-gray-700/50 text-gray-400"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            ))}
+            {/* Icons and Display dropdown */}
+            <div className="flex items-center gap-2 ml-auto">
+              {/* Icons */}
+              <button
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+              </button>
+              <button
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                title="Sound"
+              >
+                <Volume2 className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+              </button>
+              <button
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                title="Calendar"
+              >
+                <Calendar className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+              </button>
+              {/* Display dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowDisplaySettings(!showDisplaySettings)}
+                  className={`px-4 py-2.5 bg-panel border-2 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center gap-2 ${
+                    showDisplaySettings
+                      ? "border-primary text-white bg-panel-elev"
+                      : "border-gray-700/50 text-gray-300 hover:bg-panel-elev hover:border-gray-600"
+                  }`}
+                >
+                  Display
+                  <ChevronDownIcon
+                    className={`w-3 h-3 transition-transform ${
+                      showDisplaySettings ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+                {showDisplaySettings && (
+                  <Suspense fallback={null}>
+                    <DisplaySettingsModal
+                      onClose={() => setShowDisplaySettings(false)}
+                      displaySettings={displaySettings}
+                      setDisplaySettings={setDisplaySettings}
+                    />
+                  </Suspense>
+                )}
+              </div>
+              {/* View toggle */}
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
+                  viewMode === "grid"
+                    ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
+                    : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
+                }`}
+                title="Grid View"
+              >
+                <Grid3x3 className="w-4 h-4 cursor-pointer" />
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
                   viewMode === "list"
-                    ? "bg-primary-dark text-white"
-                    : "bg-panel text-gray-400 hover:bg-panel-elev"
+                    ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
+                    : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
                 }`}
+                title="List View"
               >
-                <List className="w-4 h-4" />
+                <List className="w-4 h-4 cursor-pointer" />
               </button>
             </div>
-          </div>
-
-          {/* Chain Filter Tabs */}
-          <div className="mb-4 flex gap-2">
-            {[
-              { id: "all", label: "ALL", icon: null },
-              { id: "sol", label: "SOL", icon: "sol" },
-              { id: "bsc", label: "BSC", icon: "bsc" },
-            ].map(({ id, label, icon }) => (
-              <button
-                key={id}
-                onClick={() => setChain(id as typeof chain)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                  chain === id
-                    ? "bg-primary-dark text-white"
-                    : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
-                }`}
-              >
-                {icon === "sol" && (
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold">
-                    S
-                  </div>
-                )}
-                {icon === "bsc" && (
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-xs font-bold">
-                    B
-                  </div>
-                )}
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Filters and Search */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by token name, symbol, or address..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-panel border border-gray-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-[var(--primary-border)] text-white placeholder-gray-500 transition-colors"
-              />
-            </div>
-
-            {/* Category Filters */}
-            <div className="flex gap-2">
-              {[
-                { id: "all", label: "All", icon: Grid3x3 },
-                { id: "trending", label: "Trending", icon: Flame },
-                { id: "new", label: "New", icon: Sparkles },
-                { id: "migrated", label: "Migrated", icon: ArrowUpRight },
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => setFilter(id as typeof filter)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                    filter === id
-                      ? "bg-primary-dark text-white"
-                      : "bg-panel text-gray-400 hover:bg-panel-elev"
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Stats */}
-          <div className="flex flex-wrap items-center gap-4 mt-4 text-sm">
-            <div className="text-gray-400">
-              Showing{" "}
-              <span className="text-white font-medium">
-                {filteredAndSortedTokens.length}
-              </span>{" "}
-              tokens
-            </div>
-            {isLoading && (
-              <div className="flex items-center gap-2 text-blue-400">
-                <div className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                Loading...
-              </div>
-            )}
-            {error && <div className="text-red-400">Error: {error}</div>}
           </div>
         </div>
 
-        {/* Grid View */}
+        {/* Conditional Layout based on viewMode */}
         {viewMode === "grid" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 justify-items-center sm:justify-items-stretch">
-            {filteredAndSortedTokens.length === 0 ? (
-              <div className="col-span-full text-center py-12 text-gray-400">
-                {isLoading ? "Loading tokens..." : "No tokens found"}
+          /* Three Column Layout */
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* New Pairs Column */}
+            <div className="space-y-2">
+              <div className="sticky top-20 bg-panel border-2 border-gray-700/50 rounded-xl p-4 mb-3 z-10 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-green-500/20 rounded-lg">
+                      <Sparkles className="w-4 h-4 text-green-400 cursor-pointer" />
+                    </div>
+                    <h2 className="font-bold text-sm text-white">New Pairs</h2>
+                  </div>
+                  <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
+                    {categorizedTokens.newPairs.length}
+                  </span>
+                </div>
               </div>
-            ) : (
-              filteredAndSortedTokens.map((token) => (
-                <TokenCard
-                  key={token.id}
-                  token={token}
-                  formatCurrency={formatCurrency}
-                  formatNumber={formatNumber}
-                />
-              ))
-            )}
+              {categorizedTokens.newPairs.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  No new pairs
+                </div>
+              ) : (
+                categorizedTokens.newPairs.map((token) => (
+                  <CompactTokenCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                    displaySettings={displaySettings}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Final Stretch Column */}
+            <div className="space-y-2">
+              <div className="sticky top-20 bg-panel border-2 border-gray-700/50 rounded-xl p-4 mb-3 z-10 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-orange-500/20 rounded-lg">
+                      <TrendingUp className="w-4 h-4 text-orange-400 cursor-pointer" />
+                    </div>
+                    <h2 className="font-bold text-sm text-white">
+                      Final Stretch
+                    </h2>
+                  </div>
+                  <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
+                    {categorizedTokens.finalStretch.length}
+                  </span>
+                </div>
+              </div>
+              {categorizedTokens.finalStretch.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  No tokens in final stretch
+                </div>
+              ) : (
+                categorizedTokens.finalStretch.map((token) => (
+                  <CompactTokenCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                    displaySettings={displaySettings}
+                  />
+                ))
+              )}
+            </div>
+
+            {/* Migrated Column */}
+            <div className="space-y-2">
+              <div className="sticky top-20 bg-panel border-2 border-gray-700/50 rounded-xl p-4 mb-3 z-10 shadow-lg">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                      <ArrowUpRight className="w-4 h-4 text-blue-400 cursor-pointer" />
+                    </div>
+                    <h2 className="font-bold text-sm text-white">Migrated</h2>
+                  </div>
+                  <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
+                    {categorizedTokens.migrated.length}
+                  </span>
+                </div>
+              </div>
+              {categorizedTokens.migrated.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  No migrated tokens
+                </div>
+              ) : (
+                categorizedTokens.migrated.map((token) => (
+                  <CompactTokenCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                    displaySettings={displaySettings}
+                  />
+                ))
+              )}
+            </div>
           </div>
         ) : (
-          /* List View */
+          /* List View - Single Column */
           <div className="space-y-2">
             {filteredAndSortedTokens.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
@@ -431,6 +609,91 @@ export default function PulsePage() {
           </div>
         )}
       </div>
+
+      {/* Footer Bar */}
+      <footer className="fixed bottom-0 left-0 right-0 bg-panel border-t border-gray-800/50 px-4 py-2.5 z-40">
+        <div className="container mx-auto flex items-center justify-between flex-wrap gap-3">
+          {/* Left Section */}
+          <div className="flex items-center gap-3">
+            <button className="px-3 py-1 text-xs bg-panel-elev hover:bg-panel rounded border border-gray-800/50 text-gray-400 hover:text-white transition-colors cursor-pointer font-medium">
+              PRESET 1
+            </button>
+            <span className="text-xs text-gray-400 font-medium">10</span>
+          </div>
+
+          {/* Center Navigation */}
+          <div className="flex items-center gap-4 text-xs">
+            <Link
+              href="/profile"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Wallet className="w-3.5 h-3.5 text-blue-400" />
+              <span>Wallet</span>
+            </Link>
+            <a
+              href="#"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Twitter className="w-3.5 h-3.5 text-blue-400" />
+              <span>Twitter</span>
+            </a>
+            <Link
+              href="/"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Search className="w-3.5 h-3.5 text-purple-400" />
+              <span>Discover</span>
+            </Link>
+            <Link
+              href="/pulse"
+              className="text-white font-medium cursor-pointer flex items-center gap-1.5"
+            >
+              <Activity className="w-3.5 h-3.5 text-green-400" />
+              <span>Pulse</span>
+            </Link>
+            <Link
+              href="/profile"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-yellow-400" />
+              <span>PnL</span>
+            </Link>
+          </div>
+
+          {/* Right Section - Stats */}
+          <div className="flex items-center gap-4 text-xs flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-green-400 font-medium">$104.7K</span>
+              <span className="text-blue-400 font-medium">$3550</span>
+              <span className="text-purple-400 font-medium">$159.1</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-yellow-400 font-medium">$65.4K</span>
+              <span className="text-gray-400">0.0225</span>
+              <span className="text-gray-400">0.003</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+              <span className="text-green-400 font-medium">
+                Connection is stable
+              </span>
+            </div>
+            <select className="px-2 py-1 bg-panel-elev border border-gray-800/50 rounded text-xs text-gray-300 focus:outline-none cursor-pointer hover:bg-panel transition-colors">
+              <option>GLOBAL</option>
+            </select>
+            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
+              <X className="w-3 h-3" />
+            </button>
+            <a
+              href="#"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+              <span>Docs</span>
+            </a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
@@ -524,7 +787,7 @@ function TokenCard({
                   </span>
                 )}
                 <div className="relative group/info">
-                  <Info className="w-3 h-3 text-[var(--primary-text)]/70 hover:text-[var(--primary-text)] cursor-help transition-colors" />
+                  <Info className="w-3 h-3 text-[var(--primary-text)]/70 hover:text-[var(--primary-text)] cursor-pointer transition-colors" />
                   <div className="absolute left-0 bottom-full mb-2 hidden group-hover/info:block z-50">
                     <div className="bg-panel-elev border border-gray-800/50 rounded-lg p-2 text-xs w-48 shadow-xl">
                       <div className="font-medium mb-1 text-[var(--primary-text)]">
@@ -568,7 +831,7 @@ function TokenCard({
           {isTrending && (
             <div className="flex-shrink-0 relative group/trending">
               <div className="relative">
-                <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
+                <Flame className="w-4 h-4 text-orange-400 animate-pulse cursor-pointer" />
                 <div className="absolute inset-0 bg-orange-400/20 blur-sm rounded-full"></div>
               </div>
               <div className="absolute right-0 bottom-full mb-2 hidden group-hover/trending:block z-50">
@@ -841,137 +1104,11 @@ function TokenCard({
         {/* Action Button */}
         <button
           onClick={() => setShowTradingPanel(true)}
-          className="w-full py-2 bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary-darker)] hover:from-[var(--primary-darker)] hover:to-[var(--primary-darker)] text-white text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 group-hover:shadow-lg group-hover:shadow-[var(--primary)]/20"
+          className="w-full py-2 bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary-darker)] hover:from-[var(--primary-darker)] hover:to-[var(--primary-darker)] text-white text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 group-hover:shadow-lg group-hover:shadow-[var(--primary)]/20 cursor-pointer"
         >
-          <Zap className="w-3 h-3" />
+          <Zap className="w-3 h-3 cursor-pointer" />
           Buy {token.symbol}
         </button>
-      </div>
-
-      {showTradingPanel && (
-        <Suspense
-          fallback={
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-              </div>
-            </div>
-          }
-        >
-          <TradingPanel
-            token={token}
-            onClose={() => setShowTradingPanel(false)}
-          />
-        </Suspense>
-      )}
-    </>
-  );
-}
-
-function TokenListCard({
-  token,
-  formatCurrency,
-  formatNumber,
-}: {
-  token: TokenData;
-  formatCurrency: (value: number) => string;
-  formatNumber: (value: number) => string;
-}) {
-  const [imageError, setImageError] = useState(false);
-  const [showTradingPanel, setShowTradingPanel] = useState(false);
-
-  const percentageChange =
-    token.percentages.reduce((sum, p) => sum + p, 0) /
-      token.percentages.length || 0;
-  const isPositive = percentageChange >= 0;
-  const buyCount = Math.floor(token.transactions * 0.55);
-  const sellCount = token.transactions - buyCount;
-
-  return (
-    <>
-      <div className="bg-panel border border-gray-800/50 rounded-lg p-3 hover:border-[var(--primary-border)] transition-all w-full">
-        <div className="flex items-center gap-3">
-          {/* Token Icon */}
-          <div className="flex-shrink-0 relative group/token">
-            {token.image && !imageError ? (
-              <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-gray-800/50">
-                <Image
-                  src={token.image}
-                  alt={token.symbol}
-                  width={48}
-                  height={48}
-                  className="w-full h-full object-cover"
-                  onError={() => setImageError(true)}
-                  unoptimized
-                />
-              </div>
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-xl shadow-lg shadow-[var(--primary)]/10">
-                {token.icon}
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 rounded-full">
-              <ExternalLink className="w-3 h-3 text-[var(--primary-text)]" />
-            </div>
-          </div>
-
-          {/* Token Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-sm">{token.name}</h3>
-              <span className="text-xs text-gray-400">{token.symbol}</span>
-              <span className="text-xs text-[var(--primary-text)]">
-                @{token.symbol.toLowerCase()}
-              </span>
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {token.time}
-              </span>
-            </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span className="flex items-center gap-1">
-                <DollarSign className="w-3 h-3" />
-                MC: {formatCurrency(token.marketCap)}
-              </span>
-              <span className="flex items-center gap-1">
-                <BarChart3 className="w-3 h-3" />
-                V: {formatCurrency(token.volume)}
-              </span>
-              <span className="flex items-center gap-1">
-                <Activity className="w-3 h-3" />
-                TX: {formatNumber(token.transactions)}
-              </span>
-              <span className="text-green-400">{buyCount}</span>
-              <span className="text-gray-600">/</span>
-              <span className="text-red-400">{sellCount}</span>
-            </div>
-          </div>
-
-          {/* Percentage Change */}
-          <div
-            className={`text-right ${isPositive ? "text-green-400" : "text-red-400"}`}
-          >
-            <div className="flex items-center gap-1 justify-end">
-              {isPositive ? (
-                <ArrowUpRight className="w-4 h-4" />
-              ) : (
-                <ArrowDownRight className="w-4 h-4" />
-              )}
-              <span className="font-bold">
-                {Math.abs(percentageChange).toFixed(2)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Buy Button */}
-          <button
-            onClick={() => setShowTradingPanel(true)}
-            className="px-4 py-2 bg-primary-dark hover:bg-primary-darker text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Zap className="w-4 h-4" />
-            Buy
-          </button>
-        </div>
       </div>
 
       {showTradingPanel && (

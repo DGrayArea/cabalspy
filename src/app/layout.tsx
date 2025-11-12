@@ -4,6 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { validateEnv } from "@/lib/env";
+import { TurnKeyProvider } from "@/providers/TurnkeyProvider";
+import "@turnkey/react-wallet-kit/styles.css";
 
 // Validate environment on server startup
 // Note: validateEnv() handles build-time gracefully (warns instead of throwing)
@@ -43,9 +45,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <ErrorBoundary>
-          <AuthProvider>{children}</AuthProvider>
-        </ErrorBoundary>
+        <TurnKeyProvider>
+          <ErrorBoundary>
+            <AuthProvider>{children}</AuthProvider>
+          </ErrorBoundary>
+        </TurnKeyProvider>
       </body>
     </html>
   );

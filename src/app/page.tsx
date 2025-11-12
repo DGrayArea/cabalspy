@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TokenRow from '@/components/TokenRow';
@@ -10,9 +10,32 @@ import { useTokens } from '@/hooks/useTokens';
 import { useAuth } from '@/context/AuthContext';
 import { User } from 'lucide-react';
 
-export default function Home() {
+// Component that uses useSearchParams - must be wrapped in Suspense
+function AuthCallbackHandler() {
   const searchParams = useSearchParams();
   const { login } = useAuth();
+
+  // Handle OAuth callback
+  useEffect(() => {
+    const authSuccess = searchParams.get('authSuccess');
+    const userData = searchParams.get('user');
+
+    if (authSuccess && userData) {
+      try {
+        const user = JSON.parse(decodeURIComponent(userData));
+        login('google', user);
+        // Clean URL
+        window.history.replaceState({}, '', '/');
+      } catch (error) {
+        console.error('Failed to parse user data:', error);
+      }
+    }
+  }, [searchParams, login]);
+
+  return null;
+}
+
+function HomeContent() {
   const { tokens: allTokens, isLoading: tokensLoading, error: tokensError } = useTokens();
   
   // Memoize token splits to avoid recalculation on every render
@@ -36,23 +59,6 @@ export default function Home() {
     totalFinalPages: Math.max(1, Math.ceil(finalStretch.length / pageSize)),
     totalMigratedPages: Math.max(1, Math.ceil(migrated.length / pageSize)),
   }), [newPairs, finalStretch, migrated, pageNew, pageFinal, pageMigrated, pageSize]);
-
-  // Handle OAuth callback
-  useEffect(() => {
-    const authSuccess = searchParams.get('authSuccess');
-    const userData = searchParams.get('user');
-
-    if (authSuccess && userData) {
-      try {
-        const user = JSON.parse(decodeURIComponent(userData));
-        login('google', user);
-        // Clean URL
-        window.history.replaceState({}, '', '/');
-      } catch (error) {
-        console.error('Failed to parse user data:', error);
-      }
-    }
-  }, [searchParams, login]);
 
   return (
     <div className="min-h-screen bg-app text-white">
@@ -181,5 +187,16 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <>
+      <Suspense fallback={null}>
+        <AuthCallbackHandler />
+      </Suspense>
+      <HomeContent />
+    </>
   );
 }
