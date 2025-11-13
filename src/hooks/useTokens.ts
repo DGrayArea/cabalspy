@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { TokenData } from '@/types/token';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { TokenData } from "@/types/token";
 
 // Request deduplication - prevent multiple simultaneous requests
 let pendingRequest: Promise<TokenData[]> | null = null;
@@ -39,26 +39,26 @@ export const useTokens = () => {
       setError(null);
 
       // Create request promise for deduplication
-      pendingRequest = fetch('/api/tokens', {
+      pendingRequest = fetch("/api/tokens", {
         next: { revalidate: 15 }, // Use Next.js fetch cache
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch tokens');
-          }
-          const data = await response.json();
-          return data.tokens || [];
-        });
+      }).then(async (response) => {
+        if (!response.ok) {
+          throw new Error("Failed to fetch tokens");
+        }
+        const data = await response.json();
+        return data.tokens || [];
+      });
 
       const data = await pendingRequest;
       setTokens(data);
-      
+
       // Update cache
       requestCache = { data, timestamp: Date.now() };
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch tokens';
+      const errorMessage =
+        err instanceof Error ? err.message : "Failed to fetch tokens";
       setError(errorMessage);
-      console.error('Error fetching tokens:', err);
+      console.error("Error fetching tokens:", err);
     } finally {
       setIsLoading(false);
       pendingRequest = null;
@@ -66,11 +66,11 @@ export const useTokens = () => {
   }, []);
 
   useEffect(() => {
-    fetchTokens();
-    
+    // fetchTokens();
+
     // Refresh tokens every 30 seconds (respecting cache)
     intervalRef.current = setInterval(fetchTokens, 30000);
-    
+
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -85,4 +85,3 @@ export const useTokens = () => {
     refresh: fetchTokens,
   };
 };
-

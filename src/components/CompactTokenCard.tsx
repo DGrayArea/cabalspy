@@ -32,6 +32,7 @@ interface CompactTokenCardProps {
     circleImages?: boolean;
     progressBar?: boolean;
   };
+  connectedGrid?: boolean; // For desktop connected grid layout
 }
 
 export function CompactTokenCard({
@@ -39,6 +40,7 @@ export function CompactTokenCard({
   formatCurrency,
   formatNumber,
   displaySettings,
+  connectedGrid = false,
 }: CompactTokenCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showTradingPanel, setShowTradingPanel] = useState(false);
@@ -57,7 +59,11 @@ export function CompactTokenCard({
   return (
     <>
       <div
-        className={`bg-panel border-2 ${displaySettings?.spacedTables ? "border-gray-700/50 mb-3" : "border-gray-800/50 mb-2"} rounded-xl p-3 hover:border-[var(--primary-border)] transition-all group cursor-pointer shadow-sm hover:shadow-md`}
+        className={`bg-panel ${
+          connectedGrid
+            ? "border-b border-r border-gray-700/50 rounded-none p-3"
+            : `border-2 ${displaySettings?.spacedTables ? "border-gray-700/50 mb-3" : "border-gray-800/50 mb-2"} rounded-xl p-3`
+        } hover:border-[var(--primary-border)] transition-all group cursor-pointer ${connectedGrid ? "" : "shadow-sm hover:shadow-md"}`}
       >
         <div className="flex items-start gap-2.5">
           {/* Left: Token Icon */}

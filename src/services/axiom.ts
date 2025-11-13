@@ -1,8 +1,9 @@
-import { TokenData } from '@/types/token';
-import { logger } from '@/lib/logger';
+import { TokenData } from "@/types/token";
+import { logger } from "@/lib/logger";
 
-const AXIOM_API_KEY = 'AxiomozyNSTbBlP88VY35BvSdDVS3du1be8Q1VMmconPgpWFVWnpmfnpUrhRj97F';
-const AXIOM_BASE_URL = 'https://axiom-fra.gateway.astralane.io';
+const AXIOM_API_KEY =
+  "AxiomozyNSTbBlP88VY35BvSdDVS3du1be8Q1VMmconPgpWFVWnpmfnpUrhRj97F";
+const AXIOM_BASE_URL = "https://axiom-fra.gateway.astralane.io";
 
 export interface AxiomTokenResponse {
   mint?: string;
@@ -33,23 +34,32 @@ export class AxiomService {
   private async fetchWithAuth<T>(endpoint: string): Promise<T> {
     try {
       const response = await fetch(`${AXIOM_BASE_URL}${endpoint}`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'api-key': AXIOM_API_KEY,
-          'Content-Type': 'application/json',
+          "api-key": AXIOM_API_KEY,
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        throw new Error(`Axiom API error: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Axiom API error: ${response.status} ${response.statusText}`
+        );
       }
 
       return await response.json();
     } catch (error) {
-      logger.error('Axiom API request failed', error, { endpoint });
+      // Log concisely - Axiom API errors are often expected (wrong endpoints, etc.)
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      // Only log if it's not a JSON parse error (common with wrong endpoints)
+      if (!errorMsg.includes("JSON") && !errorMsg.includes("Unexpected end")) {
+        logger.error(`Axiom API request failed: ${errorMsg}`, undefined, {
+          endpoint,
+        });
+      }
       throw error;
     }
-    }
+  }
 
   /**
    * Fetch demo tokens from Axiom API
@@ -59,22 +69,22 @@ export class AxiomService {
     try {
       // Try common endpoints - adjust based on actual API structure
       const endpoints = [
-        '/gethealth', // Health check endpoint you provided
-        '/tokens',
-        '/api/tokens',
-        '/v1/tokens',
+        "/gethealth", // Health check endpoint you provided
+        "/tokens",
+        "/api/tokens",
+        "/v1/tokens",
       ];
 
       let tokens: AxiomTokenResponse[] = [];
 
       // Try health check first to verify API access
-      await this.fetchWithAuth('/gethealth?api-key=' + AXIOM_API_KEY);
+      await this.fetchWithAuth("/gethealth?api-key=" + AXIOM_API_KEY);
 
       // Try to fetch tokens - adjust endpoint as needed
       for (const endpoint of endpoints.slice(1)) {
         try {
           const data = await this.fetchWithAuth<unknown>(endpoint);
-          
+
           // Handle different response formats
           const dataObj = data as Record<string, unknown>;
           if (Array.isArray(data)) {
@@ -95,15 +105,23 @@ export class AxiomService {
 
       // If no tokens found, generate demo data
       if (tokens.length === 0) {
-        logger.warn('No tokens from API, generating demo data');
+        logger.warn("No tokens from API, generating demo data");
         tokens = this.generateDemoTokens();
       }
 
-      return tokens.map(token => this.transformToTokenData(token));
+      return tokens.map((token) => this.transformToTokenData(token));
     } catch (error) {
-      logger.error('Failed to fetch tokens from Axiom', error);
+      // Log concisely - this is expected if API endpoints don't exist
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      if (!errorMsg.includes("JSON") && !errorMsg.includes("Unexpected end")) {
+        logger.warn(
+          `Axiom API unavailable, using demo tokens: ${errorMsg.substring(0, 100)}`
+        );
+      }
       // Return demo tokens as fallback
-      return this.generateDemoTokens().map(token => this.transformToTokenData(token));
+      return this.generateDemoTokens().map((token) =>
+        this.transformToTokenData(token)
+      );
     }
   }
 
@@ -114,8 +132,8 @@ export class AxiomService {
 
     return {
       id: data.mint || crypto.randomUUID(),
-      name: data.name || data.symbol || 'Token',
-      symbol: data.symbol || 'TKN',
+      name: data.name || data.symbol || "Token",
+      symbol: data.symbol || "TKN",
       icon: this.getTokenIcon(data.symbol),
       image: data.image || data.imageUrl || data.logo,
       time: this.formatTime(timeDiff),
@@ -136,17 +154,17 @@ export class AxiomService {
 
   private getTokenIcon(symbol?: string): string {
     const iconMap: { [key: string]: string } = {
-      'MOG': '🐕',
-      'TIGER': '🐅',
-      'GAME': '🎮',
-      'CAT': '🐱',
-      'DOGE': '🐕',
-      'PEPE': '🐸',
-      'SHIB': '🐕',
-      'BONK': '🐕',
+      MOG: "🐕",
+      TIGER: "🐅",
+      GAME: "🎮",
+      CAT: "🐱",
+      DOGE: "🐕",
+      PEPE: "🐸",
+      SHIB: "🐕",
+      BONK: "🐕",
     };
-    
-    return iconMap[symbol?.toUpperCase() || ''] || '🪙';
+
+    return iconMap[symbol?.toUpperCase() || ""] || "🪙";
   }
 
   private formatTime(diff: number): string {
@@ -162,7 +180,7 @@ export class AxiomService {
   private calculatePercentages(priceChange: number): number[] {
     const percentage = Math.round(priceChange * 100);
     const bars: number[] = [];
-    
+
     for (let i = 0; i < 5; i++) {
       if (percentage > i * 20) {
         bars.push(Math.min(percentage, (i + 1) * 20));
@@ -170,17 +188,17 @@ export class AxiomService {
         bars.push(0);
       }
     }
-    
+
     return bars;
   }
 
   private generateDemoTokens(): AxiomTokenResponse[] {
     const demoTokens = [
       {
-        mint: '1',
-        name: 'MOG MOG',
-        symbol: 'MOG',
-        imageUrl: 'https://via.placeholder.com/64',
+        mint: "1",
+        name: "MOG MOG",
+        symbol: "MOG",
+        imageUrl: "https://via.placeholder.com/64",
         price: 4.2,
         marketCap: 6050,
         volume: 279,
@@ -191,10 +209,10 @@ export class AxiomService {
         quality: 1,
       },
       {
-        mint: '2',
-        name: 'TIGER Playful Little Tiger',
-        symbol: 'TIGER',
-        imageUrl: 'https://via.placeholder.com/64',
+        mint: "2",
+        name: "TIGER Playful Little Tiger",
+        symbol: "TIGER",
+        imageUrl: "https://via.placeholder.com/64",
         price: 2.1,
         marketCap: 5500,
         volume: 635,
@@ -205,10 +223,10 @@ export class AxiomService {
         quality: 2,
       },
       {
-        mint: '3',
-        name: 'BONK Coin',
-        symbol: 'BONK',
-        imageUrl: 'https://via.placeholder.com/64',
+        mint: "3",
+        name: "BONK Coin",
+        symbol: "BONK",
+        imageUrl: "https://via.placeholder.com/64",
         price: 0.001,
         marketCap: 1000000,
         volume: 50000,
@@ -243,4 +261,3 @@ export class AxiomService {
 }
 
 export const axiomService = new AxiomService();
-

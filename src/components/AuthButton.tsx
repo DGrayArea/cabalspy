@@ -1,17 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { User, LogOut, Wallet } from "lucide-react";
-import { useTurnkey } from "@turnkey/react-wallet-kit";
+import { LogOut, Loader2 } from "lucide-react";
+import { useTurnkey, AuthState, ClientState } from "@turnkey/react-wallet-kit";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
 export default function AuthButton() {
-  const { user, logout, connectWallet, login } = useAuth();
+  const {
+    user,
+    turnkeyUser,
+    turnkeySession,
+    logout,
+    connectWallet,
+    login,
+    setTurnkeyUser,
+    setTurnkeySession,
+    isLoading: authLoading,
+  } = useAuth();
 
-  const { handleLogin } = useTurnkey();
-
-  const [showWalletModal, setShowWalletModal] = useState(false);
-  const [walletAddress, setWalletAddress] = useState("");
+  const {
+    handleLogin,
+    loginWithOauth,
+    fetchUser,
+    getSession,
+    authState,
+    clientState,
+  } = useTurnkey();
 
   const handleGoogleLogin = async () => {
     try {
@@ -35,116 +57,262 @@ export default function AuthButton() {
 
   const handleTelegramLogin = async () => {
     try {
-      // Telegram Login Widget integration
-      // This requires the Telegram Web App SDK
-      // For now, show instructions
-      alert(
-        "Telegram login requires Telegram Web App integration.\n\n" +
-          "1. Initialize Telegram Web App SDK:\n" +
-          "   window.Telegram.WebApp.ready()\n\n" +
-          "2. Get user data from:\n" +
-          "   window.Telegram.WebApp.initData\n\n" +
-          "3. Send to /api/auth/telegram to verify"
-      );
+      // Initiate Telegram bot authentication flow
+      // This will generate a token and redirect to the Telegram bot
+      const response = await fetch("/api/auth/telegram/init");
+
+      if (!response.ok) {
+        throw new Error("Failed to initiate Telegram authentication");
+      }
+
+      const { botLink } = await response.json();
+
+      // Open Telegram bot in a new tab
+      // The bot will then send them back to the callback URL with auth data
+      window.open(botLink, "_blank", "noopener,noreferrer");
     } catch (error) {
       console.error("Telegram login error:", error);
+      alert(
+        "Failed to initiate Telegram login. Please make sure:\n\n" +
+          "1. Your Telegram bot is set up\n" +
+          "2. TELEGRAM_BOT_TOKEN is configured in your environment\n" +
+          "3. TELEGRAM_BOT_USERNAME is set (optional, defaults to 'your_bot_username')"
+      );
     }
   };
 
-  const handleWalletConnect = () => {
-    if (walletAddress.trim()) {
-      connectWallet(walletAddress.trim());
-      setShowWalletModal(false);
-      setWalletAddress("");
-    }
-  };
+  // useEffect must be called before any early returns (Rules of Hooks)
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        // Check if client is initialized and user is authenticated
+        // authState values: Unauthenticated, Authenticating, Authenticated
+        // clientState values: NotInitialized, Initializing, Initialized
+        if (!fetchUser || !getSession) {
+          console.log("fetchUser or getSession not available yet");
+          return;
+        }
 
-  if (user) {
+        // Only fetch if client is ready and user is authenticated
+        // ClientState values: "loading", "ready", "error"
+        // AuthState values: "unauthenticated", "authenticated"
+        // Using string comparison since runtime values are strings
+        const isReady = String(clientState) === "ready";
+        const isAuthenticated = String(authState) === "authenticated";
+
+        if (isReady && isAuthenticated) {
+          const userData = await fetchUser();
+          const sessionData = await getSession();
+          console.log("user", userData);
+          console.log("session", sessionData);
+
+          // Store Turnkey user and session globally
+          if (userData) {
+            setTurnkeyUser(userData);
+          }
+          if (sessionData) {
+            setTurnkeySession(sessionData);
+          }
+        } else {
+          console.log("Turnkey not ready:", {
+            authState,
+            clientState,
+            isReady,
+            isAuthenticated,
+            authStateEnum: AuthState.Authenticated,
+            clientStateEnum: ClientState.Ready,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+    loadUserData();
+  }, [
+    fetchUser,
+    getSession,
+    authState,
+    clientState,
+    setTurnkeyUser,
+    setTurnkeySession,
+  ]);
+
+  // Check if user is authenticated (either via custom auth or Turnkey)
+  const isAuthenticated = user || turnkeyUser;
+
+  // Use Turnkey user if available, otherwise use custom user
+  const displayUser = isAuthenticated
+    ? turnkeyUser
+      ? {
+          id: turnkeyUser.userId,
+          name: turnkeyUser.userName,
+          email: turnkeyUser.userEmail || turnkeyUser.userName,
+          avatar: undefined,
+          createdAt: turnkeyUser.createdAt
+            ? new Date(parseInt(turnkeyUser.createdAt.seconds) * 1000)
+            : new Date(),
+        }
+      : user!
+    : null;
+
+  // Show loading state while checking authentication
+  const isCheckingAuth =
+    authLoading ||
+    String(clientState) === "loading" ||
+    clientState === undefined;
+
+  if (isCheckingAuth) {
     return (
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          {user.avatar && (
-            <img
-              src={user.avatar}
-              alt={user.name}
-              className="w-8 h-8 rounded-full"
-            />
-          )}
-          <div>
-            <div className="text-sm font-medium">{user.name}</div>
-            {user.walletAddress && (
-              <div className="text-xs text-gray-400">
-                {user.walletAddress.slice(0, 6)}...
-                {user.walletAddress.slice(-4)}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {!user.walletAddress && (
-            <button
-              onClick={() => setShowWalletModal(true)}
-              className="flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors"
-            >
-              <Wallet className="w-4 h-4" />
-              Connect Wallet
-            </button>
-          )}
-
-          <button
-            onClick={logout}
-            className="flex items-center gap-1 px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
-        </div>
-
-        {/* Wallet Modal */}
-        {showWalletModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-gray-800 rounded-lg p-6 w-96">
-              <h3 className="text-lg font-semibold mb-4">Connect Wallet</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Wallet Address
-                  </label>
-                  <input
-                    type="text"
-                    value={walletAddress}
-                    onChange={(e) => setWalletAddress(e.target.value)}
-                    placeholder="Enter your wallet address"
-                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleWalletConnect}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors"
-                  >
-                    Connect
-                  </button>
-                  <button
-                    onClick={() => setShowWalletModal(false)}
-                    className="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-2 rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="flex items-center justify-center w-10 h-10 rounded-full bg-panel border border-gray-700/50">
+        <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
       </div>
+    );
+  }
+
+  if (isAuthenticated && displayUser) {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all cursor-pointer shadow-lg hover:shadow-xl overflow-hidden"
+            title={displayUser.name}
+          >
+            {displayUser.avatar ? (
+              <img
+                src={displayUser.avatar}
+                alt={displayUser.name}
+                className="w-full h-full rounded-full object-cover"
+              />
+            ) : (
+              <span className="text-white text-sm font-bold">
+                {displayUser.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="end"
+          side="bottom"
+          className="w-80 p-0 bg-gray-800 border-gray-700"
+        >
+          <Card className="border-0 bg-transparent">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-xl text-white">User Profile</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* User Info */}
+              <div className="flex items-center gap-4">
+                {displayUser.avatar ? (
+                  <img
+                    src={displayUser.avatar}
+                    alt={displayUser.name}
+                    className="w-16 h-16 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
+                    {displayUser.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <div className="text-lg font-semibold text-white">
+                    {displayUser.name}
+                  </div>
+                  {displayUser.email && (
+                    <div className="text-sm text-gray-400">
+                      {displayUser.email}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Turnkey Status */}
+              {turnkeySession && (
+                <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                  <span className="text-sm text-green-400 font-medium">
+                    Turnkey Authenticated
+                  </span>
+                </div>
+              )}
+
+              <Separator className="bg-gray-700" />
+
+              {/* User Details */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">User ID:</span>
+                  <span className="text-gray-300 font-mono text-xs">
+                    {displayUser.id.slice(0, 8)}...
+                  </span>
+                </div>
+                {turnkeySession && (
+                  <>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-400">Organization:</span>
+                      <span className="text-gray-300 font-mono text-xs">
+                        {turnkeySession.organizationId?.slice(0, 8)}...
+                      </span>
+                    </div>
+                    {turnkeySession.expiry && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-400">Session Expires:</span>
+                        <span className="text-gray-300 text-xs">
+                          {new Date(
+                            turnkeySession.expiry * 1000
+                          ).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <Separator className="bg-gray-700" />
+
+              {/* Logout Button */}
+              <Button
+                onClick={() => {
+                  logout();
+                  if (turnkeyUser) {
+                    setTurnkeyUser(null);
+                    setTurnkeySession(null);
+                  }
+                }}
+                variant="destructive"
+                className="w-full"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </CardContent>
+          </Card>
+        </PopoverContent>
+      </Popover>
     );
   }
 
   return (
     <div className="flex items-center gap-2">
       <button
-        onClick={handleGoogleLogin}
+        onClick={async () => {
+          try {
+            // Note: loginWithOauth requires an OIDC token and public key from a completed OAuth flow
+            // This is typically used after OAuth callback, not to initiate OAuth
+            // For initiating OAuth, use handleLogin() instead (see T-Key Login button below)
+
+            // If you have an OIDC token and public key from a previous OAuth flow, use them here:
+            // const oidcToken = "your-oidc-token-from-google-oauth";
+            // const publicKey = "your-public-key-from-turnkey";
+
+            // For now, we'll use handleLogin() which is the recommended approach
+            // when OAuth is configured in TurnkeyProvider
+            await handleLogin();
+          } catch (error) {
+            console.error("OAuth login failed:", error);
+            // Fallback to custom Google login
+            handleGoogleLogin();
+          }
+        }}
         className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">

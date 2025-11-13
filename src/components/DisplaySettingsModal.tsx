@@ -138,7 +138,9 @@ export function DisplaySettingsModal({
                       <input
                         type="checkbox"
                         checked={displaySettings.grey}
-                        onChange={(e) => updateSetting("grey", e.target.checked)}
+                        onChange={(e) =>
+                          updateSetting("grey", e.target.checked)
+                        }
                         className="sr-only"
                       />
                       <div
@@ -460,3 +462,6 @@ export function DisplaySettingsModal({
     </>
   );
 }
+
+// Also export as default for easier lazy loading
+export default DisplaySettingsModal;

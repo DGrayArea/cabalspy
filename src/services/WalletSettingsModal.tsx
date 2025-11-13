@@ -1,12 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import {
-  BarChart3,
-  X,
-  Copy,
-  CheckCircle2,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { BarChart3, X, Copy, CheckCircle2, Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useUserWallets } from "@/hooks/useUserWallets";
 
 export function WalletSettingsModal({
   slippage,
@@ -17,9 +14,59 @@ export function WalletSettingsModal({
   setSlippage: (value: string) => void;
   onClose: () => void;
 }) {
+  const { user } = useAuth();
+  const { wallets, isLoading: walletsLoading } = useUserWallets();
   const [solWallet, setSolWallet] = useState<string>("");
   const [bscWallet, setBscWallet] = useState<string>("");
+  const [solBalance, setSolBalance] = useState<string>("0");
+  const [bscBalance, setBscBalance] = useState<string>("0");
+  const [isLoadingAddresses, setIsLoadingAddresses] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+
+  // Fetch wallet addresses and balances when user is authenticated
+  useEffect(() => {
+    if (!user || !user.wallets) {
+      setSolWallet("");
+      setBscWallet("");
+      setSolBalance("0");
+      setBscBalance("0");
+      return;
+    }
+
+    const fetchWalletDetails = async () => {
+      setIsLoadingAddresses(true);
+      try {
+        const response = await fetch("/api/turnkey/wallet-addresses", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            walletIds: {
+              solana: user.wallets?.solana?.walletId,
+              bsc: user.wallets?.bsc?.walletId,
+            },
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setSolWallet(data.wallets.solana.address || "");
+          setBscWallet(data.wallets.bsc.address || "");
+          setSolBalance(data.wallets.solana.balance || "0");
+          setBscBalance(data.wallets.bsc.balance || "0");
+        } else {
+          console.error("Failed to fetch wallet addresses");
+        }
+      } catch (error) {
+        console.error("Error fetching wallet details:", error);
+      } finally {
+        setIsLoadingAddresses(false);
+      }
+    };
+
+    fetchWalletDetails();
+  }, [user]);
 
   const copyToClipboard = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
@@ -30,10 +77,7 @@ export function WalletSettingsModal({
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
       {/* Modal */}
       <div className="absolute top-full mt-2 w-80 max-w-[calc(100vw-2rem)] sm:max-w-sm bg-panel border border-gray-800/50 rounded-lg shadow-xl z-50 overflow-hidden right-0 sm:right-0 left-auto sm:left-auto">
         <div className="p-4 max-h-[90vh] overflow-y-auto">
@@ -61,7 +105,18 @@ export function WalletSettingsModal({
           {/* Total Value */}
           <div className="mb-4">
             <div className="text-xs text-gray-400 mb-1">Total value</div>
-            <div className="text-xl font-bold">$0</div>
+            {!user ? (
+              <div className="text-sm text-gray-500">
+                Sign in to view balance
+              </div>
+            ) : isLoadingAddresses ? (
+              <div className="flex items-center gap-2 text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Loading...</span>
+              </div>
+            ) : (
+              <div className="text-xl font-bold">$0</div>
+            )}
           </div>
 
           {/* Slippage Settings */}
@@ -107,9 +162,18 @@ export function WalletSettingsModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium mb-1">Solana Wallet</div>
-                  <div className="text-xs text-gray-400 font-mono truncate">
-                    {solWallet || "Not connected"}
-                  </div>
+                  {!user ? (
+                    <div className="text-xs text-gray-500">Sign in to view</div>
+                  ) : isLoadingAddresses ? (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-400 font-mono truncate">
+                      {solWallet || "Not connected"}
+                    </div>
+                  )}
                 </div>
                 {solWallet && (
                   <button
@@ -127,7 +191,11 @@ export function WalletSettingsModal({
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Balance:</span>
-                <span className="font-medium">0 SOL</span>
+                {isLoadingAddresses ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+                ) : (
+                  <span className="font-medium">{solBalance} SOL</span>
+                )}
               </div>
             </div>
 
@@ -139,9 +207,18 @@ export function WalletSettingsModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium mb-1">BSC Wallet</div>
-                  <div className="text-xs text-gray-400 font-mono truncate">
-                    {bscWallet || "Not connected"}
-                  </div>
+                  {!user ? (
+                    <div className="text-xs text-gray-500">Sign in to view</div>
+                  ) : isLoadingAddresses ? (
+                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Loading...</span>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-400 font-mono truncate">
+                      {bscWallet || "Not connected"}
+                    </div>
+                  )}
                 </div>
                 {bscWallet && (
                   <button
@@ -159,7 +236,11 @@ export function WalletSettingsModal({
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-gray-400">Balance:</span>
-                <span className="font-medium">0 BNB</span>
+                {isLoadingAddresses ? (
+                  <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+                ) : (
+                  <span className="font-medium">{bscBalance} BNB</span>
+                )}
               </div>
             </div>
           </div>
@@ -184,4 +265,3 @@ export function WalletSettingsModal({
     </>
   );
 }
-
