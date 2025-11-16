@@ -28,25 +28,19 @@ export default function AuthButton() {
 
   const {
     handleLogin,
-    loginWithOauth,
     fetchUser,
     getSession,
+    createWallet,
+    wallets,
     authState,
     clientState,
   } = useTurnkey();
 
   const handleGoogleLogin = async () => {
     try {
-      // Get OAuth URL from API
-      const response = await fetch("/api/auth/google");
-      if (!response.ok) {
-        throw new Error("Failed to initiate Google OAuth");
-      }
-
-      const { authUrl } = await response.json();
-
-      // Redirect to Google OAuth
-      window.location.href = authUrl;
+      // Use Turnkey's handleLogin() which shows the auth modal
+      // This will display Google OAuth option if configured in TurnkeyProvider
+      await handleLogin();
     } catch (error) {
       console.error("Google login error:", error);
       alert(
@@ -93,22 +87,44 @@ export default function AuthButton() {
           return;
         }
 
-        // Only fetch if client is ready and user is authenticated
-        // ClientState values: "loading", "ready", "error"
-        // AuthState values: "unauthenticated", "authenticated"
-        // Using string comparison since runtime values are strings
-        const isReady = String(clientState) === "ready";
-        const isAuthenticated = String(authState) === "authenticated";
+        // Check if client is ready and user is authenticated using enum values
+        const isReady = clientState === ClientState.Ready;
+        const isAuthenticated = authState === AuthState.Authenticated;
 
         if (isReady && isAuthenticated) {
           const userData = await fetchUser();
           const sessionData = await getSession();
-          console.log("user", userData);
-          console.log("session", sessionData);
+          console.log("Turnkey user:", userData);
+          console.log("Turnkey session:", sessionData);
 
           // Store Turnkey user and session globally
           if (userData) {
             setTurnkeyUser(userData);
+
+            // Create wallets automatically after Turnkey authentication
+            // Check if wallets already exist
+            if (wallets && wallets.length > 0) {
+              console.log("✅ Wallets already exist:", wallets);
+            } else if (createWallet) {
+              // Create Solana and BSC wallets for new users
+              // According to Turnkey docs, createWallet takes address formats as array
+              try {
+                console.log("Creating wallets for Turnkey user...");
+                const solanaWallet = await createWallet({
+                  walletName: `${userData.userName}'s Solana Wallet`,
+                  accounts: ["ADDRESS_FORMAT_SOLANA"],
+                });
+
+                const bscWallet = await createWallet({
+                  walletName: `${userData.userName}'s BSC Wallet`,
+                  accounts: ["ADDRESS_FORMAT_ETHEREUM"], // BSC uses Ethereum format
+                });
+
+                console.log("✅ Wallets created:", { solanaWallet, bscWallet });
+              } catch (error) {
+                console.error("Error creating wallets:", error);
+              }
+            }
           }
           if (sessionData) {
             setTurnkeySession(sessionData);
@@ -119,8 +135,6 @@ export default function AuthButton() {
             clientState,
             isReady,
             isAuthenticated,
-            authStateEnum: AuthState.Authenticated,
-            clientStateEnum: ClientState.Ready,
           });
         }
       } catch (error) {
@@ -135,6 +149,8 @@ export default function AuthButton() {
     clientState,
     setTurnkeyUser,
     setTurnkeySession,
+    createWallet,
+    wallets,
   ]);
 
   // Check if user is authenticated (either via custom auth or Turnkey)
@@ -158,7 +174,7 @@ export default function AuthButton() {
   // Show loading state while checking authentication
   const isCheckingAuth =
     authLoading ||
-    String(clientState) === "loading" ||
+    clientState === ClientState.Loading ||
     clientState === undefined;
 
   if (isCheckingAuth) {
@@ -294,25 +310,7 @@ export default function AuthButton() {
   return (
     <div className="flex items-center gap-2">
       <button
-        onClick={async () => {
-          try {
-            // Note: loginWithOauth requires an OIDC token and public key from a completed OAuth flow
-            // This is typically used after OAuth callback, not to initiate OAuth
-            // For initiating OAuth, use handleLogin() instead (see T-Key Login button below)
-
-            // If you have an OIDC token and public key from a previous OAuth flow, use them here:
-            // const oidcToken = "your-oidc-token-from-google-oauth";
-            // const publicKey = "your-public-key-from-turnkey";
-
-            // For now, we'll use handleLogin() which is the recommended approach
-            // when OAuth is configured in TurnkeyProvider
-            await handleLogin();
-          } catch (error) {
-            console.error("OAuth login failed:", error);
-            // Fallback to custom Google login
-            handleGoogleLogin();
-          }
-        }}
+        onClick={handleGoogleLogin}
         className="flex items-center gap-2 px-4 py-2 bg-white text-gray-900 rounded-lg hover:bg-gray-100 transition-colors"
       >
         <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -343,13 +341,6 @@ export default function AuthButton() {
           <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
         </svg>
         Telegram
-      </button>
-
-      <button
-        onClick={() => handleLogin()}
-        className="flex items-center gap-2 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-      >
-        T-Key Login / Sign Up
       </button>
     </div>
   );

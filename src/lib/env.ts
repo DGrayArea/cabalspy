@@ -15,16 +15,28 @@ const optionalEnvVars = {
     process.env.NEXT_PUBLIC_TURNKEY_BASE_URL || "https://api.turnkey.com",
   NEXT_PUBLIC_TURNKEY_API_KEY: process.env.NEXT_PUBLIC_TURNKEY_API_KEY || "",
 
-  // PumpAPI (no API key needed - public service)
+  // PumpPortal - Solana token feeds (pumpportal.fun)
+  NEXT_PUBLIC_PUMPAPI_WS_URL:
+    process.env.NEXT_PUBLIC_PUMPAPI_WS_URL || "wss://pumpportal.fun/api/data",
   NEXT_PUBLIC_PUMPAPI_URL:
-    process.env.NEXT_PUBLIC_PUMPAPI_URL || "wss://pumpportal.fun/api/data",
-  NEXT_PUBLIC_PUMPAPI_BASE_URL:
-    process.env.NEXT_PUBLIC_PUMPAPI_BASE_URL || "https://pumpapi.io",
+    process.env.NEXT_PUBLIC_PUMPAPI_URL || "https://pumpportal.fun",
+  NEXT_PUBLIC_PUMPPORTAL_API_KEY:
+    process.env.NEXT_PUBLIC_PUMPPORTAL_API_KEY || "", // Optional: for PumpSwap data access
+
+  // BSC token feeds (forr.meme)
+  NEXT_PUBLIC_FORRMEME_WS_URL:
+    process.env.NEXT_PUBLIC_FORRMEME_WS_URL || "wss://api.forr.meme/ws",
+  NEXT_PUBLIC_FORRMEME_API_URL:
+    process.env.NEXT_PUBLIC_FORRMEME_API_URL || "https://api.forr.meme",
 
   // Blockchain RPC (optional - defaults provided)
   NEXT_PUBLIC_SOLANA_RPC_URL:
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
     "https://api.mainnet-beta.solana.com",
+  NEXT_PUBLIC_SOLANA_WS_URL: process.env.NEXT_PUBLIC_SOLANA_WS_URL || "", // WebSocket URL for subscriptions
+  NEXT_PUBLIC_PUMP_FUN_PROGRAM_ID:
+    process.env.NEXT_PUBLIC_PUMP_FUN_PROGRAM_ID ||
+    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P", // Pump.fun program ID
 
   // OAuth (optional - only needed if implementing auth)
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,

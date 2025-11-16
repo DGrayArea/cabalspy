@@ -4,12 +4,14 @@ import { useState, useEffect, useMemo, lazy, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { useTokens } from "@/hooks/useTokens";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
 import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
+import { TokenMarquee } from "@/components/TokenMarquee";
+import { pumpFunService } from "@/services/pumpfun";
 import {
   Search,
   Filter,
@@ -120,15 +122,197 @@ function AuthCallbackHandler() {
 }
 
 export default function PulsePage() {
-  const { tokens, isLoading, error, refresh } = useTokens();
+  // Use WebSocket for realtime token data from:
+  // - Solana: pumpapi.io / pumpswap (pumpportal.fun)
+  // - BSC: forr.meme
+  const { tokens, solanaTokens, bscTokens, isLoading, error, isConnected } =
+    useWebSocket();
+
+  // Refresh function for manual refresh (if needed)
+  const refresh = () => {
+    // WebSocket automatically updates, but we can trigger a reconnect if needed
+    if (!isConnected) {
+      console.log("WebSocket not connected, attempting to reconnect...");
+    }
+  };
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<
     "marketCap" | "volume" | "transactions" | "time"
   >("marketCap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [filter, setFilter] = useState<"new" | "final" | "migrated">("new");
+  const [filter, setFilter] = useState<
+    "new" | "migrated" | "latest" | "featured" | "graduated" | "marketCap"
+  >("new");
   const [chain, setChain] = useState<"all" | "sol" | "bsc">("all");
+  const [featuredTokens, setFeaturedTokens] = useState<TokenData[]>([]);
+  const [pumpFunTokens, setPumpFunTokens] = useState<TokenData[]>([]);
+  const [isLoadingPumpFun, setIsLoadingPumpFun] = useState(false);
+
+  // Fetch tokens from pump.fun endpoints based on filter
+  useEffect(() => {
+    const fetchPumpFunTokens = async () => {
+      if (
+        filter === "latest" ||
+        filter === "featured" ||
+        filter === "graduated" ||
+        filter === "marketCap"
+      ) {
+        setIsLoadingPumpFun(true);
+        try {
+          let pumpFunData: Awaited<
+            ReturnType<typeof pumpFunService.fetchLatest>
+          >;
+          switch (filter) {
+            case "latest":
+              pumpFunData = await pumpFunService.fetchLatest(100);
+              break;
+            case "featured":
+              pumpFunData = await pumpFunService.fetchFeatured(100);
+              break;
+            case "graduated":
+              pumpFunData = await pumpFunService.fetchGraduated(100);
+              break;
+            case "marketCap":
+              pumpFunData = await pumpFunService.fetchByMarketCap(100);
+              break;
+            default:
+              pumpFunData = [];
+          }
+
+          // Convert PumpFunTokenInfo to TokenData
+          const convertedTokens: TokenData[] = pumpFunData.map((info) => ({
+            id: info.mint || crypto.randomUUID(),
+            name: info.name,
+            symbol: info.symbol,
+            icon: "🪙",
+            image: info.logo,
+            time: info.migrationTimestamp
+              ? `${Math.floor((Date.now() - info.migrationTimestamp) / 1000 / 60)}m`
+              : "0s",
+            marketCap: info.marketCap || 0,
+            volume: info.volume || 0,
+            fee: 0,
+            transactions: 0,
+            percentages: info.priceChange24h
+              ? [
+                  info.priceChange24h * 0.2,
+                  info.priceChange24h * 0.4,
+                  info.priceChange24h * 0.6,
+                  info.priceChange24h * 0.8,
+                  info.priceChange24h,
+                ]
+              : [0, 0, 0, 0, 0],
+            price: info.priceUsd || info.price || 0,
+            activity: {
+              Q: 0,
+              views: 0,
+              holders: 0,
+              trades: 0,
+            },
+            chain: "solana",
+            source: "pumpfun",
+            dexscreener: info.socials
+              ? {
+                  logo: info.logo,
+                  priceUsd: info.priceUsd,
+                  socials: info.socials
+                    ? [
+                        ...(info.socials.website
+                          ? [{ type: "website", url: info.socials.website }]
+                          : []),
+                        ...(info.socials.twitter
+                          ? [{ type: "twitter", url: info.socials.twitter }]
+                          : []),
+                        ...(info.socials.telegram
+                          ? [{ type: "telegram", url: info.socials.telegram }]
+                          : []),
+                      ]
+                    : undefined,
+                }
+              : undefined,
+          }));
+
+          setPumpFunTokens(convertedTokens);
+        } catch (error) {
+          console.error("Failed to fetch pump.fun tokens:", error);
+          setPumpFunTokens([]);
+        } finally {
+          setIsLoadingPumpFun(false);
+        }
+      } else {
+        setPumpFunTokens([]);
+      }
+    };
+
+    fetchPumpFunTokens();
+  }, [filter]);
+
+  // Fetch featured tokens for marquee
+  useEffect(() => {
+    const fetchFeatured = async () => {
+      try {
+        const featured = await pumpFunService.fetchFeatured(20);
+        const converted: TokenData[] = featured.map((info) => ({
+          id: info.mint || crypto.randomUUID(),
+          name: info.name,
+          symbol: info.symbol,
+          icon: "⭐",
+          image: info.logo,
+          time: "0s",
+          marketCap: info.marketCap || 0,
+          volume: info.volume || 0,
+          fee: 0,
+          transactions: 0,
+          percentages: info.priceChange24h
+            ? [
+                info.priceChange24h * 0.2,
+                info.priceChange24h * 0.4,
+                info.priceChange24h * 0.6,
+                info.priceChange24h * 0.8,
+                info.priceChange24h,
+              ]
+            : [0, 0, 0, 0, 0],
+          price: info.priceUsd || info.price || 0,
+          activity: {
+            Q: 0,
+            views: 0,
+            holders: 0,
+            trades: 0,
+          },
+          chain: "solana",
+          source: "pumpfun",
+        }));
+        setFeaturedTokens(converted);
+      } catch (error) {
+        console.error("Failed to fetch featured tokens:", error);
+      }
+    };
+
+    fetchFeatured();
+    // Refresh featured tokens every 2 minutes
+    const interval = setInterval(fetchFeatured, 120000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filter tokens by selected chain (using chain-specific lists from useWebSocket)
+  const chainFilteredTokens = useMemo(() => {
+    // If using pump.fun filter, return pump.fun tokens
+    if (
+      filter === "latest" ||
+      filter === "featured" ||
+      filter === "graduated" ||
+      filter === "marketCap"
+    ) {
+      return pumpFunTokens;
+    }
+
+    if (chain === "all") return tokens;
+    if (chain === "sol") return solanaTokens;
+    if (chain === "bsc") return bscTokens;
+    return tokens;
+  }, [tokens, solanaTokens, bscTokens, chain, filter, pumpFunTokens]);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showDisplaySettings, setShowDisplaySettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
@@ -165,7 +349,8 @@ export default function PulsePage() {
 
   // Filter and sort tokens
   const filteredAndSortedTokens = useMemo(() => {
-    let filtered = tokens;
+    // Start with chain-filtered tokens (already filtered by chain)
+    let filtered = chainFilteredTokens;
 
     // Search filter
     if (searchQuery) {
@@ -177,17 +362,6 @@ export default function PulsePage() {
           token.id.toLowerCase().includes(query)
       );
     }
-
-    // Chain filter
-    if (chain === "sol") {
-      // Filter SOL tokens (for now, all tokens are SOL - can be enhanced with chain property)
-      // filtered = filtered.filter((token) => token.chain === "sol");
-    } else if (chain === "bsc") {
-      // Filter BSC tokens (for now, empty - can be enhanced with chain property)
-      // filtered = filtered.filter((token) => token.chain === "bsc");
-      filtered = []; // Placeholder until chain property is added
-    }
-    // "all" shows all tokens
 
     // Category filter - will be handled by column display
     // We'll categorize tokens for the three columns
@@ -222,28 +396,73 @@ export default function PulsePage() {
     });
 
     return sorted;
-  }, [tokens, searchQuery, sortBy, sortOrder, chain]);
+  }, [chainFilteredTokens, searchQuery, sortBy, sortOrder]);
 
   // Categorize tokens for three columns
   const categorizedTokens = useMemo(() => {
+    // If using pump.fun filters (latest, featured, graduated, marketCap), show all tokens
+    if (
+      filter === "latest" ||
+      filter === "featured" ||
+      filter === "graduated" ||
+      filter === "marketCap"
+    ) {
+      return {
+        newPairs: filteredAndSortedTokens,
+        migrated: [],
+      };
+    }
+
+    // Debug: Log token counts
+    console.log("📊 Token categorization:", {
+      total: filteredAndSortedTokens.length,
+      viewMode,
+      sample: filteredAndSortedTokens.slice(0, 3).map((t) => ({
+        id: t.id,
+        name: t.name,
+        time: t.time,
+        marketCap: t.marketCap,
+      })),
+    });
+
     const newPairs = filteredAndSortedTokens.filter((token) => {
       const timeSeconds = parseTimeToSeconds(token.time);
       return timeSeconds < 300; // Less than 5 minutes
-    });
-
-    const finalStretch = filteredAndSortedTokens.filter((token) => {
-      const timeSeconds = parseTimeToSeconds(token.time);
-      return (
-        timeSeconds >= 300 && timeSeconds < 3600 && token.marketCap > 10000
-      ); // 5 min to 1 hour, decent market cap
     });
 
     const migrated = filteredAndSortedTokens.filter((token) => {
       return token.marketCap > 50000; // High market cap (likely migrated)
     });
 
-    return { newPairs, finalStretch, migrated };
-  }, [filteredAndSortedTokens]);
+    // If no tokens match strict criteria, show all tokens in "New Pairs" for now
+    // This helps debug if categorization is too strict
+    if (
+      newPairs.length === 0 &&
+      migrated.length === 0 &&
+      filteredAndSortedTokens.length > 0
+    ) {
+      console.warn(
+        "⚠️ No tokens matched categorization criteria. Showing all in New Pairs."
+      );
+      return {
+        newPairs: filteredAndSortedTokens.slice(0, 50), // Show first 50
+        migrated: [],
+      };
+    }
+
+    const result = { newPairs, migrated };
+
+    // Debug: Log categorization results
+    console.log("📊 Categorized tokens result:", {
+      newPairs: result.newPairs.length,
+      migrated: result.migrated.length,
+      total: filteredAndSortedTokens.length,
+      viewMode,
+      filter,
+    });
+
+    return result;
+  }, [filteredAndSortedTokens, viewMode, filter]);
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000000) {
@@ -330,6 +549,25 @@ export default function PulsePage() {
               >
                 <User className="w-4 h-4 cursor-pointer" />
               </Link>
+              {/* Wallet Settings */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowWalletSettings(!showWalletSettings)}
+                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  title="Wallet Settings"
+                >
+                  <Wallet className="w-4 h-4 cursor-pointer" />
+                </button>
+                {showWalletSettings && (
+                  <Suspense fallback={null}>
+                    <WalletSettingsModal
+                      slippage={slippage}
+                      setSlippage={setSlippage}
+                      onClose={() => setShowWalletSettings(false)}
+                    />
+                  </Suspense>
+                )}
+              </div>
               <AuthButton />
             </div>
           </div>
@@ -383,64 +621,60 @@ export default function PulsePage() {
                 </button>
               </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => refresh()}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-                title="Refresh"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
-                />
-              </button>
-              <Link
-                href="/profile"
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-                title="Profile"
-              >
-                <User className="w-4 h-4 cursor-pointer" />
-              </Link>
-              {/* Wallet Settings */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
-                  title="Wallet Settings"
-                >
-                  <Wallet className="w-4 h-4 cursor-pointer" />
-                </button>
-                {showWalletSettings && (
-                  <Suspense fallback={null}>
-                    <WalletSettingsModal
-                      slippage={slippage}
-                      setSlippage={setSlippage}
-                      onClose={() => setShowWalletSettings(false)}
-                    />
-                  </Suspense>
-                )}
-              </div>
-            </div>
           </div>
 
-          {/* Filter Tabs with Counts */}
-          <div className="mb-4 flex flex-wrap items-center gap-3">
+          {/* Featured Tokens Marquee */}
+          {featuredTokens.length > 0 && (
+            <div className="mb-6">
+              <TokenMarquee tokens={featuredTokens} speed="normal" />
+            </div>
+          )}
+
+          {/* Filter Tabs with Counts - Shown on mobile always, on desktop only in list view */}
+          <div
+            className={`mb-4 flex flex-wrap items-center gap-3 sticky top-20 bg-app/95 backdrop-blur-sm z-30 py-3 -mx-4 px-4 border-b border-gray-800/50 ${viewMode === "list" ? "lg:flex" : "lg:hidden"}`}
+          >
             {[
               {
                 id: "new",
                 label: "New Pairs",
                 count: categorizedTokens.newPairs.length,
-              },
-              {
-                id: "final",
-                label: "Final Stretch",
-                count: categorizedTokens.finalStretch.length,
+                icon: Sparkles,
               },
               {
                 id: "migrated",
                 label: "Migrated",
                 count: categorizedTokens.migrated.length,
+                icon: ArrowUpRight,
               },
-            ].map(({ id, label, count }) => (
+              {
+                id: "latest",
+                label: "Latest",
+                count: filter === "latest" ? filteredAndSortedTokens.length : 0,
+                icon: Clock,
+              },
+              {
+                id: "featured",
+                label: "Featured",
+                count:
+                  filter === "featured" ? filteredAndSortedTokens.length : 0,
+                icon: Star,
+              },
+              {
+                id: "graduated",
+                label: "Graduated",
+                count:
+                  filter === "graduated" ? filteredAndSortedTokens.length : 0,
+                icon: CheckCircle2,
+              },
+              {
+                id: "marketCap",
+                label: "Top MC",
+                count:
+                  filter === "marketCap" ? filteredAndSortedTokens.length : 0,
+                icon: TrendingUp,
+              },
+            ].map(({ id, label, count, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setFilter(id as typeof filter)}
@@ -450,6 +684,7 @@ export default function PulsePage() {
                     : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
                 }`}
               >
+                {Icon && <Icon className="w-4 h-4" />}
                 {label}
                 <span
                   className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
@@ -462,67 +697,69 @@ export default function PulsePage() {
                 </span>
               </button>
             ))}
-            {/* Icons and Display dropdown */}
-            <div className="flex items-center gap-2 ml-auto">
-              {/* Icons */}
+          </div>
+
+          {/* Icons and Display dropdown - Always visible */}
+          <div className="mb-4 flex items-center gap-2 justify-end">
+            {/* Icons */}
+            <button
+              className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+            </button>
+            <button
+              className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+              title="Sound"
+            >
+              <Volume2 className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+            </button>
+            <button
+              className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+              title="Calendar"
+            >
+              <Calendar className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+            </button>
+            {/* Display dropdown */}
+            <div className="relative">
               <button
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
-              </button>
-              <button
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-                title="Sound"
-              >
-                <Volume2 className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
-              </button>
-              <button
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-                title="Calendar"
-              >
-                <Calendar className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
-              </button>
-              {/* Display dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowDisplaySettings(!showDisplaySettings)}
-                  className={`px-4 py-2.5 bg-panel border-2 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center gap-2 ${
-                    showDisplaySettings
-                      ? "border-primary text-white bg-panel-elev"
-                      : "border-gray-700/50 text-gray-300 hover:bg-panel-elev hover:border-gray-600"
-                  }`}
-                >
-                  Display
-                  <ChevronDownIcon
-                    className={`w-3 h-3 transition-transform ${
-                      showDisplaySettings ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
-                {showDisplaySettings && (
-                  <Suspense fallback={null}>
-                    <DisplaySettingsModal
-                      onClose={() => setShowDisplaySettings(false)}
-                      displaySettings={displaySettings}
-                      setDisplaySettings={setDisplaySettings}
-                    />
-                  </Suspense>
-                )}
-              </div>
-              {/* View toggle */}
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
-                  viewMode === "grid"
-                    ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
-                    : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
+                onClick={() => setShowDisplaySettings(!showDisplaySettings)}
+                className={`px-4 py-2.5 bg-panel border-2 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center gap-2 ${
+                  showDisplaySettings
+                    ? "border-primary text-white bg-panel-elev"
+                    : "border-gray-700/50 text-gray-300 hover:bg-panel-elev hover:border-gray-600"
                 }`}
-                title="Grid View"
               >
-                <Grid3x3 className="w-4 h-4 cursor-pointer" />
+                Display
+                <ChevronDownIcon
+                  className={`w-3 h-3 transition-transform ${
+                    showDisplaySettings ? "rotate-180" : ""
+                  }`}
+                />
               </button>
-              <button
+              {showDisplaySettings && (
+                <Suspense fallback={null}>
+                  <DisplaySettingsModal
+                    onClose={() => setShowDisplaySettings(false)}
+                    displaySettings={displaySettings}
+                    setDisplaySettings={setDisplaySettings}
+                  />
+                </Suspense>
+              )}
+            </div>
+            {/* View toggle */}
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
+                viewMode === "grid"
+                  ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
+                  : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
+              }`}
+              title="Grid View"
+            >
+              <Grid3x3 className="w-4 h-4 cursor-pointer" />
+            </button>
+            {/* <button
                 onClick={() => setViewMode("list")}
                 className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
                   viewMode === "list"
@@ -532,62 +769,96 @@ export default function PulsePage() {
                 title="List View"
               >
                 <List className="w-4 h-4 cursor-pointer" />
-              </button>
-            </div>
+              </button> */}
           </div>
         </div>
 
         {/* Conditional Layout based on viewMode */}
         {viewMode === "grid" ? (
           <>
-            {/* Mobile: Single column with tabs, Desktop: Three columns */}
-            {/* Mobile: Tab-based single column view - No headers, tabs handle switching */}
-            <div className="lg:hidden space-y-2">
-              {filter === "new" && (
-                <div className="space-y-2">
-                  {categorizedTokens.newPairs.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 text-sm">
-                      No new pairs
-                    </div>
-                  ) : (
-                    categorizedTokens.newPairs.map((token) => (
-                      <CompactTokenCard
-                        key={token.id}
-                        token={token}
-                        formatCurrency={formatCurrency}
-                        formatNumber={formatNumber}
-                        displaySettings={displaySettings}
-                      />
-                    ))
-                  )}
+            {/* Mobile: Single column - Only show selected filter's tokens - NO HEADERS */}
+            <div className="lg:hidden space-y-2 pb-24">
+              {(filter === "new"
+                ? categorizedTokens.newPairs
+                : filter === "migrated"
+                  ? categorizedTokens.migrated
+                  : categorizedTokens.newPairs
+              ).length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  {isLoadingPumpFun ? "Loading..." : "No tokens found"}
                 </div>
+              ) : (
+                (filter === "new"
+                  ? categorizedTokens.newPairs
+                  : filter === "migrated"
+                    ? categorizedTokens.migrated
+                    : categorizedTokens.newPairs
+                ).map((token) => (
+                  <CompactTokenCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                    displaySettings={displaySettings}
+                  />
+                ))
               )}
-              {filter === "final" && (
-                <div className="space-y-2">
-                  {categorizedTokens.finalStretch.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 text-sm">
-                      No tokens in final stretch
+            </div>
+
+            {/* Desktop: Two Column Layout - New Pairs and Migrated - ONLY on desktop screens */}
+            {/* Show two columns only for "new" and "migrated" filters, single column for pump.fun filters */}
+            {filter === "new" || filter === "migrated" ? (
+              <div
+                className="hidden lg:grid lg:grid-cols-2 border border-gray-700/50 relative z-10 bg-app w-full -mx-4"
+                style={{ minHeight: "600px" }}
+              >
+                {/* New Pairs Column */}
+                <div className="border-r border-gray-700/50 flex flex-col bg-app">
+                  {/* Header - Part of column flow */}
+                  <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="p-1.5 bg-green-500/20 rounded-lg">
+                          <Sparkles className="w-4 h-4 text-green-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">
+                          New Pairs
+                        </h2>
+                      </div>
+                      <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
+                        {categorizedTokens.newPairs.length}
+                      </span>
                     </div>
-                  ) : (
-                    categorizedTokens.finalStretch.map((token) => (
-                      <CompactTokenCard
-                        key={token.id}
-                        token={token}
-                        formatCurrency={formatCurrency}
-                        formatNumber={formatNumber}
-                        displaySettings={displaySettings}
-                      />
-                    ))
-                  )}
+                  </div>
+                  {/* Content - Scrollable */}
+                  <div className="flex-1 overflow-y-auto max-h-[calc(100vh-12rem)]">
+                    {categorizedTokens.newPairs.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 text-sm">
+                        No new pairs
+                      </div>
+                    ) : (
+                      categorizedTokens.newPairs.map((token) => (
+                        <CompactTokenCard
+                          key={token.id}
+                          token={token}
+                          formatCurrency={formatCurrency}
+                          formatNumber={formatNumber}
+                          displaySettings={displaySettings}
+                          connectedGrid={true}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
-              )}
-              {filter === "migrated" && (
-                <div className="space-y-2">
-                  <div className="sticky top-20 bg-panel border-2 border-gray-700/50 rounded-xl p-4 mb-3 z-10 shadow-lg">
+
+                {/* Migrated Column */}
+                <div className="flex flex-col bg-app">
+                  {/* Header - Part of column flow */}
+                  <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
                         <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                          <CheckCircle2 className="w-4 h-4 text-blue-400 cursor-pointer" />
+                          <ArrowUpRight className="w-4 h-4 text-blue-400 cursor-pointer" />
                         </div>
                         <h2 className="font-bold text-sm text-white">
                           Migrated
@@ -598,149 +869,234 @@ export default function PulsePage() {
                       </span>
                     </div>
                   </div>
-                  {categorizedTokens.migrated.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400 text-sm">
-                      No migrated tokens
-                    </div>
-                  ) : (
-                    categorizedTokens.migrated.map((token) => (
-                      <CompactTokenCard
-                        key={token.id}
-                        token={token}
-                        formatCurrency={formatCurrency}
-                        formatNumber={formatNumber}
-                        displaySettings={displaySettings}
-                      />
-                    ))
-                  )}
+                  {/* Content - Scrollable */}
+                  <div className="flex-1 overflow-y-auto max-h-[calc(100vh-12rem)]">
+                    {categorizedTokens.migrated.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400 text-sm">
+                        No migrated tokens
+                      </div>
+                    ) : (
+                      categorizedTokens.migrated.map((token) => (
+                        <CompactTokenCard
+                          key={token.id}
+                          token={token}
+                          formatCurrency={formatCurrency}
+                          formatNumber={formatNumber}
+                          displaySettings={displaySettings}
+                          connectedGrid={true}
+                        />
+                      ))
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Desktop: Three Column Layout - Connected borders */}
-            <div className="hidden lg:grid grid-cols-3 border-t border-l border-gray-700/50">
-              {/* New Pairs Column */}
-              <div className="border-r border-gray-700/50">
-                <div className="sticky top-20 bg-panel border-b border-gray-700/50 p-4 z-10">
+              </div>
+            ) : (
+              /* Single column for pump.fun filters */
+              <div
+                className="hidden lg:block border border-gray-700/50 relative z-10 bg-app w-full -mx-4 rounded-lg overflow-hidden"
+                style={{ minHeight: "600px" }}
+              >
+                {/* Header */}
+                <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-green-500/20 rounded-lg">
-                        <Sparkles className="w-4 h-4 text-green-400 cursor-pointer" />
-                      </div>
-                      <h2 className="font-bold text-sm text-white">
-                        New Pairs
-                      </h2>
+                      {filter === "latest" ? (
+                        <>
+                          <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                            <Clock className="w-4 h-4 text-purple-400 cursor-pointer" />
+                          </div>
+                          <h2 className="font-bold text-sm text-white">
+                            Latest
+                          </h2>
+                        </>
+                      ) : filter === "featured" ? (
+                        <>
+                          <div className="p-1.5 bg-yellow-500/20 rounded-lg">
+                            <Star className="w-4 h-4 text-yellow-400 cursor-pointer" />
+                          </div>
+                          <h2 className="font-bold text-sm text-white">
+                            Featured
+                          </h2>
+                        </>
+                      ) : filter === "graduated" ? (
+                        <>
+                          <div className="p-1.5 bg-green-500/20 rounded-lg">
+                            <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
+                          </div>
+                          <h2 className="font-bold text-sm text-white">
+                            Graduated
+                          </h2>
+                        </>
+                      ) : (
+                        <>
+                          <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                            <TrendingUp className="w-4 h-4 text-blue-400 cursor-pointer" />
+                          </div>
+                          <h2 className="font-bold text-sm text-white">
+                            Top Market Cap
+                          </h2>
+                        </>
+                      )}
                     </div>
                     <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
                       {categorizedTokens.newPairs.length}
                     </span>
                   </div>
                 </div>
-                {categorizedTokens.newPairs.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    No new pairs
-                  </div>
-                ) : (
-                  categorizedTokens.newPairs.map((token) => (
-                    <CompactTokenCard
-                      key={token.id}
-                      token={token}
-                      formatCurrency={formatCurrency}
-                      formatNumber={formatNumber}
-                      displaySettings={displaySettings}
-                      connectedGrid={true}
-                    />
-                  ))
-                )}
-              </div>
-
-              {/* Final Stretch Column */}
-              <div className="border-r border-gray-700/50">
-                <div className="sticky top-20 bg-panel border-b border-gray-700/50 p-4 z-10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-orange-500/20 rounded-lg">
-                        <TrendingUp className="w-4 h-4 text-orange-400 cursor-pointer" />
-                      </div>
-                      <h2 className="font-bold text-sm text-white">
-                        Final Stretch
-                      </h2>
+                {/* Content - Scrollable Grid */}
+                <div className="p-4 overflow-y-auto max-h-[calc(100vh-12rem)]">
+                  {categorizedTokens.newPairs.length === 0 ? (
+                    <div className="text-center py-12 text-gray-400">
+                      {isLoadingPumpFun ? "Loading..." : "No tokens found"}
                     </div>
-                    <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
-                      {categorizedTokens.finalStretch.length}
-                    </span>
-                  </div>
-                </div>
-                {categorizedTokens.finalStretch.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    No tokens in final stretch
-                  </div>
-                ) : (
-                  categorizedTokens.finalStretch.map((token) => (
-                    <CompactTokenCard
-                      key={token.id}
-                      token={token}
-                      formatCurrency={formatCurrency}
-                      formatNumber={formatNumber}
-                      displaySettings={displaySettings}
-                      connectedGrid={true}
-                    />
-                  ))
-                )}
-              </div>
-
-              {/* Migrated Column */}
-              <div className="space-y-0">
-                <div className="sticky top-20 bg-panel border-b border-gray-700/50 p-4 z-10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                        <ArrowUpRight className="w-4 h-4 text-blue-400 cursor-pointer" />
-                      </div>
-                      <h2 className="font-bold text-sm text-white">Migrated</h2>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                      {categorizedTokens.newPairs.map((token) => (
+                        <CompactTokenCard
+                          key={token.id}
+                          token={token}
+                          formatCurrency={formatCurrency}
+                          formatNumber={formatNumber}
+                          displaySettings={displaySettings}
+                        />
+                      ))}
                     </div>
-                    <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
-                      {categorizedTokens.migrated.length}
-                    </span>
-                  </div>
+                  )}
                 </div>
-                {categorizedTokens.migrated.length === 0 ? (
-                  <div className="text-center py-8 text-gray-400 text-sm">
-                    No migrated tokens
+              </div>
+            )}
+          </>
+        ) : (
+          /* List View - Desktop: Table with Header, Mobile: Just Cards */
+          <>
+            {/* Desktop: Table with Header - HIDDEN on mobile */}
+            <div className="hidden lg:block border border-gray-700/50 bg-app rounded-lg overflow-hidden">
+              {/* Header - Part of table flow */}
+              <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    {filter === "new" ? (
+                      <>
+                        <div className="p-1.5 bg-green-500/20 rounded-lg">
+                          <Sparkles className="w-4 h-4 text-green-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">
+                          New Pairs
+                        </h2>
+                      </>
+                    ) : filter === "migrated" ? (
+                      <>
+                        <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                          <ArrowUpRight className="w-4 h-4 text-blue-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">
+                          Migrated
+                        </h2>
+                      </>
+                    ) : filter === "latest" ? (
+                      <>
+                        <div className="p-1.5 bg-purple-500/20 rounded-lg">
+                          <Clock className="w-4 h-4 text-purple-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">Latest</h2>
+                      </>
+                    ) : filter === "featured" ? (
+                      <>
+                        <div className="p-1.5 bg-yellow-500/20 rounded-lg">
+                          <Star className="w-4 h-4 text-yellow-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">
+                          Featured
+                        </h2>
+                      </>
+                    ) : filter === "graduated" ? (
+                      <>
+                        <div className="p-1.5 bg-green-500/20 rounded-lg">
+                          <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">
+                          Graduated
+                        </h2>
+                      </>
+                    ) : (
+                      <>
+                        <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                          <TrendingUp className="w-4 h-4 text-blue-400 cursor-pointer" />
+                        </div>
+                        <h2 className="font-bold text-sm text-white">
+                          Top Market Cap
+                        </h2>
+                      </>
+                    )}
+                  </div>
+                  <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
+                    {filter === "new"
+                      ? categorizedTokens.newPairs.length
+                      : filter === "migrated"
+                        ? categorizedTokens.migrated.length
+                        : categorizedTokens.newPairs.length}
+                  </span>
+                </div>
+              </div>
+              {/* Content - Scrollable */}
+              <div className="overflow-y-auto max-h-[calc(100vh-20rem)]">
+                {(filter === "new"
+                  ? categorizedTokens.newPairs
+                  : filter === "migrated"
+                    ? categorizedTokens.migrated
+                    : categorizedTokens.newPairs
+                ).length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    {isLoadingPumpFun ? "Loading..." : "No tokens found"}
                   </div>
                 ) : (
-                  categorizedTokens.migrated.map((token) => (
-                    <CompactTokenCard
-                      key={token.id}
-                      token={token}
-                      formatCurrency={formatCurrency}
-                      formatNumber={formatNumber}
-                      displaySettings={displaySettings}
-                      connectedGrid={true}
-                    />
-                  ))
+                  <div className="space-y-0">
+                    {(filter === "new"
+                      ? categorizedTokens.newPairs
+                      : filter === "migrated"
+                        ? categorizedTokens.migrated
+                        : categorizedTokens.newPairs
+                    ).map((token) => (
+                      <TokenListCard
+                        key={token.id}
+                        token={token}
+                        formatCurrency={formatCurrency}
+                        formatNumber={formatNumber}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             </div>
+
+            {/* Mobile: Just Cards with Gaps - NO HEADERS, NO TABLES */}
+            <div className="block lg:hidden space-y-3 pb-24">
+              {(filter === "new"
+                ? categorizedTokens.newPairs
+                : filter === "migrated"
+                  ? categorizedTokens.migrated
+                  : categorizedTokens.newPairs
+              ).length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  {isLoadingPumpFun ? "Loading..." : "No tokens found"}
+                </div>
+              ) : (
+                (filter === "new"
+                  ? categorizedTokens.newPairs
+                  : filter === "migrated"
+                    ? categorizedTokens.migrated
+                    : categorizedTokens.newPairs
+                ).map((token) => (
+                  <TokenListCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                  />
+                ))
+              )}
+            </div>
           </>
-        ) : (
-          /* List View - Single Column */
-          <div className="space-y-3">
-            {filteredAndSortedTokens.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                {isLoading ? "Loading tokens..." : "No tokens found"}
-              </div>
-            ) : (
-              filteredAndSortedTokens.map((token) => (
-                <TokenListCard
-                  key={token.id}
-                  token={token}
-                  formatCurrency={formatCurrency}
-                  formatNumber={formatNumber}
-                />
-              ))
-            )}
-          </div>
         )}
       </div>
 

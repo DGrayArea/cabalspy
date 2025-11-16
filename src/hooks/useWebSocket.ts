@@ -1,74 +1,128 @@
-'use client';
+"use client";
 
-import { useState, useEffect, useCallback } from 'react';
-import { pumpAPIService } from '@/services/websocket';
-import { TokenData } from '@/types/token';
+import { useState, useEffect, useCallback } from "react";
+import {
+  multiChainTokenService,
+  ChainTokenData,
+} from "@/services/multichain-tokens";
+import { TokenData } from "@/types/token";
 
 export const useWebSocket = () => {
   const [isConnected, setIsConnected] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [tokens, setTokens] = useState<TokenData[]>([]);
+  const [solanaTokens, setSolanaTokens] = useState<TokenData[]>([]);
+  const [bscTokens, setBSCTokens] = useState<TokenData[]>([]);
   const [finalStretch, setFinalStretch] = useState<TokenData[]>([]);
   const [migrated, setMigrated] = useState<TokenData[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const handleTokenUpdate = useCallback((token: TokenData) => {
-    setTokens(prevTokens => {
-      const existingIndex = prevTokens.findIndex(t => t.id === token.id);
-      
+  const handleTokenUpdate = useCallback((token: unknown) => {
+    const chainToken = token as ChainTokenData;
+
+    setTokens((prevTokens) => {
+      const existingIndex = prevTokens.findIndex(
+        (t) => t.id === chainToken.id && t.chain === chainToken.chain
+      );
+
       if (existingIndex >= 0) {
         // Update existing token
         const updatedTokens = [...prevTokens];
-        updatedTokens[existingIndex] = token;
+        updatedTokens[existingIndex] = chainToken;
         return updatedTokens;
       } else {
-        // Add new token
-        return [token, ...prevTokens].slice(0, 50); // Keep only latest 50 tokens
+        // Add new token (keep latest 100 tokens total)
+        return [chainToken, ...prevTokens].slice(0, 100);
       }
     });
+
+    // Update chain-specific lists
+    if (chainToken.chain === "solana") {
+      setSolanaTokens((prev) => {
+        const existingIndex = prev.findIndex((t) => t.id === chainToken.id);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = chainToken;
+          return updated;
+        }
+        return [chainToken, ...prev].slice(0, 50);
+      });
+    } else if (chainToken.chain === "bsc") {
+      setBSCTokens((prev) => {
+        const existingIndex = prev.findIndex((t) => t.id === chainToken.id);
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = chainToken;
+          return updated;
+        }
+        return [chainToken, ...prev].slice(0, 50);
+      });
+    }
   }, []);
 
   useEffect(() => {
-    // Subscribe to token updates
-    pumpAPIService.subscribeToTokenUpdates(handleTokenUpdate);
-    pumpAPIService.subscribeToFinalStretch((arr: TokenData[]) => {
-      setFinalStretch(arr);
-    });
-    pumpAPIService.subscribeToMigration((arr: TokenData[]) => {
-      setMigrated(arr);
-    });
+    // Subscribe to token updates from multi-chain service
+    multiChainTokenService.on("tokenUpdate", handleTokenUpdate);
 
-    // Connect to WebSocket
-    pumpAPIService.connect();
+    // Fetch initial tokens from HTTP APIs
+    const loadInitialTokens = async () => {
+      try {
+        setIsLoading(true);
+        const [solana, bsc] = await Promise.all([
+          multiChainTokenService.fetchSolanaTokens(),
+          multiChainTokenService.fetchBSCTokens(),
+        ]);
 
-    // Set up connection status listeners
-    const handleConnected = () => setIsConnected(true);
-    const handleDisconnected = () => setIsConnected(false);
-    const handleError = (err: Error | unknown) => {
-      const message = err instanceof Error ? err.message : 'WebSocket error';
-      setError(message);
+        // Set initial tokens
+        setSolanaTokens(solana);
+        setBSCTokens(bsc);
+        setTokens([...solana, ...bsc]);
+
+        // Connect WebSockets for realtime updates
+        multiChainTokenService.connectSolana();
+        multiChainTokenService.connectBSC();
+
+        setIsConnected(true);
+        setIsLoading(false);
+
+        // Debug: Log token counts
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔌 WebSocket connected:", {
+            solana: solana.length,
+            bsc: bsc.length,
+            total: solana.length + bsc.length,
+          });
+        }
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to load tokens";
+        setError(message);
+        setIsLoading(false);
+        console.error("Error loading initial tokens:", err);
+      }
     };
 
-    pumpAPIService.onConnected(handleConnected);
-    pumpAPIService.onDisconnected(handleDisconnected);
-    pumpAPIService.onError(handleError);
+    loadInitialTokens();
 
     return () => {
-      pumpAPIService.disconnect();
+      multiChainTokenService.off("tokenUpdate", handleTokenUpdate);
+      multiChainTokenService.disconnect();
     };
   }, [handleTokenUpdate]);
 
   const sendMessage = useCallback((message: Record<string, unknown>) => {
-    // This would send a message through the WebSocket
-    console.log('Sending message:', message);
+    console.log("Sending message:", message);
   }, []);
 
   return {
     isConnected,
-    tokens,
+    isLoading,
+    tokens, // All tokens combined
+    solanaTokens, // Solana tokens only
+    bscTokens, // BSC tokens only
     finalStretch,
     migrated,
     error,
-    sendMessage
+    sendMessage,
   };
 };
-

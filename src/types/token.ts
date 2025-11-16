@@ -17,9 +17,27 @@ export interface TokenData {
     holders: number;
     trades: number;
   };
+  // Multi-chain support
+  chain?: "solana" | "bsc" | "ethereum" | "base";
+  source?: string; // e.g., "pumpapi", "forr.meme"
+  // DexScreener enriched data
+  dexscreener?: {
+    logo?: string;
+    priceUsd?: number;
+    priceNative?: number;
+    priceChange24h?: number;
+    priceChange1h?: number;
+    priceChange5m?: number;
+    volume24h?: number;
+    liquidity?: number;
+    fdv?: number;
+    socials?: Array<{ type: string; url: string }>;
+    websites?: Array<{ label: string; url: string }>;
+    dexUrl?: string;
+    isPaid?: boolean;
+  };
 }
 
 export interface TokenRowProps {
   token: TokenData;
 }
-

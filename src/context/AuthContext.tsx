@@ -21,7 +21,15 @@ export interface User {
       walletId: string;
       network: string;
     };
-    bsc?: {
+    ethereum?: {
+      walletId: string;
+      network: string;
+    };
+    bnb?: {
+      walletId: string;
+      network: string;
+    };
+    base?: {
       walletId: string;
       network: string;
     };
@@ -118,8 +126,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             if (walletIds) {
               const ids = JSON.parse(walletIds);
               parsedUser.wallets = {
-                solana: { walletId: ids.solana, network: "solana" },
-                bsc: { walletId: ids.bsc, network: "bsc" },
+                solana: ids.solana
+                  ? { walletId: ids.solana, network: "solana" }
+                  : undefined,
+                ethereum: ids.ethereum
+                  ? { walletId: ids.ethereum, network: "ethereum" }
+                  : undefined,
+                bnb: ids.bnb
+                  ? { walletId: ids.bnb, network: "bnb" }
+                  : undefined,
+                base: ids.base
+                  ? { walletId: ids.base, network: "base" }
+                  : undefined,
               };
             }
             setUser(parsedUser);
@@ -192,7 +210,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           // Only store wallet IDs (safe to store - keys are with Turnkey)
           const walletIds = {
             solana: walletData.wallets.solana?.walletId,
-            bsc: walletData.wallets.bsc?.walletId,
+            ethereum: walletData.wallets.ethereum?.walletId,
+            bnb: walletData.wallets.bnb?.walletId,
+            base: walletData.wallets.base?.walletId,
           };
           userData.wallets = walletData.wallets;
           // Store only wallet IDs in localStorage (not keys)
@@ -200,12 +220,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             `wallet_ids_${userData.id}`,
             JSON.stringify(walletIds)
           );
-          console.log(
-            walletData.isNewUser
-              ? "✅ New user - Turnkey wallets created"
-              : "✅ Existing user - Turnkey wallets retrieved",
-            "- Keys stored securely by Turnkey"
-          );
+
+          // Log wallet creation status
+          const createdWallets = [];
+          if (walletIds.solana) createdWallets.push("Solana");
+          if (walletIds.ethereum) createdWallets.push("Ethereum");
+          if (walletIds.bnb) createdWallets.push("BNB");
+          if (walletIds.base) createdWallets.push("Base");
+
+          if (walletData.warnings && walletData.warnings.length > 0) {
+            console.warn(
+              `⚠️ Partial wallet creation: ${createdWallets.join(" and ")} created`,
+              `Errors: ${walletData.warnings.join(", ")}`
+            );
+          } else {
+            console.log(
+              walletData.isNewUser
+                ? `✅ New user - Turnkey wallets created (${createdWallets.join(", ")})`
+                : `✅ Existing user - Turnkey wallets retrieved (${createdWallets.join(", ")})`,
+              "- Keys stored securely by Turnkey"
+            );
+          }
         } else {
           console.error("Failed to get/create wallets:", await response.text());
           // Continue with login even if wallet creation fails

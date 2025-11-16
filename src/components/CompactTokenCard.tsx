@@ -2,6 +2,7 @@
 
 import { useState, Suspense, lazy } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { TokenData } from "@/types/token";
 import {
   ExternalLink,
@@ -53,17 +54,20 @@ export function CompactTokenCard({
   const buyCount = Math.floor(token.transactions * 0.55);
   const sellCount = token.transactions - buyCount;
 
-  // Determine chain (default to SOL for now)
-  const chainType = "sol"; // Can be enhanced with token.chain property
+  // Determine chain from token data
+  const chainType = token.chain === "bsc" ? "bsc" : "sol";
+  const chainRoute = chainType === "bsc" ? "bsc" : "sol";
 
   return (
     <>
-      <div
-        className={`bg-panel ${
+      <Link
+        href={`/${chainRoute}/${token.id}`}
+        className={`block bg-panel ${
           connectedGrid
             ? "border-b border-r border-gray-700/50 rounded-none p-3"
-            : `border-2 ${displaySettings?.spacedTables ? "border-gray-700/50 mb-3" : "border-gray-800/50 mb-2"} rounded-xl p-3`
+            : `border-2 border-gray-800/50 mb-2 rounded-xl p-3`
         } hover:border-[var(--primary-border)] transition-all group cursor-pointer ${connectedGrid ? "" : "shadow-sm hover:shadow-md"}`}
+        style={{ visibility: "visible", opacity: 1 }}
       >
         <div className="flex items-start gap-2.5">
           {/* Left: Token Icon */}
@@ -121,88 +125,110 @@ export function CompactTokenCard({
               <Info className="w-3 h-3 text-gray-500 hover:text-[var(--primary-text)] cursor-pointer flex-shrink-0" />
             </div>
 
-            {/* Small Icons Row - More Colorful with Better Styling */}
-            <div className="flex items-center gap-1.5 mb-2">
-              <div className="p-1 bg-cyan-500/10 rounded border border-cyan-500/20">
-                <User className="w-2.5 h-2.5 text-cyan-400 cursor-pointer" />
+            {/* Activity Icons Row - With Text Labels */}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              {/* Views Icon with Label */}
+              <div className="flex items-center gap-0.5 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                <User className="w-2.5 h-2.5 text-cyan-400" />
+                <span className="text-[9px] text-cyan-400 font-medium">
+                  {formatNumber(token.activity.views)}
+                </span>
               </div>
-              <div className="p-1 bg-purple-500/10 rounded border border-purple-500/20">
-                <Search className="w-2.5 h-2.5 text-purple-400 cursor-pointer" />
+              {/* Holders Icon with Label */}
+              <div className="flex items-center gap-0.5 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                <Users className="w-2.5 h-2.5 text-indigo-400" />
+                <span className="text-[9px] text-indigo-400 font-medium">
+                  {formatNumber(token.activity.holders)}
+                </span>
               </div>
-              <div className="p-1 bg-indigo-500/10 rounded border border-indigo-500/20">
-                <Users className="w-2.5 h-2.5 text-indigo-400 cursor-pointer" />
+              {/* Trades Icon with Label */}
+              <div className="flex items-center gap-0.5 bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/20">
+                <Activity className="w-2.5 h-2.5 text-pink-400" />
+                <span className="text-[9px] text-pink-400 font-medium">
+                  {formatNumber(token.activity.trades)}
+                </span>
               </div>
-              <div className="p-1 bg-pink-500/10 rounded border border-pink-500/20">
-                <Grid3x3 className="w-2.5 h-2.5 text-pink-400 cursor-pointer" />
-              </div>
-              <span className="text-[10px] text-yellow-400 font-bold bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
-                Q{token.activity.Q}
-              </span>
-              <div className="p-1 bg-blue-500/10 rounded border border-blue-500/20">
-                <Clock className="w-2.5 h-2.5 text-blue-400 cursor-pointer" />
+              {/* Quality Score - Better Label */}
+              <div className="flex items-center gap-0.5 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
+                <span className="text-[8px] text-yellow-400/70 font-medium">
+                  Quality
+                </span>
+                <span className="text-[10px] text-yellow-400 font-bold">
+                  {token.activity.Q}
+                </span>
               </div>
             </div>
 
-            {/* Percentage Row - Prominently Displayed */}
-            {displaySettings?.progressBar ? (
-              <div className="flex items-center gap-0.5 mb-1.5 bg-panel-elev/30 rounded px-1 py-0.5 h-4">
-                {token.percentages.map((pct, idx) => (
-                  <div
-                    key={idx}
-                    className="flex-1 h-full rounded relative overflow-hidden"
-                    style={{
-                      backgroundColor:
-                        pct > 0
-                          ? "rgba(34, 197, 94, 0.2)"
-                          : pct < 0
-                            ? "rgba(239, 68, 68, 0.2)"
-                            : "rgba(107, 114, 128, 0.2)",
-                    }}
-                  >
+            {/* Percentage Row - Price Change Bars with Label */}
+            <div className="mb-1.5">
+              <div className="flex items-center gap-1 mb-0.5">
+                <span className="text-[9px] text-gray-500 font-medium">
+                  Price Change:
+                </span>
+                <span className="text-[8px] text-gray-600">
+                  (5m • 15m • 1h • 4h • 24h)
+                </span>
+              </div>
+              {displaySettings?.progressBar ? (
+                <div className="flex items-center gap-0.5 bg-panel-elev/30 rounded px-1 py-0.5 h-4 relative group/bars">
+                  {token.percentages.map((pct, idx) => (
                     <div
-                      className={`h-full rounded transition-all ${
-                        pct > 0
-                          ? "bg-green-400"
-                          : pct < 0
-                            ? "bg-red-400"
-                            : "bg-gray-500"
-                      }`}
-                      style={{ width: `${Math.min(Math.abs(pct), 100)}%` }}
-                    />
+                      key={idx}
+                      className="flex-1 h-full rounded relative overflow-hidden"
+                      style={{
+                        backgroundColor:
+                          pct > 0
+                            ? "rgba(34, 197, 94, 0.2)"
+                            : pct < 0
+                              ? "rgba(239, 68, 68, 0.2)"
+                              : "rgba(107, 114, 128, 0.2)",
+                      }}
+                    >
+                      <div
+                        className={`h-full rounded transition-all ${
+                          pct > 0
+                            ? "bg-green-400"
+                            : pct < 0
+                              ? "bg-red-400"
+                              : "bg-gray-500"
+                        }`}
+                        style={{ width: `${Math.min(Math.abs(pct), 100)}%` }}
+                      />
+                      <span
+                        className={`absolute inset-0 flex items-center justify-center text-[8px] font-medium px-0.5 ${
+                          pct > 0
+                            ? "text-green-300"
+                            : pct < 0
+                              ? "text-red-300"
+                              : "text-gray-400"
+                        }`}
+                      >
+                        {pct > 0 ? "+" : ""}
+                        {pct.toFixed(0)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-0.5 bg-panel-elev/30 rounded px-1 py-0.5">
+                  {token.percentages.map((pct, idx) => (
                     <span
-                      className={`absolute inset-0 flex items-center justify-center text-[8px] font-medium px-0.5 ${
+                      key={idx}
+                      className={`text-[10px] font-medium px-0.5 ${
                         pct > 0
-                          ? "text-green-300"
+                          ? "text-green-400"
                           : pct < 0
-                            ? "text-red-300"
-                            : "text-gray-400"
+                            ? "text-red-400"
+                            : "text-gray-500"
                       }`}
                     >
                       {pct > 0 ? "+" : ""}
                       {pct.toFixed(0)}%
                     </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex items-center gap-0.5 mb-1.5 bg-panel-elev/30 rounded px-1 py-0.5">
-                {token.percentages.map((pct, idx) => (
-                  <span
-                    key={idx}
-                    className={`text-[10px] font-medium px-0.5 ${
-                      pct > 0
-                        ? "text-green-400"
-                        : pct < 0
-                          ? "text-red-400"
-                          : "text-gray-500"
-                    }`}
-                  >
-                    {pct > 0 ? "+" : ""}
-                    {pct.toFixed(0)}%
-                  </span>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Metrics Row - More Colorful */}
             <div
@@ -254,7 +280,11 @@ export function CompactTokenCard({
           {/* Right: Buy Button */}
           <div className="flex-shrink-0 flex flex-col items-end gap-1">
             <button
-              onClick={() => setShowTradingPanel(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowTradingPanel(true);
+              }}
               className={`${displaySettings?.quickBuySize === "large" ? "px-3 py-2 text-xs" : displaySettings?.quickBuySize === "mega" ? "px-4 py-2.5 text-sm" : displaySettings?.quickBuySize === "ultra" ? "px-5 py-3 text-base" : "px-2.5 py-1.5 text-[10px]"} bg-primary-dark hover:bg-primary-darker text-white font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap`}
             >
               <span>4 O</span>
@@ -269,7 +299,7 @@ export function CompactTokenCard({
             )}
           </div>
         </div>
-      </div>
+      </Link>
 
       {showTradingPanel && (
         <Suspense
