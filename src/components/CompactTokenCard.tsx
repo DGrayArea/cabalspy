@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, Suspense, lazy } from "react";
-import Image from "next/image";
+import { useState, useEffect, Suspense, lazy } from "react";
 import Link from "next/link";
 import { TokenData } from "@/types/token";
 import {
@@ -17,6 +16,8 @@ import {
   BarChart3,
   Coins,
   Activity,
+  Copy,
+  Check,
 } from "lucide-react";
 
 const TradingPanel = lazy(() => import("@/components/TradingPanel"));
@@ -45,6 +46,43 @@ export function CompactTokenCard({
 }: CompactTokenCardProps) {
   const [imageError, setImageError] = useState(false);
   const [showTradingPanel, setShowTradingPanel] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [currentTime, setCurrentTime] = useState(() => {
+    // If token has creation timestamp, use it directly
+    if (token.createdTimestamp) {
+      const diff = Date.now() - token.createdTimestamp;
+      let display = "";
+      if (diff < 60000) {
+        display = `${Math.floor(diff / 1000)}s`;
+      } else if (diff < 3600000) {
+        display = `${Math.floor(diff / 60000)}m`;
+      } else {
+        display = `${Math.floor(diff / 3600000)}h`;
+      }
+      return { baseTimestamp: token.createdTimestamp, display };
+    }
+    
+    // Otherwise, parse from time string (for WebSocket tokens that start from 0)
+    const match = token.time.match(/(\d+)([smh])/);
+    if (!match) return { baseTimestamp: Date.now(), display: token.time };
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    let seconds = 0;
+    switch (unit) {
+      case "s":
+        seconds = value;
+        break;
+      case "m":
+        seconds = value * 60;
+        break;
+      case "h":
+        seconds = value * 3600;
+        break;
+    }
+    // Store the base timestamp (for newly created tokens, this will be close to now)
+    const baseTimestamp = Date.now() - seconds * 1000;
+    return { baseTimestamp, display: token.time };
+  });
 
   const percentageChange =
     token.percentages.reduce((sum, p) => sum + p, 0) /
@@ -57,6 +95,89 @@ export function CompactTokenCard({
   // Determine chain from token data
   const chainType = token.chain === "bsc" ? "bsc" : "sol";
   const chainRoute = chainType === "bsc" ? "bsc" : "sol";
+
+  const copyAddress = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(token.id);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy address:", error);
+    }
+  };
+
+  // Update time display every second
+  useEffect(() => {
+    // If token has creation timestamp, use it directly
+    if (token.createdTimestamp) {
+      const updateTime = () => {
+        const diff = Date.now() - token.createdTimestamp!;
+        let display = "";
+        
+        if (diff < 60000) {
+          display = `${Math.floor(diff / 1000)}s`;
+        } else if (diff < 3600000) {
+          display = `${Math.floor(diff / 60000)}m`;
+        } else {
+          display = `${Math.floor(diff / 3600000)}h`;
+        }
+        
+        setCurrentTime({ baseTimestamp: token.createdTimestamp!, display });
+      };
+      
+      // Update immediately
+      updateTime();
+      
+      // Update every second
+      const interval = setInterval(updateTime, 1000);
+      return () => clearInterval(interval);
+    }
+    
+    // Otherwise, parse from time string (for WebSocket tokens)
+    const match = token.time.match(/(\d+)([smh])/);
+    if (!match) return;
+    
+    const value = parseInt(match[1]);
+    const unit = match[2];
+    let initialSeconds = 0;
+    switch (unit) {
+      case "s":
+        initialSeconds = value;
+        break;
+      case "m":
+        initialSeconds = value * 60;
+        break;
+      case "h":
+        initialSeconds = value * 3600;
+        break;
+    }
+    
+    const baseTimestamp = Date.now() - initialSeconds * 1000;
+    
+    const updateTime = () => {
+      const elapsed = Math.floor((Date.now() - baseTimestamp) / 1000);
+      let display = "";
+      
+      if (elapsed < 60) {
+        display = `${elapsed}s`;
+      } else if (elapsed < 3600) {
+        display = `${Math.floor(elapsed / 60)}m`;
+      } else {
+        display = `${Math.floor(elapsed / 3600)}h`;
+      }
+      
+      setCurrentTime({ baseTimestamp, display });
+    };
+    
+    // Update immediately
+    updateTime();
+    
+    // Update every second
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [token.time, token.createdTimestamp]);
 
   return (
     <>
@@ -74,16 +195,15 @@ export function CompactTokenCard({
           <div className="flex-shrink-0 relative">
             {token.image && !imageError ? (
               <div
-                className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden ring-2 ring-gray-800/50 relative group/token`}
+                className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden ring-2 ring-gray-800/50 relative group/token bg-panel-elev`}
               >
-                <Image
+                <img
                   src={token.image}
                   alt={token.symbol}
-                  width={40}
-                  height={40}
                   className="w-full h-full object-cover"
                   onError={() => setImageError(true)}
-                  unoptimized
+                  loading="lazy"
+                  style={{ display: "block" }}
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 cursor-pointer">
                   <ExternalLink className="w-3 h-3 text-[var(--primary-text)] cursor-pointer" />
@@ -117,7 +237,7 @@ export function CompactTokenCard({
               <h3 className="font-semibold text-xs truncate">{token.name}</h3>
               <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
                 <Clock className="w-2.5 h-2.5 cursor-pointer" />
-                {token.time}
+                {typeof currentTime === "object" ? currentTime.display : currentTime}
               </span>
               {isTrending && (
                 <Flame className="w-3 h-3 text-orange-400 cursor-pointer flex-shrink-0" />
@@ -270,10 +390,23 @@ export function CompactTokenCard({
               </span>
             </div>
             {/* Token Address/Label */}
-            <div className="mt-1.5 pt-1.5 border-t border-gray-800/30">
-              <span className="text-[9px] text-gray-500 font-mono">
-                {token.id.slice(0, 4)}...{token.id.slice(-4)}
+            <div className="mt-1.5 pt-1.5 border-t border-gray-800/30 flex items-center gap-1.5">
+              <span className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
+                <span className="text-gray-500">{token.id.slice(0, 6)}</span>
+                <span className="text-gray-600">...</span>
+                <span className="text-gray-500">{token.id.slice(-6)}</span>
               </span>
+              <button
+                onClick={copyAddress}
+                className="p-1 hover:bg-panel-elev rounded transition-colors flex items-center justify-center group/copy"
+                title="Copy address"
+              >
+                {copied ? (
+                  <Check className="w-3.5 h-3.5 text-green-400" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5 text-gray-500 group-hover/copy:text-gray-300 transition-colors" />
+                )}
+              </button>
             </div>
           </div>
 

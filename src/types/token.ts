@@ -5,6 +5,7 @@ export interface TokenData {
   icon: string;
   image?: string;
   time: string;
+  createdTimestamp?: number; // Creation timestamp in milliseconds for dynamic time updates
   marketCap: number;
   volume: number;
   fee: number;

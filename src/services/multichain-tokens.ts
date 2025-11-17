@@ -32,6 +32,7 @@ export class MultiChainTokenService {
 
   private solanaTokens: Map<string, ChainTokenData> = new Map();
   private bscTokens: Map<string, ChainTokenData> = new Map();
+  private migratedTokens: Map<string, ChainTokenData> = new Map(); // Track migrated tokens separately
   private solanaWs: WebSocket | null = null;
   private bscWs: WebSocket | null = null;
   private solanaReconnectAttempts = 0;
@@ -350,8 +351,73 @@ export class MultiChainTokenService {
           error
         );
       });
-    } else if (isTrade || isMigration) {
-      // Trade or migration event - update existing token
+    } else if (isMigration) {
+      // Migration event - mark token as migrated
+      const existingToken = this.solanaTokens.get(mint);
+      if (existingToken) {
+        const migratedToken: ChainTokenData = {
+          ...existingToken,
+          marketCap:
+            event.marketCap || event.marketCapSol || existingToken.marketCap,
+          volume: existingToken.volume + (event.volume || event.solAmount || 0),
+          price: event.price || existingToken.price,
+          transactions: existingToken.transactions + 1,
+          activity: {
+            ...existingToken.activity,
+            trades: existingToken.activity.trades + 1,
+          },
+          time: this.formatTime(event.timestamp || Date.now()),
+        };
+        
+        // Store in both regular tokens and migrated tokens
+        this.solanaTokens.set(mint, migratedToken);
+        this.migratedTokens.set(mint, migratedToken);
+        
+        // Emit both token update and migration update
+        this.emit("tokenUpdate", migratedToken);
+        this.emit("migrationUpdate", migratedToken);
+        
+        if (process.env.NODE_ENV === "development") {
+          console.log("🔄 Token migrated:", {
+            id: migratedToken.id,
+            name: migratedToken.name,
+            symbol: migratedToken.symbol,
+            pool: event.pool,
+          });
+        }
+      } else {
+        // Migration event for token we haven't seen yet - create new token
+        const timestamp = event.timestamp || Date.now();
+        const migratedToken: ChainTokenData = {
+          id: mint,
+          name: event.name || event.symbol || "Token",
+          symbol: event.symbol || "TKN",
+          icon: this.getTokenIcon(event.symbol || ""),
+          image: event.image || event.uri || undefined,
+          time: this.formatTime(timestamp),
+          marketCap: event.marketCap || event.marketCapSol || 0,
+          volume: event.volume || event.solAmount || 0,
+          fee: 0,
+          transactions: 1,
+          percentages: [0, 0, 0, 0, 0],
+          price: event.price || 0,
+          activity: {
+            Q: 0,
+            views: 0,
+            holders: 0,
+            trades: 1,
+          },
+          chain: "solana",
+          source: "pumpportal",
+        };
+        
+        this.solanaTokens.set(mint, migratedToken);
+        this.migratedTokens.set(mint, migratedToken);
+        this.emit("tokenUpdate", migratedToken);
+        this.emit("migrationUpdate", migratedToken);
+      }
+    } else if (isTrade) {
+      // Trade event - update existing token
       const existingToken = this.solanaTokens.get(mint);
       if (existingToken) {
         const updatedToken: ChainTokenData = {
@@ -368,6 +434,12 @@ export class MultiChainTokenService {
           time: this.formatTime(event.timestamp || Date.now()),
         };
         this.solanaTokens.set(mint, updatedToken);
+        
+        // If token was migrated, also update migrated tokens
+        if (this.migratedTokens.has(mint)) {
+          this.migratedTokens.set(mint, updatedToken);
+        }
+        
         this.emit("tokenUpdate", updatedToken);
       }
     }
@@ -840,6 +912,13 @@ export class MultiChainTokenService {
 
   getBSCTokens(): ChainTokenData[] {
     return Array.from(this.bscTokens.values());
+  }
+
+  /**
+   * Get all migrated tokens (from WebSocket migration events)
+   */
+  getMigratedTokens(): ChainTokenData[] {
+    return Array.from(this.migratedTokens.values());
   }
 
   getAllTokens(): ChainTokenData[] {

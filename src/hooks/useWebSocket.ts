@@ -60,9 +60,24 @@ export const useWebSocket = () => {
     }
   }, []);
 
+  const handleMigrationUpdate = useCallback((token: unknown) => {
+    const chainToken = token as ChainTokenData;
+    
+    setMigrated((prev) => {
+      const existingIndex = prev.findIndex((t) => t.id === chainToken.id && t.chain === chainToken.chain);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = chainToken;
+        return updated;
+      }
+      return [chainToken, ...prev].slice(0, 100);
+    });
+  }, []);
+
   useEffect(() => {
-    // Subscribe to token updates from multi-chain service
+    // Subscribe to token updates and migration updates from multi-chain service
     multiChainTokenService.on("tokenUpdate", handleTokenUpdate);
+    multiChainTokenService.on("migrationUpdate", handleMigrationUpdate);
 
     // Fetch initial tokens from HTTP APIs
     const loadInitialTokens = async () => {
@@ -73,10 +88,14 @@ export const useWebSocket = () => {
           multiChainTokenService.fetchBSCTokens(),
         ]);
 
+        // Get initial migrated tokens from service
+        const initialMigrated = multiChainTokenService.getMigratedTokens();
+
         // Set initial tokens
         setSolanaTokens(solana);
         setBSCTokens(bsc);
         setTokens([...solana, ...bsc]);
+        setMigrated(initialMigrated);
 
         // Connect WebSockets for realtime updates
         multiChainTokenService.connectSolana();
@@ -90,6 +109,7 @@ export const useWebSocket = () => {
           console.log("🔌 WebSocket connected:", {
             solana: solana.length,
             bsc: bsc.length,
+            migrated: initialMigrated.length,
             total: solana.length + bsc.length,
           });
         }
@@ -106,9 +126,10 @@ export const useWebSocket = () => {
 
     return () => {
       multiChainTokenService.off("tokenUpdate", handleTokenUpdate);
+      multiChainTokenService.off("migrationUpdate", handleMigrationUpdate);
       multiChainTokenService.disconnect();
     };
-  }, [handleTokenUpdate]);
+  }, [handleTokenUpdate, handleMigrationUpdate]);
 
   const sendMessage = useCallback((message: Record<string, unknown>) => {
     console.log("Sending message:", message);

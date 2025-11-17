@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useEffect, useMemo, lazy, Suspense } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  lazy,
+  Suspense,
+} from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -125,8 +132,15 @@ export default function PulsePage() {
   // Use WebSocket for realtime token data from:
   // - Solana: pumpapi.io / pumpswap (pumpportal.fun)
   // - BSC: forr.meme
-  const { tokens, solanaTokens, bscTokens, isLoading, error, isConnected } =
-    useWebSocket();
+  const {
+    tokens,
+    solanaTokens,
+    bscTokens,
+    migrated: wsMigratedTokens,
+    isLoading,
+    error,
+    isConnected,
+  } = useWebSocket();
 
   // Refresh function for manual refresh (if needed)
   const refresh = () => {
@@ -141,113 +155,210 @@ export default function PulsePage() {
     "marketCap" | "volume" | "transactions" | "time"
   >("marketCap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [filter, setFilter] = useState<
     "new" | "migrated" | "latest" | "featured" | "graduated" | "marketCap"
   >("new");
   const [chain, setChain] = useState<"all" | "sol" | "bsc">("all");
   const [featuredTokens, setFeaturedTokens] = useState<TokenData[]>([]);
   const [pumpFunTokens, setPumpFunTokens] = useState<TokenData[]>([]);
+  const [pumpFunTokensByType, setPumpFunTokensByType] = useState<{
+    latest: TokenData[];
+    featured: TokenData[];
+    graduated: TokenData[];
+    marketCap: TokenData[];
+  }>({
+    latest: [],
+    featured: [],
+    graduated: [],
+    marketCap: [],
+  });
+  const [pumpFunMigratedTokens, setPumpFunMigratedTokens] = useState<
+    TokenData[]
+  >([]);
   const [isLoadingPumpFun, setIsLoadingPumpFun] = useState(false);
 
-  // Fetch tokens from pump.fun endpoints based on filter
-  useEffect(() => {
-    const fetchPumpFunTokens = async () => {
-      if (
-        filter === "latest" ||
-        filter === "featured" ||
-        filter === "graduated" ||
-        filter === "marketCap"
-      ) {
-        setIsLoadingPumpFun(true);
-        try {
-          let pumpFunData: Awaited<
-            ReturnType<typeof pumpFunService.fetchLatest>
-          >;
-          switch (filter) {
-            case "latest":
-              pumpFunData = await pumpFunService.fetchLatest(100);
-              break;
-            case "featured":
-              pumpFunData = await pumpFunService.fetchFeatured(100);
-              break;
-            case "graduated":
-              pumpFunData = await pumpFunService.fetchGraduated(100);
-              break;
-            case "marketCap":
-              pumpFunData = await pumpFunService.fetchByMarketCap(100);
-              break;
-            default:
-              pumpFunData = [];
-          }
+  // Helper function to format time from timestamp
+  const formatTimeFromTimestamp = useCallback(
+    (timestamp: number | undefined): string => {
+      if (!timestamp) return "0s";
+      const now = Date.now();
+      // Handle both milliseconds and seconds timestamps
+      const ts = timestamp > 1e12 ? timestamp : timestamp * 1000;
+      const diff = Math.max(0, now - ts);
 
-          // Convert PumpFunTokenInfo to TokenData
-          const convertedTokens: TokenData[] = pumpFunData.map((info) => ({
-            id: info.mint || crypto.randomUUID(),
-            name: info.name,
-            symbol: info.symbol,
-            icon: "🪙",
-            image: info.logo,
-            time: info.migrationTimestamp
-              ? `${Math.floor((Date.now() - info.migrationTimestamp) / 1000 / 60)}m`
-              : "0s",
-            marketCap: info.marketCap || 0,
-            volume: info.volume || 0,
-            fee: 0,
-            transactions: 0,
-            percentages: info.priceChange24h
-              ? [
-                  info.priceChange24h * 0.2,
-                  info.priceChange24h * 0.4,
-                  info.priceChange24h * 0.6,
-                  info.priceChange24h * 0.8,
-                  info.priceChange24h,
-                ]
-              : [0, 0, 0, 0, 0],
-            price: info.priceUsd || info.price || 0,
-            activity: {
-              Q: 0,
-              views: 0,
-              holders: 0,
-              trades: 0,
-            },
-            chain: "solana",
-            source: "pumpfun",
-            dexscreener: info.socials
-              ? {
-                  logo: info.logo,
-                  priceUsd: info.priceUsd,
-                  socials: info.socials
-                    ? [
-                        ...(info.socials.website
-                          ? [{ type: "website", url: info.socials.website }]
-                          : []),
-                        ...(info.socials.twitter
-                          ? [{ type: "twitter", url: info.socials.twitter }]
-                          : []),
-                        ...(info.socials.telegram
-                          ? [{ type: "telegram", url: info.socials.telegram }]
-                          : []),
-                      ]
-                    : undefined,
-                }
-              : undefined,
-          }));
-
-          setPumpFunTokens(convertedTokens);
-        } catch (error) {
-          console.error("Failed to fetch pump.fun tokens:", error);
-          setPumpFunTokens([]);
-        } finally {
-          setIsLoadingPumpFun(false);
-        }
+      if (diff < 60000) {
+        return `${Math.floor(diff / 1000)}s`;
+      } else if (diff < 3600000) {
+        return `${Math.floor(diff / 60000)}m`;
       } else {
-        setPumpFunTokens([]);
+        return `${Math.floor(diff / 3600000)}h`;
+      }
+    },
+    []
+  );
+
+  // Helper function to convert PumpFunTokenInfo to TokenData
+  const convertPumpFunToTokenData = useCallback(
+    (pumpFunData: Awaited<ReturnType<typeof pumpFunService.fetchLatest>>) => {
+      return pumpFunData.map((info) => {
+        // Use creation timestamp for time calculation (not migration timestamp)
+        // For migrated/graduated tokens, we still want to show time since creation
+        // PumpFunTokenInfo should have createdTimestamp from parseTokenData
+        const creationTimestamp = (info as any).createdTimestamp;
+        const timeFromCreation = formatTimeFromTimestamp(creationTimestamp);
+
+        return {
+          id: info.mint || crypto.randomUUID(),
+          name: info.name,
+          symbol: info.symbol,
+          icon: "🪙",
+          image: info.logo || undefined,
+          time: timeFromCreation,
+          // Store creation timestamp for dynamic updates
+          createdTimestamp: creationTimestamp,
+          marketCap: info.marketCap || 0,
+          volume: info.volume || 0,
+          fee: 0,
+          transactions: 0,
+          percentages: info.priceChange24h
+            ? [
+                info.priceChange24h * 0.2,
+                info.priceChange24h * 0.4,
+                info.priceChange24h * 0.6,
+                info.priceChange24h * 0.8,
+                info.priceChange24h,
+              ]
+            : [0, 0, 0, 0, 0],
+          price: info.priceUsd || info.price || 0,
+          activity: {
+            Q: 0,
+            views: 0,
+            holders: 0,
+            trades: 0,
+          },
+          chain: "solana" as const,
+          source: "pumpfun",
+          dexscreener: info.socials
+            ? {
+                logo: info.logo,
+                priceUsd: info.priceUsd,
+                socials: info.socials
+                  ? [
+                      ...(info.socials.website
+                        ? [{ type: "website", url: info.socials.website }]
+                        : []),
+                      ...(info.socials.twitter
+                        ? [{ type: "twitter", url: info.socials.twitter }]
+                        : []),
+                      ...(info.socials.telegram
+                        ? [{ type: "telegram", url: info.socials.telegram }]
+                        : []),
+                    ]
+                  : undefined,
+              }
+            : undefined,
+        };
+      });
+    },
+    [formatTimeFromTimestamp]
+  );
+
+  // Fetch all pump.fun token types on mount and when needed
+  useEffect(() => {
+    const fetchAllPumpFunTokens = async () => {
+      setIsLoadingPumpFun(true);
+      try {
+        console.log("🔄 Fetching pump.fun tokens from APIs...");
+
+        // Fetch all types in parallel with detailed error logging
+        const [latest, featured, graduated, marketCap, migrated] =
+          await Promise.all([
+            pumpFunService.fetchLatest(100).catch((err) => {
+              console.error("❌ Failed to fetch latest:", err);
+              return [];
+            }),
+            pumpFunService.fetchFeatured(100).catch((err) => {
+              console.error("❌ Failed to fetch featured:", err);
+              return [];
+            }),
+            pumpFunService.fetchGraduated(100).catch((err) => {
+              console.error("❌ Failed to fetch graduated:", err);
+              return [];
+            }),
+            pumpFunService.fetchByMarketCap(100).catch((err) => {
+              console.error("❌ Failed to fetch marketCap:", err);
+              return [];
+            }),
+            pumpFunService.fetchMigratedTokens(100).catch((err) => {
+              console.error("❌ Failed to fetch migrated:", err);
+              return [];
+            }),
+          ]);
+
+        console.log("✅ Pump.fun API results:", {
+          latest: latest.length,
+          featured: featured.length,
+          graduated: graduated.length,
+          marketCap: marketCap.length,
+          migrated: migrated.length,
+        });
+
+        // Convert and store each type
+        const convertedLatest = convertPumpFunToTokenData(latest);
+        const convertedFeatured = convertPumpFunToTokenData(featured);
+        const convertedGraduated = convertPumpFunToTokenData(graduated);
+        const convertedMarketCap = convertPumpFunToTokenData(marketCap);
+        const convertedMigrated = convertPumpFunToTokenData(migrated);
+
+        console.log("✅ Converted tokens:", {
+          latest: convertedLatest.length,
+          featured: convertedFeatured.length,
+          graduated: convertedGraduated.length,
+          marketCap: convertedMarketCap.length,
+          migrated: convertedMigrated.length,
+        });
+
+        setPumpFunTokensByType({
+          latest: convertedLatest,
+          featured: convertedFeatured,
+          graduated: convertedGraduated,
+          marketCap: convertedMarketCap,
+        });
+
+        // Store migrated tokens separately
+        setPumpFunMigratedTokens(convertedMigrated);
+        if (convertedMigrated.length > 0) {
+          console.log(
+            "📦 Migrated tokens from pump.fun:",
+            convertedMigrated.length
+          );
+        }
+      } catch (error) {
+        console.error("❌ Failed to fetch pump.fun tokens:", error);
+      } finally {
+        setIsLoadingPumpFun(false);
       }
     };
 
-    fetchPumpFunTokens();
-  }, [filter]);
+    fetchAllPumpFunTokens();
+    // Refresh every 2 minutes
+    const interval = setInterval(fetchAllPumpFunTokens, 120000);
+    return () => clearInterval(interval);
+  }, [convertPumpFunToTokenData]);
+
+  // Update pumpFunTokens based on current filter
+  useEffect(() => {
+    if (
+      filter === "latest" ||
+      filter === "featured" ||
+      filter === "graduated" ||
+      filter === "marketCap"
+    ) {
+      setPumpFunTokens(pumpFunTokensByType[filter] || []);
+    } else {
+      setPumpFunTokens([]);
+    }
+  }, [filter, pumpFunTokensByType]);
 
   // Fetch featured tokens for marquee
   useEffect(() => {
@@ -297,22 +408,13 @@ export default function PulsePage() {
   }, []);
 
   // Filter tokens by selected chain (using chain-specific lists from useWebSocket)
+  // This is used for "new" and "migrated" filters - always use WebSocket tokens
   const chainFilteredTokens = useMemo(() => {
-    // If using pump.fun filter, return pump.fun tokens
-    if (
-      filter === "latest" ||
-      filter === "featured" ||
-      filter === "graduated" ||
-      filter === "marketCap"
-    ) {
-      return pumpFunTokens;
-    }
-
     if (chain === "all") return tokens;
     if (chain === "sol") return solanaTokens;
     if (chain === "bsc") return bscTokens;
     return tokens;
-  }, [tokens, solanaTokens, bscTokens, chain, filter, pumpFunTokens]);
+  }, [tokens, solanaTokens, bscTokens, chain]);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showDisplaySettings, setShowDisplaySettings] = useState(false);
   const [slippage, setSlippage] = useState("0.5");
@@ -398,71 +500,124 @@ export default function PulsePage() {
     return sorted;
   }, [chainFilteredTokens, searchQuery, sortBy, sortOrder]);
 
-  // Categorize tokens for three columns
-  const categorizedTokens = useMemo(() => {
-    // If using pump.fun filters (latest, featured, graduated, marketCap), show all tokens
-    if (
-      filter === "latest" ||
-      filter === "featured" ||
-      filter === "graduated" ||
-      filter === "marketCap"
-    ) {
-      return {
-        newPairs: filteredAndSortedTokens,
-        migrated: [],
-      };
+  // Helper to get tokens for a specific filter
+  const getTokensForFilter = useCallback(
+    (filterType: typeof filter) => {
+      // If using pump.fun filters (latest, featured, graduated, marketCap)
+      if (
+        filterType === "latest" ||
+        filterType === "featured" ||
+        filterType === "graduated" ||
+        filterType === "marketCap"
+      ) {
+        // Return the specific type from pumpFunTokensByType
+        const tokens = pumpFunTokensByType[filterType] || [];
+        console.log(`🔍 Filter ${filterType}: Found ${tokens.length} tokens`);
+        return tokens;
+      }
+
+      // For "new" filter, show tokens less than 5 minutes old from WebSocket
+      if (filterType === "new") {
+        const newPairs = filteredAndSortedTokens.filter((token) => {
+          const timeSeconds = parseTimeToSeconds(token.time);
+          return timeSeconds < 300; // Less than 5 minutes
+        });
+        console.log(
+          `🔍 Filter new: Found ${newPairs.length} tokens from ${filteredAndSortedTokens.length} total`
+        );
+        return newPairs;
+      }
+
+      // For "migrated" filter, prefer WebSocket migrated tokens, then pump.fun API, then fallback
+      if (filterType === "migrated") {
+        // Prefer WebSocket migrated tokens (from subscribeMigration events)
+        if (wsMigratedTokens.length > 0) {
+          console.log(
+            `🔍 Filter migrated: Using ${wsMigratedTokens.length} tokens from WebSocket migration events`
+          );
+          return wsMigratedTokens;
+        }
+
+        // Fallback to pump.fun migrated tokens if available
+        if (pumpFunMigratedTokens.length > 0) {
+          console.log(
+            `🔍 Filter migrated: Using ${pumpFunMigratedTokens.length} tokens from pump.fun API`
+          );
+          return pumpFunMigratedTokens;
+        }
+
+        // Last resort: filter WebSocket tokens by age/market cap
+        const migratedFromWS = filteredAndSortedTokens.filter((token) => {
+          const timeSeconds = parseTimeToSeconds(token.time);
+          const isOldEnough = timeSeconds >= 300; // At least 5 minutes old
+          const hasMarketCap = token.marketCap > 10000; // Has some market cap
+          return isOldEnough && hasMarketCap;
+        });
+
+        console.log(
+          `🔍 Filter migrated: Found ${migratedFromWS.length} tokens from WebSocket (fallback)`
+        );
+        return migratedFromWS;
+      }
+
+      return filteredAndSortedTokens;
+    },
+    [
+      filteredAndSortedTokens,
+      pumpFunTokensByType,
+      pumpFunMigratedTokens,
+      wsMigratedTokens,
+    ]
+  );
+
+  // Get tokens to display based on selected filter
+  const tokensToDisplay = useMemo(() => {
+    const tokens = getTokensForFilter(filter);
+
+    // If no tokens match, show all tokens (fallback)
+    if (tokens.length === 0 && (filter === "new" || filter === "migrated")) {
+      return filteredAndSortedTokens.slice(0, 50);
     }
 
-    // Debug: Log token counts
-    console.log("📊 Token categorization:", {
-      total: filteredAndSortedTokens.length,
-      viewMode,
-      sample: filteredAndSortedTokens.slice(0, 3).map((t) => ({
-        id: t.id,
-        name: t.name,
-        time: t.time,
-        marketCap: t.marketCap,
-      })),
-    });
+    return tokens;
+  }, [filter, getTokensForFilter, filteredAndSortedTokens]);
 
-    const newPairs = filteredAndSortedTokens.filter((token) => {
+  // Calculate filter counts - each filter uses its own data source
+  const filterCounts = useMemo(() => {
+    // For "new" and "migrated" - use WebSocket tokens
+    const newCount = filteredAndSortedTokens.filter((token) => {
       const timeSeconds = parseTimeToSeconds(token.time);
       return timeSeconds < 300; // Less than 5 minutes
-    });
+    }).length;
 
-    const migrated = filteredAndSortedTokens.filter((token) => {
-      return token.marketCap > 50000; // High market cap (likely migrated)
-    });
+    // For migrated count, prefer WebSocket migrated tokens, then pump.fun, then fallback
+    const migratedCount =
+      wsMigratedTokens.length > 0
+        ? wsMigratedTokens.length
+        : pumpFunMigratedTokens.length > 0
+          ? pumpFunMigratedTokens.length
+          : filteredAndSortedTokens.filter((token) => {
+              const timeSeconds = parseTimeToSeconds(token.time);
+              const isOldEnough = timeSeconds >= 300; // At least 5 minutes old
+              const hasMarketCap = token.marketCap > 10000; // Has some market cap
+              return isOldEnough && hasMarketCap;
+            }).length;
 
-    // If no tokens match strict criteria, show all tokens in "New Pairs" for now
-    // This helps debug if categorization is too strict
-    if (
-      newPairs.length === 0 &&
-      migrated.length === 0 &&
-      filteredAndSortedTokens.length > 0
-    ) {
-      console.warn(
-        "⚠️ No tokens matched categorization criteria. Showing all in New Pairs."
-      );
-      return {
-        newPairs: filteredAndSortedTokens.slice(0, 50), // Show first 50
-        migrated: [],
-      };
-    }
-
-    const result = { newPairs, migrated };
-
-    // Debug: Log categorization results
-    console.log("📊 Categorized tokens result:", {
-      newPairs: result.newPairs.length,
-      migrated: result.migrated.length,
-      total: filteredAndSortedTokens.length,
-      viewMode,
-      filter,
-    });
-
-    return result;
-  }, [filteredAndSortedTokens, viewMode, filter]);
+    // For pump.fun filters - use pump.fun tokens
+    return {
+      new: newCount,
+      migrated: migratedCount,
+      latest: pumpFunTokensByType.latest.length,
+      featured: pumpFunTokensByType.featured.length,
+      graduated: pumpFunTokensByType.graduated.length,
+      marketCap: pumpFunTokensByType.marketCap.length,
+    };
+  }, [
+    filteredAndSortedTokens,
+    pumpFunTokensByType,
+    pumpFunMigratedTokens,
+    wsMigratedTokens,
+  ]);
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000000) {
@@ -491,8 +646,8 @@ export default function PulsePage() {
         <AuthCallbackHandler />
       </Suspense>
       {/* Header */}
-      <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3">
+      <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50 w-full">
+        <div className="w-full px-3 sm:px-4 py-3">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4 sm:gap-6">
               <Link
@@ -575,12 +730,11 @@ export default function PulsePage() {
       </header>
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="w-full py-4 sm:py-6">
         {/* Page Header */}
-        <div className="mb-6">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-4">
-            <div className="flex items-center gap-3">
-              {/* <h1 className="text-2xl sm:text-3xl font-bold">All</h1> */}
+        <div className="mb-4 sm:mb-6 px-3 sm:px-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               {/* Chain Tabs */}
               <div className="flex items-center gap-2">
                 <button
@@ -630,77 +784,78 @@ export default function PulsePage() {
             </div>
           )}
 
-          {/* Filter Tabs with Counts - Shown on mobile always, on desktop only in list view */}
-          <div
-            className={`mb-4 flex flex-wrap items-center gap-3 sticky top-20 bg-app/95 backdrop-blur-sm z-30 py-3 -mx-4 px-4 border-b border-gray-800/50 ${viewMode === "list" ? "lg:flex" : "lg:hidden"}`}
-          >
-            {[
-              {
-                id: "new",
-                label: "New Pairs",
-                count: categorizedTokens.newPairs.length,
-                icon: Sparkles,
-              },
-              {
-                id: "migrated",
-                label: "Migrated",
-                count: categorizedTokens.migrated.length,
-                icon: ArrowUpRight,
-              },
-              {
-                id: "latest",
-                label: "Latest",
-                count: filter === "latest" ? filteredAndSortedTokens.length : 0,
-                icon: Clock,
-              },
-              {
-                id: "featured",
-                label: "Featured",
-                count:
-                  filter === "featured" ? filteredAndSortedTokens.length : 0,
-                icon: Star,
-              },
-              {
-                id: "graduated",
-                label: "Graduated",
-                count:
-                  filter === "graduated" ? filteredAndSortedTokens.length : 0,
-                icon: CheckCircle2,
-              },
-              {
-                id: "marketCap",
-                label: "Top MC",
-                count:
-                  filter === "marketCap" ? filteredAndSortedTokens.length : 0,
-                icon: TrendingUp,
-              },
-            ].map(({ id, label, count, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setFilter(id as typeof filter)}
-                className={`px-4 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center gap-2 border-2 ${
-                  filter === id
-                    ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
-                    : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
-                }`}
-              >
-                {Icon && <Icon className="w-4 h-4" />}
-                {label}
-                <span
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                    filter === id
-                      ? "bg-white/20 text-white"
-                      : "bg-gray-700/50 text-gray-400"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            ))}
+          {/* Filter Tabs with Counts */}
+          {/* Filter Tabs - Full width edge to edge with horizontal scroll */}
+          <div className="mb-4 w-full sticky top-20 bg-app/95 backdrop-blur-sm z-30 py-3 border-b border-gray-800/50 overflow-x-auto scrollbar-hide scroll-smooth">
+            <div className="px-3 sm:px-4 min-w-max">
+              <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
+                {[
+                  {
+                    id: "new",
+                    label: "New Pairs",
+                    count: filterCounts.new,
+                    icon: Sparkles,
+                  },
+                  {
+                    id: "migrated",
+                    label: "Migrated",
+                    count: filterCounts.migrated,
+                    icon: ArrowUpRight,
+                  },
+                  {
+                    id: "latest",
+                    label: "Latest",
+                    count: filterCounts.latest,
+                    icon: Clock,
+                  },
+                  {
+                    id: "featured",
+                    label: "Featured",
+                    count: filterCounts.featured,
+                    icon: Star,
+                  },
+                  {
+                    id: "graduated",
+                    label: "Graduated",
+                    count: filterCounts.graduated,
+                    icon: CheckCircle2,
+                  },
+                  {
+                    id: "marketCap",
+                    label: "Top MC",
+                    count: filterCounts.marketCap,
+                    icon: TrendingUp,
+                  },
+                ].map(({ id, label, count, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => setFilter(id as typeof filter)}
+                    className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 border-2 whitespace-nowrap ${
+                      filter === id
+                        ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
+                        : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
+                    }`}
+                  >
+                    {Icon && <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
+                    <span className="hidden xs:inline">{label}</span>
+                    <span className="xs:hidden">{label.split(" ")[0]}</span>
+                    <span
+                      className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${
+                        filter === id
+                          ? "bg-white/20 text-white"
+                          : "bg-gray-700/50 text-gray-400"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Icons and Display dropdown - Always visible */}
-          <div className="mb-4 flex items-center gap-2 justify-end">
+          <div className="mb-4 flex items-center gap-2 justify-end px-3 sm:px-4">
             {/* Icons */}
             <button
               className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
@@ -747,362 +902,34 @@ export default function PulsePage() {
                 </Suspense>
               )}
             </div>
-            {/* View toggle */}
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
-                viewMode === "grid"
-                  ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
-                  : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
-              }`}
-              title="Grid View"
-            >
-              <Grid3x3 className="w-4 h-4 cursor-pointer" />
-            </button>
-            {/* <button
-                onClick={() => setViewMode("list")}
-                className={`p-2.5 rounded-xl transition-all cursor-pointer border-2 ${
-                  viewMode === "list"
-                    ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
-                    : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
-                }`}
-                title="List View"
-              >
-                <List className="w-4 h-4 cursor-pointer" />
-              </button> */}
           </div>
         </div>
 
-        {/* Conditional Layout based on viewMode */}
-        {viewMode === "grid" ? (
-          <>
-            {/* Mobile: Single column - Only show selected filter's tokens - NO HEADERS */}
-            <div className="lg:hidden space-y-2 pb-24">
-              {(filter === "new"
-                ? categorizedTokens.newPairs
-                : filter === "migrated"
-                  ? categorizedTokens.migrated
-                  : categorizedTokens.newPairs
-              ).length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  {isLoadingPumpFun ? "Loading..." : "No tokens found"}
-                </div>
-              ) : (
-                (filter === "new"
-                  ? categorizedTokens.newPairs
-                  : filter === "migrated"
-                    ? categorizedTokens.migrated
-                    : categorizedTokens.newPairs
-                ).map((token) => (
-                  <CompactTokenCard
-                    key={token.id}
-                    token={token}
-                    formatCurrency={formatCurrency}
-                    formatNumber={formatNumber}
-                    displaySettings={displaySettings}
-                  />
-                ))
-              )}
+        {/* Responsive Grid Layout - Shows tokens based on selected filter */}
+        <div className="pb-24 px-3 sm:px-4">
+          {tokensToDisplay.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              {isLoadingPumpFun ? "Loading..." : "No tokens found"}
             </div>
-
-            {/* Desktop: Two Column Layout - New Pairs and Migrated - ONLY on desktop screens */}
-            {/* Show two columns only for "new" and "migrated" filters, single column for pump.fun filters */}
-            {filter === "new" || filter === "migrated" ? (
-              <div
-                className="hidden lg:grid lg:grid-cols-2 border border-gray-700/50 relative z-10 bg-app w-full -mx-4"
-                style={{ minHeight: "600px" }}
-              >
-                {/* New Pairs Column */}
-                <div className="border-r border-gray-700/50 flex flex-col bg-app">
-                  {/* Header - Part of column flow */}
-                  <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1.5 bg-green-500/20 rounded-lg">
-                          <Sparkles className="w-4 h-4 text-green-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          New Pairs
-                        </h2>
-                      </div>
-                      <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
-                        {categorizedTokens.newPairs.length}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Content - Scrollable */}
-                  <div className="flex-1 overflow-y-auto max-h-[calc(100vh-12rem)]">
-                    {categorizedTokens.newPairs.length === 0 ? (
-                      <div className="text-center py-8 text-gray-400 text-sm">
-                        No new pairs
-                      </div>
-                    ) : (
-                      categorizedTokens.newPairs.map((token) => (
-                        <CompactTokenCard
-                          key={token.id}
-                          token={token}
-                          formatCurrency={formatCurrency}
-                          formatNumber={formatNumber}
-                          displaySettings={displaySettings}
-                          connectedGrid={true}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-
-                {/* Migrated Column */}
-                <div className="flex flex-col bg-app">
-                  {/* Header - Part of column flow */}
-                  <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                          <ArrowUpRight className="w-4 h-4 text-blue-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          Migrated
-                        </h2>
-                      </div>
-                      <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
-                        {categorizedTokens.migrated.length}
-                      </span>
-                    </div>
-                  </div>
-                  {/* Content - Scrollable */}
-                  <div className="flex-1 overflow-y-auto max-h-[calc(100vh-12rem)]">
-                    {categorizedTokens.migrated.length === 0 ? (
-                      <div className="text-center py-8 text-gray-400 text-sm">
-                        No migrated tokens
-                      </div>
-                    ) : (
-                      categorizedTokens.migrated.map((token) => (
-                        <CompactTokenCard
-                          key={token.id}
-                          token={token}
-                          formatCurrency={formatCurrency}
-                          formatNumber={formatNumber}
-                          displaySettings={displaySettings}
-                          connectedGrid={true}
-                        />
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Single column for pump.fun filters */
-              <div
-                className="hidden lg:block border border-gray-700/50 relative z-10 bg-app w-full -mx-4 rounded-lg overflow-hidden"
-                style={{ minHeight: "600px" }}
-              >
-                {/* Header */}
-                <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      {filter === "latest" ? (
-                        <>
-                          <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                            <Clock className="w-4 h-4 text-purple-400 cursor-pointer" />
-                          </div>
-                          <h2 className="font-bold text-sm text-white">
-                            Latest
-                          </h2>
-                        </>
-                      ) : filter === "featured" ? (
-                        <>
-                          <div className="p-1.5 bg-yellow-500/20 rounded-lg">
-                            <Star className="w-4 h-4 text-yellow-400 cursor-pointer" />
-                          </div>
-                          <h2 className="font-bold text-sm text-white">
-                            Featured
-                          </h2>
-                        </>
-                      ) : filter === "graduated" ? (
-                        <>
-                          <div className="p-1.5 bg-green-500/20 rounded-lg">
-                            <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
-                          </div>
-                          <h2 className="font-bold text-sm text-white">
-                            Graduated
-                          </h2>
-                        </>
-                      ) : (
-                        <>
-                          <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                            <TrendingUp className="w-4 h-4 text-blue-400 cursor-pointer" />
-                          </div>
-                          <h2 className="font-bold text-sm text-white">
-                            Top Market Cap
-                          </h2>
-                        </>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
-                      {categorizedTokens.newPairs.length}
-                    </span>
-                  </div>
-                </div>
-                {/* Content - Scrollable Grid */}
-                <div className="p-4 overflow-y-auto max-h-[calc(100vh-12rem)]">
-                  {categorizedTokens.newPairs.length === 0 ? (
-                    <div className="text-center py-12 text-gray-400">
-                      {isLoadingPumpFun ? "Loading..." : "No tokens found"}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                      {categorizedTokens.newPairs.map((token) => (
-                        <CompactTokenCard
-                          key={token.id}
-                          token={token}
-                          formatCurrency={formatCurrency}
-                          formatNumber={formatNumber}
-                          displaySettings={displaySettings}
-                        />
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </>
-        ) : (
-          /* List View - Desktop: Table with Header, Mobile: Just Cards */
-          <>
-            {/* Desktop: Table with Header - HIDDEN on mobile */}
-            <div className="hidden lg:block border border-gray-700/50 bg-app rounded-lg overflow-hidden">
-              {/* Header - Part of table flow */}
-              <div className="bg-panel border-b border-gray-700/50 p-3 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    {filter === "new" ? (
-                      <>
-                        <div className="p-1.5 bg-green-500/20 rounded-lg">
-                          <Sparkles className="w-4 h-4 text-green-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          New Pairs
-                        </h2>
-                      </>
-                    ) : filter === "migrated" ? (
-                      <>
-                        <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                          <ArrowUpRight className="w-4 h-4 text-blue-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          Migrated
-                        </h2>
-                      </>
-                    ) : filter === "latest" ? (
-                      <>
-                        <div className="p-1.5 bg-purple-500/20 rounded-lg">
-                          <Clock className="w-4 h-4 text-purple-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">Latest</h2>
-                      </>
-                    ) : filter === "featured" ? (
-                      <>
-                        <div className="p-1.5 bg-yellow-500/20 rounded-lg">
-                          <Star className="w-4 h-4 text-yellow-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          Featured
-                        </h2>
-                      </>
-                    ) : filter === "graduated" ? (
-                      <>
-                        <div className="p-1.5 bg-green-500/20 rounded-lg">
-                          <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          Graduated
-                        </h2>
-                      </>
-                    ) : (
-                      <>
-                        <div className="p-1.5 bg-blue-500/20 rounded-lg">
-                          <TrendingUp className="w-4 h-4 text-blue-400 cursor-pointer" />
-                        </div>
-                        <h2 className="font-bold text-sm text-white">
-                          Top Market Cap
-                        </h2>
-                      </>
-                    )}
-                  </div>
-                  <span className="text-xs text-gray-400 bg-panel-elev px-2 py-1 rounded-lg font-medium">
-                    {filter === "new"
-                      ? categorizedTokens.newPairs.length
-                      : filter === "migrated"
-                        ? categorizedTokens.migrated.length
-                        : categorizedTokens.newPairs.length}
-                  </span>
-                </div>
-              </div>
-              {/* Content - Scrollable */}
-              <div className="overflow-y-auto max-h-[calc(100vh-20rem)]">
-                {(filter === "new"
-                  ? categorizedTokens.newPairs
-                  : filter === "migrated"
-                    ? categorizedTokens.migrated
-                    : categorizedTokens.newPairs
-                ).length === 0 ? (
-                  <div className="text-center py-12 text-gray-400">
-                    {isLoadingPumpFun ? "Loading..." : "No tokens found"}
-                  </div>
-                ) : (
-                  <div className="space-y-0">
-                    {(filter === "new"
-                      ? categorizedTokens.newPairs
-                      : filter === "migrated"
-                        ? categorizedTokens.migrated
-                        : categorizedTokens.newPairs
-                    ).map((token) => (
-                      <TokenListCard
-                        key={token.id}
-                        token={token}
-                        formatCurrency={formatCurrency}
-                        formatNumber={formatNumber}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {tokensToDisplay.map((token) => (
+                <CompactTokenCard
+                  key={token.id}
+                  token={token}
+                  formatCurrency={formatCurrency}
+                  formatNumber={formatNumber}
+                  displaySettings={displaySettings}
+                />
+              ))}
             </div>
-
-            {/* Mobile: Just Cards with Gaps - NO HEADERS, NO TABLES */}
-            <div className="block lg:hidden space-y-3 pb-24">
-              {(filter === "new"
-                ? categorizedTokens.newPairs
-                : filter === "migrated"
-                  ? categorizedTokens.migrated
-                  : categorizedTokens.newPairs
-              ).length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
-                  {isLoadingPumpFun ? "Loading..." : "No tokens found"}
-                </div>
-              ) : (
-                (filter === "new"
-                  ? categorizedTokens.newPairs
-                  : filter === "migrated"
-                    ? categorizedTokens.migrated
-                    : categorizedTokens.newPairs
-                ).map((token) => (
-                  <TokenListCard
-                    key={token.id}
-                    token={token}
-                    formatCurrency={formatCurrency}
-                    formatNumber={formatNumber}
-                  />
-                ))
-              )}
-            </div>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Footer Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-panel border-t border-gray-800/50 px-4 py-2.5 z-40">
-        <div className="container mx-auto flex items-center justify-between flex-wrap gap-3">
+      <footer className="fixed bottom-0 left-0 right-0 bg-panel border-t border-gray-800/50 px-3 sm:px-4 py-2.5 z-40 w-full">
+        <div className="w-full flex items-center justify-between flex-wrap gap-2 sm:gap-3">
           {/* Left Section */}
           <div className="flex items-center gap-3">
             <button className="px-3 py-1 text-xs bg-panel-elev hover:bg-panel rounded border border-gray-800/50 text-gray-400 hover:text-white transition-colors cursor-pointer font-medium">
