@@ -176,31 +176,33 @@ function TokenDetailContent() {
     <div className="min-h-screen bg-app text-white pb-16">
       {/* Header - Same as home page */}
       <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50 w-full">
-        <div className="w-full px-3 sm:px-4 py-3">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4 sm:gap-6">
+        <div className="w-full px-2 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Left: Back Button, Logo and Navigation */}
+            <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 flex-1">
               <button
                 onClick={() => router.back()}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95 flex-shrink-0"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <Link
                 href="/"
-                className="flex items-center gap-2 text-xl font-bold cursor-pointer"
+                className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer"
               >
                 <Image
                   src="/logo.jpg"
                   alt="Cabalspy Logo"
                   width={32}
                   height={32}
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-gray-800/50"
+                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-gray-800/50 flex-shrink-0"
                   unoptimized
                 />
-                <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent text-base sm:text-xl font-bold whitespace-nowrap">
                   CABALSPY
                 </span>
               </Link>
+              {/* Desktop Navigation */}
               <nav className="hidden md:flex items-center gap-4">
                 <Link
                   href="/"
@@ -222,29 +224,31 @@ function TokenDetailContent() {
                 </Link>
               </nav>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Right: Action Buttons */}
+            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
               <button
                 onClick={() => window.location.reload()}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
                 title="Refresh"
               >
-                <RefreshCw className="w-4 h-4 cursor-pointer" />
+                <RefreshCw className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
               </button>
               <Link
                 href="/profile"
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95 hidden sm:flex"
                 title="Profile"
               >
-                <User className="w-4 h-4 cursor-pointer" />
+                <User className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
               </Link>
               {/* Wallet Settings */}
               <div className="relative">
                 <button
                   onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
                   title="Wallet Settings"
                 >
-                  <Wallet className="w-4 h-4 cursor-pointer" />
+                  <Wallet className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
                 </button>
                 {showWalletSettings && (
                   <Suspense fallback={null}>
@@ -256,7 +260,9 @@ function TokenDetailContent() {
                   </Suspense>
                 )}
               </div>
-              <AuthButton />
+              <div className="hidden sm:block">
+                <AuthButton />
+              </div>
             </div>
           </div>
         </div>

@@ -185,3 +185,15 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Temporary fix for lg:flex breakpoint issue - ensures hidden elements show on large screens */
+@media (min-width: 1024px) {
+  /* Target nav in header */
+  header nav.hidden {
+    display: flex !important;
+  }
+  /* Target action buttons container - any hidden div that's a direct child of the flex container */
+  header > div > div > div.hidden {
+    display: flex !important;
+  }
+}

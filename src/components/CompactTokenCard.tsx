@@ -427,9 +427,9 @@ export function CompactTokenCard({
                 SOL
               </span>
             </button>
-            {Math.random() > 0.7 && (
+            {/* {token.isPaid && (
               <span className="text-[9px] text-green-400">Paid</span>
-            )}
+            )} */}
           </div>
         </div>
       </Link>

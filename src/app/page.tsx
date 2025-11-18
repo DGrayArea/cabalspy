@@ -18,7 +18,15 @@ import { useAuth } from "@/context/AuthContext";
 import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
+import { SearchModal } from "@/components/SearchModal";
 import { pumpFunService } from "@/services/pumpfun";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   Search,
   Filter,
@@ -69,6 +77,9 @@ import {
   HelpCircle as HelpCircleIcon,
   BookOpen,
   Twitter,
+  FileText,
+  Palette,
+  MessageCircle,
 } from "lucide-react";
 
 // Lazy load TradingPanel
@@ -142,6 +153,9 @@ export default function PulsePage() {
     isConnected,
   } = useWebSocket();
 
+  // Get user from auth context
+  const { user } = useAuth();
+
   // Refresh function for manual refresh (if needed)
   const refresh = () => {
     // WebSocket automatically updates, but we can trigger a reconnect if needed
@@ -176,6 +190,8 @@ export default function PulsePage() {
     TokenData[]
   >([]);
   const [isLoadingPumpFun, setIsLoadingPumpFun] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   // Helper function to format time from timestamp
   const formatTimeFromTimestamp = useCallback(
@@ -270,29 +286,53 @@ export default function PulsePage() {
       try {
         console.log("🔄 Fetching pump.fun tokens from APIs...");
 
+        // Use API route to avoid CORS issues in production
+        const fetchViaAPI = async (type: string) => {
+          try {
+            const response = await fetch(
+              `/api/pumpfun/tokens?type=${type}&limit=100`
+            );
+            if (!response.ok) {
+              throw new Error(`API returned ${response.status}`);
+            }
+            const data = await response.json();
+            return data.tokens || [];
+          } catch (err) {
+            console.error(`❌ Failed to fetch ${type} via API:`, err);
+            // Fallback to direct service call (works in dev)
+            try {
+              switch (type) {
+                case "latest":
+                  return await pumpFunService.fetchLatest(100);
+                case "featured":
+                  return await pumpFunService.fetchFeatured(100);
+                case "graduated":
+                  return await pumpFunService.fetchGraduated(100);
+                case "marketCap":
+                  return await pumpFunService.fetchByMarketCap(100);
+                case "migrated":
+                  return await pumpFunService.fetchMigratedTokens(100);
+                default:
+                  return [];
+              }
+            } catch (fallbackErr) {
+              console.error(
+                `❌ Fallback also failed for ${type}:`,
+                fallbackErr
+              );
+              return [];
+            }
+          }
+        };
+
         // Fetch all types in parallel with detailed error logging
         const [latest, featured, graduated, marketCap, migrated] =
           await Promise.all([
-            pumpFunService.fetchLatest(100).catch((err) => {
-              console.error("❌ Failed to fetch latest:", err);
-              return [];
-            }),
-            pumpFunService.fetchFeatured(100).catch((err) => {
-              console.error("❌ Failed to fetch featured:", err);
-              return [];
-            }),
-            pumpFunService.fetchGraduated(100).catch((err) => {
-              console.error("❌ Failed to fetch graduated:", err);
-              return [];
-            }),
-            pumpFunService.fetchByMarketCap(100).catch((err) => {
-              console.error("❌ Failed to fetch marketCap:", err);
-              return [];
-            }),
-            pumpFunService.fetchMigratedTokens(100).catch((err) => {
-              console.error("❌ Failed to fetch migrated:", err);
-              return [];
-            }),
+            fetchViaAPI("latest"),
+            fetchViaAPI("featured"),
+            fetchViaAPI("graduated"),
+            fetchViaAPI("marketCap"),
+            fetchViaAPI("migrated"),
           ]);
 
         console.log("✅ Pump.fun API results:", {
@@ -364,38 +404,33 @@ export default function PulsePage() {
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
-        const featured = await pumpFunService.fetchFeatured(20);
-        const converted: TokenData[] = featured.map((info) => ({
-          id: info.mint || crypto.randomUUID(),
-          name: info.name,
-          symbol: info.symbol,
-          icon: "⭐",
-          image: info.logo,
-          time: "0s",
-          marketCap: info.marketCap || 0,
-          volume: info.volume || 0,
-          fee: 0,
-          transactions: 0,
-          percentages: info.priceChange24h
-            ? [
-                info.priceChange24h * 0.2,
-                info.priceChange24h * 0.4,
-                info.priceChange24h * 0.6,
-                info.priceChange24h * 0.8,
-                info.priceChange24h,
-              ]
-            : [0, 0, 0, 0, 0],
-          price: info.priceUsd || info.price || 0,
-          activity: {
-            Q: 0,
-            views: 0,
-            holders: 0,
-            trades: 0,
-          },
-          chain: "solana",
-          source: "pumpfun",
-        }));
-        setFeaturedTokens(converted);
+        // Use API route to avoid CORS issues in production
+        let featured;
+        try {
+          const response = await fetch(
+            `/api/pumpfun/tokens?type=featured&limit=20`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            featured = data.tokens || [];
+          } else {
+            throw new Error(`API returned ${response.status}`);
+          }
+        } catch (err) {
+          console.error(
+            "Failed to fetch featured via API, using direct call:",
+            err
+          );
+          // Fallback to direct service call (works in dev)
+          featured = await pumpFunService.fetchFeatured(20);
+        }
+
+        // Use the same conversion function for consistency
+        const converted = convertPumpFunToTokenData(featured);
+        // Cap at 20 tokens
+        const capped = converted.slice(0, 20);
+        console.log("✅ Setting featured tokens:", capped.length);
+        setFeaturedTokens(capped);
       } catch (error) {
         console.error("Failed to fetch featured tokens:", error);
       }
@@ -405,7 +440,7 @@ export default function PulsePage() {
     // Refresh featured tokens every 2 minutes
     const interval = setInterval(fetchFeatured, 120000);
     return () => clearInterval(interval);
-  }, []);
+  }, [convertPumpFunToTokenData]);
 
   // Filter tokens by selected chain (using chain-specific lists from useWebSocket)
   // This is used for "new" and "migrated" filters - always use WebSocket tokens
@@ -647,26 +682,28 @@ export default function PulsePage() {
       </Suspense>
       {/* Header */}
       <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50 w-full">
-        <div className="w-full px-3 sm:px-4 py-3">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div className="flex items-center gap-4 sm:gap-6">
+        <div className="w-full px-2 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2 sm:gap-4">
+            {/* Left: Logo and Navigation */}
+            <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 flex-1">
               <Link
                 href="/"
-                className="flex items-center gap-2 text-xl font-bold cursor-pointer"
+                className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer"
               >
                 <Image
                   src="/logo.jpg"
                   alt="Cabalspy Logo"
                   width={32}
                   height={32}
-                  className="w-8 h-8 rounded-full object-cover ring-2 ring-gray-800/50"
+                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-gray-800/50 flex-shrink-0"
                   unoptimized
                 />
-                <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent text-base sm:text-xl font-bold whitespace-nowrap">
                   CABALSPY
                 </span>
               </Link>
-              <nav className="hidden md:flex items-center gap-4">
+              {/* Desktop Navigation - Show on lg and above */}
+              <nav className="hidden lg:flex items-center gap-4">
                 <Link
                   href="/"
                   className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
@@ -687,43 +724,157 @@ export default function PulsePage() {
                 </Link>
               </nav>
             </div>
-            <div className="flex items-center gap-3">
+
+            {/* Desktop: Action Buttons - Show on lg and above */}
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => setShowSearchModal(true)}
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                title="Search Token"
+              >
+                <Search className="w-4 h-4 cursor-pointer" />
+              </button>
               <button
                 onClick={() => refresh()}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
                 title="Refresh"
               >
                 <RefreshCw
                   className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
                 />
               </button>
-              <Link
+              {/* <Link
                 href="/profile"
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
                 title="Profile"
               >
                 <User className="w-4 h-4 cursor-pointer" />
-              </Link>
-              {/* Wallet Settings */}
-              <div className="relative">
+              </Link> */}
+              {/* Wallet Settings - Only show when logged in */}
+              {user && (
                 <button
                   onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer"
+                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
                   title="Wallet Settings"
                 >
                   <Wallet className="w-4 h-4 cursor-pointer" />
                 </button>
-                {showWalletSettings && (
-                  <Suspense fallback={null}>
-                    <WalletSettingsModal
-                      slippage={slippage}
-                      setSlippage={setSlippage}
-                      onClose={() => setShowWalletSettings(false)}
-                    />
-                  </Suspense>
-                )}
-              </div>
+              )}
               <AuthButton />
+            </div>
+
+            {/* Mobile: Hamburger Menu - Show only on mobile (below lg) */}
+            <div className="lg:hidden">
+              <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
+                <DialogTrigger asChild>
+                  <button
+                    className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                    title="Menu"
+                  >
+                    <Menu className="w-5 h-5 cursor-pointer" />
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md bg-transparent backdrop-blur-xl border-0 rounded-none shadow-none p-0 top-[5%] translate-y-0 max-h-[90vh] overflow-y-auto">
+                  <div className="flex flex-col">
+                    {/* Header */}
+                    <div className="px-6 pt-6 pb-4">
+                      <DialogHeader className="text-left">
+                        <DialogTitle className="text-white text-2xl font-bold">
+                          Menu
+                        </DialogTitle>
+                      </DialogHeader>
+                    </div>
+
+                    {/* Content - Starts from top */}
+                    <div className="flex flex-col py-2">
+                      {/* Navigation Links */}
+                      <nav className="flex flex-col px-2">
+                        <Link
+                          href="/"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                        >
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            Home
+                          </span>
+                        </Link>
+                        <Link
+                          href="/pulse"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-4 px-4 py-4 text-base font-semibold text-white bg-panel-elev/30 rounded-xl transition-all cursor-pointer group"
+                        >
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            Pulse
+                          </span>
+                        </Link>
+                        <Link
+                          href="/profile"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                        >
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            Profile
+                          </span>
+                        </Link>
+                      </nav>
+
+                      {/* Action Buttons */}
+                      <div className="px-2 pt-2 pb-2">
+                        <div className="flex flex-col gap-1">
+                          <button
+                            onClick={() => {
+                              setShowSearchModal(true);
+                              setShowMobileMenu(false);
+                            }}
+                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                          >
+                            <Search className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                            <span className="group-hover:translate-x-1 transition-transform">
+                              Search Token
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              refresh();
+                              setShowMobileMenu(false);
+                            }}
+                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                          >
+                            <RefreshCw
+                              className={`w-5 h-5 text-gray-400 group-hover:text-white transition-colors ${isLoading ? "animate-spin" : ""}`}
+                            />
+                            <span className="group-hover:translate-x-1 transition-transform">
+                              Refresh
+                            </span>
+                          </button>
+                          {/* Wallet Settings - Only show when logged in */}
+                          {user && (
+                            <button
+                              onClick={() => {
+                                setShowWalletSettings(true);
+                                setShowMobileMenu(false);
+                              }}
+                              className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                            >
+                              <Wallet className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                              <span className="group-hover:translate-x-1 transition-transform">
+                                Wallet Settings
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Auth Button */}
+                      <div className="px-6 pt-4 pb-6">
+                        <div className="flex justify-center">
+                          <AuthButton />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </div>
         </div>
@@ -777,9 +928,12 @@ export default function PulsePage() {
             </div>
           </div>
 
-          {/* Featured Tokens Marquee */}
+          {/* Top Featured Tokens Marquee */}
           {featuredTokens.length > 0 && (
             <div className="mb-6">
+              <div className="px-3 sm:px-4 mb-2">
+                <h2 className="text-lg font-bold text-white">Top Featured</h2>
+              </div>
               <TokenMarquee tokens={featuredTokens} speed="normal" />
             </div>
           )}
@@ -932,39 +1086,53 @@ export default function PulsePage() {
         <div className="w-full flex items-center justify-between flex-wrap gap-2 sm:gap-3">
           {/* Left Section */}
           <div className="flex items-center gap-3">
-            <button className="px-3 py-1 text-xs bg-panel-elev hover:bg-panel rounded border border-gray-800/50 text-gray-400 hover:text-white transition-colors cursor-pointer font-medium">
+            <button className="px-3 py-1 text-xs bg-panel-elev hover:bg-panel rounded border border-gray-800/50 text-gray-400 hover:text-white transition-colors cursor-pointer font-medium flex items-center gap-1.5">
+              <Settings className="w-3 h-3" />
               PRESET 1
             </button>
-            <span className="text-xs text-gray-400 font-medium">10</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1 text-xs text-gray-400">
+                <FileText className="w-3 h-3" />
+                <span>1</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-gray-400">
+                <List className="w-3 h-3" />
+                <span>0</span>
+              </div>
+            </div>
           </div>
 
           {/* Center Navigation */}
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-3 sm:gap-4 text-xs">
             <Link
               href="/profile"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
             >
+              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
               <Wallet className="w-3.5 h-3.5 text-blue-400" />
               <span>Wallet</span>
             </Link>
             <a
               href="#"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
             >
+              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
               <Twitter className="w-3.5 h-3.5 text-blue-400" />
               <span>Twitter</span>
             </a>
             <Link
               href="/"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
             >
+              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
               <Search className="w-3.5 h-3.5 text-purple-400" />
               <span>Discover</span>
             </Link>
             <Link
               href="/pulse"
-              className="text-white font-medium cursor-pointer flex items-center gap-1.5"
+              className="text-white font-medium cursor-pointer flex items-center gap-1.5 relative"
             >
+              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
               <Activity className="w-3.5 h-3.5 text-green-400" />
               <span>Pulse</span>
             </Link>
@@ -977,40 +1145,54 @@ export default function PulsePage() {
             </Link>
           </div>
 
-          {/* Right Section - Stats */}
-          <div className="flex items-center gap-4 text-xs flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-green-400 font-medium">$104.7K</span>
-              <span className="text-blue-400 font-medium">$3550</span>
-              <span className="text-purple-400 font-medium">$159.1</span>
+          {/* Right Section */}
+          <div className="flex items-center gap-3 text-xs">
+            <span className="text-gray-300 font-medium">$132.01</span>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-green-400"></div>
+              <select className="px-2 py-1 bg-panel-elev border border-gray-800/50 rounded text-xs text-gray-300 focus:outline-none cursor-pointer hover:bg-panel transition-colors">
+                <option>GLOBAL</option>
+              </select>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-yellow-400 font-medium">$65.4K</span>
-              <span className="text-gray-400">0.0225</span>
-              <span className="text-gray-400">0.003</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-              <span className="text-green-400 font-medium">
-                Connection is stable
-              </span>
-            </div>
-            <select className="px-2 py-1 bg-panel-elev border border-gray-800/50 rounded text-xs text-gray-300 focus:outline-none cursor-pointer hover:bg-panel transition-colors">
-              <option>GLOBAL</option>
-            </select>
+            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded relative">
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500"></div>
+              <Bell className="w-3.5 h-3.5" />
+            </button>
             <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
-              <X className="w-3 h-3" />
+              <Palette className="w-3.5 h-3.5" />
             </button>
             <a
               href="#"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1"
+              className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded"
             >
-              <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-              <span>Docs</span>
+              <MessageCircle className="w-3.5 h-3.5" />
             </a>
+            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
+              <X className="w-3 h-3" />
+            </button>
+            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
+              <FileText className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </footer>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+      />
+
+      {/* Wallet Settings Modal - Rendered outside for mobile menu access */}
+      {showWalletSettings && user && (
+        <Suspense fallback={null}>
+          <WalletSettingsModal
+            slippage={slippage}
+            setSlippage={setSlippage}
+            onClose={() => setShowWalletSettings(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

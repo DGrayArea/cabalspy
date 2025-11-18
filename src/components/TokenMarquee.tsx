@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { TokenData } from "@/types/token";
 import { formatCurrency } from "@/utils/format";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -14,7 +14,7 @@ interface TokenMarqueeProps {
 export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
 
-  // Duplicate tokens for seamless loop
+  // Duplicate tokens for seamless loop (only for desktop auto-scroll)
   const duplicatedTokens = [...tokens, ...tokens];
 
   const handleImageError = (tokenId: string) => {
@@ -26,24 +26,25 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   }
 
   return (
-    <div className="relative w-full overflow-hidden bg-panel/50 border-y border-gray-800/50 py-3">
-      <div className="flex overflow-hidden">
-        <div
-          className="flex gap-6 whitespace-nowrap"
-          style={{
-            animation: `scroll ${speed === "slow" ? "60s" : speed === "fast" ? "20s" : "40s"} linear infinite`,
-            willChange: "transform",
-          }}
-        >
-          {duplicatedTokens.map((token, index) => {
+    <div className="relative w-full bg-panel/50 border-y border-gray-800/50 py-3">
+      <div className=" overflow-x-auto scrollbar-hide scroll-smooth px-2">
+        <div className="flex gap-3 min-w-max">
+          {tokens.map((token, index) => {
             const hasImageError = imageErrors.has(token.id);
-            const priceChange = token.percentages?.[4] || 0; // 24h change
+            // Get 24h change from percentages array (last element) or calculate from average
+            const priceChange =
+              token.percentages && token.percentages.length > 0
+                ? token.percentages[4] !== undefined
+                  ? token.percentages[4]
+                  : token.percentages.reduce((sum, p) => sum + p, 0) /
+                    token.percentages.length
+                : 0;
             const isPositive = priceChange >= 0;
 
             return (
               <div
                 key={`${token.id}-${index}`}
-                className="flex items-center gap-3 px-4 py-2 bg-panel-elev/50 rounded-lg border border-gray-700/30 hover:border-primary/50 transition-all min-w-[280px] flex-shrink-0"
+                className="flex items-center gap-3 px-4 py-2 bg-panel-elev/50 rounded-lg border border-gray-700/30 hover:border-primary/50 transition-all min-w-[240px] sm:min-w-[280px] flex-shrink-0"
               >
                 {/* Token Image/Icon */}
                 {token.image && !hasImageError ? (
@@ -97,10 +98,6 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
           })}
         </div>
       </div>
-
-      {/* Gradient overlays for fade effect */}
-      <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-app to-transparent pointer-events-none z-10" />
-      <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-app to-transparent pointer-events-none z-10" />
     </div>
   );
 }
