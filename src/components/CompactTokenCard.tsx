@@ -61,7 +61,7 @@ export function CompactTokenCard({
       }
       return { baseTimestamp: token.createdTimestamp, display };
     }
-    
+
     // Otherwise, parse from time string (for WebSocket tokens that start from 0)
     const match = token.time.match(/(\d+)([smh])/);
     if (!match) return { baseTimestamp: Date.now(), display: token.time };
@@ -84,13 +84,18 @@ export function CompactTokenCard({
     return { baseTimestamp, display: token.time };
   });
 
-  const percentageChange =
-    token.percentages.reduce((sum, p) => sum + p, 0) /
-      token.percentages.length || 0;
-  const isPositive = percentageChange >= 0;
+  const priceChange24h = token.percentages?.[token.percentages.length - 1] ?? 0;
+  const isPositive = priceChange24h >= 0;
   const isTrending = token.volume > 1000;
   const buyCount = Math.floor(token.transactions * 0.55);
   const sellCount = token.transactions - buyCount;
+
+  // Estimate bonding curve progress based on market cap (Pump.fun completes around $69k)
+  const bondingCurveTarget = 69000;
+  const bondingProgress = Math.min(
+    Math.max(token.marketCap / bondingCurveTarget, 0),
+    1
+  );
 
   // Determine chain from token data
   const chainType = token.chain === "bsc" ? "bsc" : "sol";
@@ -115,7 +120,7 @@ export function CompactTokenCard({
       const updateTime = () => {
         const diff = Date.now() - token.createdTimestamp!;
         let display = "";
-        
+
         if (diff < 60000) {
           display = `${Math.floor(diff / 1000)}s`;
         } else if (diff < 3600000) {
@@ -123,22 +128,22 @@ export function CompactTokenCard({
         } else {
           display = `${Math.floor(diff / 3600000)}h`;
         }
-        
+
         setCurrentTime({ baseTimestamp: token.createdTimestamp!, display });
       };
-      
+
       // Update immediately
       updateTime();
-      
+
       // Update every second
       const interval = setInterval(updateTime, 1000);
       return () => clearInterval(interval);
     }
-    
+
     // Otherwise, parse from time string (for WebSocket tokens)
     const match = token.time.match(/(\d+)([smh])/);
     if (!match) return;
-    
+
     const value = parseInt(match[1]);
     const unit = match[2];
     let initialSeconds = 0;
@@ -153,13 +158,13 @@ export function CompactTokenCard({
         initialSeconds = value * 3600;
         break;
     }
-    
+
     const baseTimestamp = Date.now() - initialSeconds * 1000;
-    
+
     const updateTime = () => {
       const elapsed = Math.floor((Date.now() - baseTimestamp) / 1000);
       let display = "";
-      
+
       if (elapsed < 60) {
         display = `${elapsed}s`;
       } else if (elapsed < 3600) {
@@ -167,13 +172,13 @@ export function CompactTokenCard({
       } else {
         display = `${Math.floor(elapsed / 3600)}h`;
       }
-      
+
       setCurrentTime({ baseTimestamp, display });
     };
-    
+
     // Update immediately
     updateTime();
-    
+
     // Update every second
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
@@ -237,7 +242,9 @@ export function CompactTokenCard({
               <h3 className="font-semibold text-xs truncate">{token.name}</h3>
               <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
                 <Clock className="w-2.5 h-2.5 cursor-pointer" />
-                {typeof currentTime === "object" ? currentTime.display : currentTime}
+                {typeof currentTime === "object"
+                  ? currentTime.display
+                  : currentTime}
               </span>
               {isTrending && (
                 <Flame className="w-3 h-3 text-orange-400 cursor-pointer flex-shrink-0" />
@@ -279,75 +286,40 @@ export function CompactTokenCard({
               </div>
             </div>
 
-            {/* Percentage Row - Price Change Bars with Label */}
-            <div className="mb-1.5">
-              <div className="flex items-center gap-1 mb-0.5">
-                <span className="text-[9px] text-gray-500 font-medium">
-                  Price Change:
-                </span>
-                <span className="text-[8px] text-gray-600">
-                  (5m • 15m • 1h • 4h • 24h)
+            {/* Price change + Bonding curve */}
+            <div className="mb-1.5 space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <span className="text-[9px] text-gray-500 font-medium">
+                    Price Change (24h)
+                  </span>
+                  <span
+                    className={`text-[10px] font-semibold ${
+                      isPositive ? "text-green-400" : "text-red-400"
+                    }`}
+                  >
+                    {priceChange24h > 0 ? "+" : ""}
+                    {priceChange24h.toFixed(2)}%
+                  </span>
+                </div>
+                <span className="text-[9px] text-gray-400 font-medium">
+                  {formatCurrency(token.price)}
                 </span>
               </div>
-              {displaySettings?.progressBar ? (
-                <div className="flex items-center gap-0.5 bg-panel-elev/30 rounded px-1 py-0.5 h-4 relative group/bars">
-                  {token.percentages.map((pct, idx) => (
-                    <div
-                      key={idx}
-                      className="flex-1 h-full rounded relative overflow-hidden"
-                      style={{
-                        backgroundColor:
-                          pct > 0
-                            ? "rgba(34, 197, 94, 0.2)"
-                            : pct < 0
-                              ? "rgba(239, 68, 68, 0.2)"
-                              : "rgba(107, 114, 128, 0.2)",
-                      }}
-                    >
-                      <div
-                        className={`h-full rounded transition-all ${
-                          pct > 0
-                            ? "bg-green-400"
-                            : pct < 0
-                              ? "bg-red-400"
-                              : "bg-gray-500"
-                        }`}
-                        style={{ width: `${Math.min(Math.abs(pct), 100)}%` }}
-                      />
-                      <span
-                        className={`absolute inset-0 flex items-center justify-center text-[8px] font-medium px-0.5 ${
-                          pct > 0
-                            ? "text-green-300"
-                            : pct < 0
-                              ? "text-red-300"
-                              : "text-gray-400"
-                        }`}
-                      >
-                        {pct > 0 ? "+" : ""}
-                        {pct.toFixed(0)}%
-                      </span>
-                    </div>
-                  ))}
+              <div>
+                <div className="flex items-center justify-between text-[9px] text-gray-500 mb-0.5">
+                  <span>Bonding Curve Progress</span>
+                  <span className="text-gray-300 font-semibold">
+                    {Math.round(bondingProgress * 100)}%
+                  </span>
                 </div>
-              ) : (
-                <div className="flex items-center gap-0.5 bg-panel-elev/30 rounded px-1 py-0.5">
-                  {token.percentages.map((pct, idx) => (
-                    <span
-                      key={idx}
-                      className={`text-[10px] font-medium px-0.5 ${
-                        pct > 0
-                          ? "text-green-400"
-                          : pct < 0
-                            ? "text-red-400"
-                            : "text-gray-500"
-                      }`}
-                    >
-                      {pct > 0 ? "+" : ""}
-                      {pct.toFixed(0)}%
-                    </span>
-                  ))}
+                <div className="h-2 rounded-full bg-gray-800/60 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 transition-all"
+                    style={{ width: `${bondingProgress * 100}%` }}
+                  />
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Metrics Row - More Colorful */}
