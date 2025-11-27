@@ -5,6 +5,8 @@ import { TokenData } from "@/types/token";
 import { formatCurrency } from "@/utils/format";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import Image from "next/image";
+import { getPlatformLogo, getPlatformIcon, getPlatformName } from "@/utils/platformLogos";
+import { aiPlatformDetector } from "@/services/ai-platform-detector";
 
 interface TokenMarqueeProps {
   tokens: TokenData[];
@@ -13,12 +15,17 @@ interface TokenMarqueeProps {
 
 export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
+  const [platformLogoErrors, setPlatformLogoErrors] = useState<Set<string>>(new Set());
 
   // Duplicate tokens for seamless loop (only for desktop auto-scroll)
   const duplicatedTokens = [...tokens, ...tokens];
 
   const handleImageError = (tokenId: string) => {
     setImageErrors((prev) => new Set(prev).add(tokenId));
+  };
+
+  const handlePlatformLogoError = (tokenId: string) => {
+    setPlatformLogoErrors((prev) => new Set(prev).add(tokenId));
   };
 
   if (tokens.length === 0) {
@@ -41,6 +48,22 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                 : 0;
             const isPositive = priceChange >= 0;
 
+            // Get platform info using AI detector
+            const platform = aiPlatformDetector.detectPlatform({
+              id: token.id,
+              name: token.name,
+              symbol: token.symbol,
+              image: token.image,
+              source: (token as any).source,
+              protocol: (token as any).protocol,
+              chain: token.chain,
+              raydiumPool: (token as any).raydiumPool,
+            });
+            const platformLogo = getPlatformLogo(platform);
+            const platformIcon = getPlatformIcon(platform);
+            const platformName = getPlatformName(platform);
+            const hasPlatformLogoError = platformLogoErrors.has(token.id);
+
             return (
               <div
                 key={`${token.id}-${index}`}
@@ -48,20 +71,56 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
               >
                 {/* Token Image/Icon */}
                 {token.image && !hasImageError ? (
-                  <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={token.image}
-                      alt={token.symbol}
-                      width={40}
-                      height={40}
-                      className="w-full h-full object-cover"
-                      onError={() => handleImageError(token.id)}
-                      unoptimized
-                    />
+                  <div className="relative w-10 h-10 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full overflow-hidden">
+                      <Image
+                        src={token.image}
+                        alt={token.symbol}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        onError={() => handleImageError(token.id)}
+                        unoptimized
+                      />
+                    </div>
+                    {/* Platform logo overlay - bottom right */}
+                    {platformLogo && !hasPlatformLogoError ? (
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                        <img
+                          src={platformLogo}
+                          alt={platformName}
+                          className="w-full h-full object-cover"
+                          onError={() => handlePlatformLogoError(token.id)}
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px]">
+                        {platformIcon}
+                      </div>
+                    )}
                   </div>
                 ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 via-purple-500/20 to-green-500/30 flex items-center justify-center flex-shrink-0 text-lg">
-                    {token.icon || "🪙"}
+                  <div className="relative w-10 h-10 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg">
+                      {token.icon || "🪙"}
+                    </div>
+                    {/* Platform logo overlay - bottom right */}
+                    {platformLogo && !hasPlatformLogoError ? (
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                        <img
+                          src={platformLogo}
+                          alt={platformName}
+                          className="w-full h-full object-cover"
+                          onError={() => handlePlatformLogoError(token.id)}
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : (
+                      <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px]">
+                        {platformIcon}
+                      </div>
+                    )}
                   </div>
                 )}
 

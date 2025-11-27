@@ -8,10 +8,14 @@ import { useUserWallets } from "@/hooks/useUserWallets";
 export function WalletSettingsModal({
   slippage,
   setSlippage,
+  quickBuyAmount,
+  setQuickBuyAmount,
   onClose,
 }: {
   slippage: string;
   setSlippage: (value: string) => void;
+  quickBuyAmount: string;
+  setQuickBuyAmount: (value: string) => void;
   onClose: () => void;
 }) {
   const { user } = useAuth();
@@ -119,6 +123,38 @@ export function WalletSettingsModal({
             )}
           </div>
 
+          {/* Quick Buy Amount */}
+          <div className="mb-4 pb-4 border-b border-gray-800/50">
+            <div className="text-xs text-gray-400 mb-2 flex items-center gap-1">
+              <BarChart3 className="w-3 h-3 flex-shrink-0" />
+              Quick Buy Amount
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {["0.1", "0.5", "1", "2", "5", "10"].map((value) => (
+                <button
+                  key={value}
+                  onClick={() => setQuickBuyAmount(value)}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 cursor-pointer ${
+                    quickBuyAmount === value
+                      ? "bg-primary-dark text-white"
+                      : "bg-panel-elev text-gray-400 hover:text-white"
+                  }`}
+                >
+                  {value} SOL
+                </button>
+              ))}
+              <input
+                type="number"
+                value={quickBuyAmount}
+                onChange={(e) => setQuickBuyAmount(e.target.value)}
+                placeholder="Custom"
+                step="0.1"
+                min="0"
+                className="min-w-0 flex-1 px-2 py-1.5 bg-panel-elev border border-gray-800/50 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary text-white placeholder-gray-500"
+              />
+            </div>
+          </div>
+
           {/* Slippage Settings */}
           <div className="mb-4 pb-4 border-b border-gray-800/50">
             <div className="text-xs text-gray-400 mb-2 flex items-center gap-1">
@@ -140,6 +176,7 @@ export function WalletSettingsModal({
                 </button>
               ))}
               <input
+                type="number"
                 type="number"
                 value={slippage}
                 onChange={(e) => setSlippage(e.target.value)}

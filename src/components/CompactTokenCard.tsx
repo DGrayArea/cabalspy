@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, useMemo, Suspense, lazy } from "react";
 import Link from "next/link";
 import { TokenData } from "@/types/token";
 import {
@@ -19,6 +19,13 @@ import {
   Copy,
   Check,
 } from "lucide-react";
+import {
+  getPlatformLogo,
+  getPlatformIcon,
+  getChainLogo,
+  getPlatformName,
+} from "@/utils/platformLogos";
+import { aiPlatformDetector } from "@/services/ai-platform-detector";
 
 const TradingPanel = lazy(() => import("@/components/TradingPanel"));
 
@@ -35,6 +42,7 @@ interface CompactTokenCardProps {
     progressBar?: boolean;
   };
   connectedGrid?: boolean; // For desktop connected grid layout
+  quickBuyAmount?: string; // Quick buy amount from wallet settings
 }
 
 export function CompactTokenCard({
@@ -43,10 +51,26 @@ export function CompactTokenCard({
   formatNumber,
   displaySettings,
   connectedGrid = false,
+  quickBuyAmount = "0.1",
 }: CompactTokenCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [platformLogoError, setPlatformLogoError] = useState(false);
+  const [chainLogoError, setChainLogoError] = useState(false);
   const [showTradingPanel, setShowTradingPanel] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Debug: Log platform detection
+  // useEffect(() => {
+  //   if (process.env.NODE_ENV === 'development') {
+  //     console.log('Token platform detection:', {
+  //       tokenId: token.id.slice(0, 8),
+  //       source: (token as any).source,
+  //       chain: token.chain,
+  //       detectedPlatform: (token as any).source || token.chain || 'pump',
+  //       platformLogo: getPlatformLogo((token as any).source || token.chain || 'pump'),
+  //     });
+  //   }
+  // }, [token.id, (token as any).source, token.chain]);
   const [currentTime, setCurrentTime] = useState(() => {
     // If token has creation timestamp, use it directly
     if (token.createdTimestamp) {
@@ -90,16 +114,88 @@ export function CompactTokenCard({
   const buyCount = Math.floor(token.transactions * 0.55);
   const sellCount = token.transactions - buyCount;
 
-  // Estimate bonding curve progress based on market cap (Pump.fun completes around $69k)
-  const bondingCurveTarget = 69000;
-  const bondingProgress = Math.min(
-    Math.max(token.marketCap / bondingCurveTarget, 0),
-    1
-  );
+  // Check if token is migrated (has migration indicators)
+  const isTokenMigrated =
+    (token as any).isMigrated === true ||
+    (token as any).migrationTimestamp !== undefined ||
+    (token as any).raydiumPool !== undefined;
+
+  // Use bonding progress from token if available, otherwise calculate from market cap
+  // For migrated tokens, bonding progress should be 100% (even if MC dropped below threshold)
+  const bondingProgress =
+    (token as any).bondingProgress !== undefined
+      ? (token as any).bondingProgress
+      : isTokenMigrated
+        ? 1.0
+        : (() => {
+            const bondingCurveTarget = 69000;
+            return Math.min(
+              Math.max(token.marketCap / bondingCurveTarget, 0),
+              1
+            );
+          })();
 
   // Determine chain from token data
   const chainType = token.chain === "bsc" ? "bsc" : "sol";
   const chainRoute = chainType === "bsc" ? "bsc" : "sol";
+
+  // Get platform info - memoize to prevent recalculation
+  const platformInfo = useMemo(() => {
+    // Use AI detector (with intelligent fallback) - fire-and-forget
+    const detectedPlatform = aiPlatformDetector.detectPlatform({
+      id: token.id,
+      name: token.name,
+      symbol: token.symbol,
+      image: token.image,
+      source: (token as any).source,
+      protocol: (token as any).protocol,
+      chain: token.chain,
+      raydiumPool: (token as any).raydiumPool,
+      createdTimestamp: token.createdTimestamp,
+    });
+
+    const logo = getPlatformLogo(detectedPlatform);
+    const icon = getPlatformIcon(detectedPlatform);
+    const name = getPlatformName(detectedPlatform);
+
+    // Debug logging when platform logo is not found
+    if (
+      process.env.NODE_ENV === "development" &&
+      !logo &&
+      detectedPlatform !== "pump"
+    ) {
+      console.warn("⚠️ No platform logo found:", {
+        tokenId: token.id.slice(0, 8),
+        source: (token as any).source,
+        protocol: (token as any).protocol,
+        chain: token.chain,
+        detectedPlatform: detectedPlatform,
+      });
+    }
+
+    return {
+      platform: detectedPlatform,
+      logo,
+      icon,
+      name,
+    };
+  }, [
+    (token as any).source,
+    (token as any).protocol,
+    token.chain,
+    token.id,
+    token.name,
+    token.symbol,
+    token.image,
+  ]);
+
+  const {
+    platform,
+    logo: platformLogo,
+    icon: platformIcon,
+    name: platformName,
+  } = platformInfo;
+  const chainLogoUrl = getChainLogo(token.chain || "solana");
 
   const copyAddress = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -213,26 +309,62 @@ export function CompactTokenCard({
                 <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 cursor-pointer">
                   <ExternalLink className="w-3 h-3 text-[var(--primary-text)] cursor-pointer" />
                 </div>
+                {/* Platform logo overlay - bottom right */}
+                {platformLogo && !platformLogoError ? (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                    <img
+                      src={platformLogo}
+                      alt={platformName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        if (process.env.NODE_ENV === "development") {
+                          console.warn(
+                            `Platform logo failed: ${platform} -> ${platformLogo}`
+                          );
+                        }
+                        setPlatformLogoError(true);
+                      }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px]">
+                    {platformIcon}
+                  </div>
+                )}
               </div>
             ) : (
               <div
-                className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg shadow-lg shadow-[var(--primary)]/10`}
+                className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg shadow-lg shadow-[var(--primary)]/10 relative`}
               >
                 {token.icon}
+                {/* Platform logo overlay - bottom right */}
+                {platformLogo && !platformLogoError ? (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                    <img
+                      src={platformLogo}
+                      alt={platformName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        if (process.env.NODE_ENV === "development") {
+                          console.warn(
+                            `Platform logo failed: ${platform} -> ${platformLogo}`
+                          );
+                        }
+                        setPlatformLogoError(true);
+                      }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px]">
+                    {platformIcon}
+                  </div>
+                )}
               </div>
             )}
-            {/* Chain indicator */}
-            <div
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-panel flex items-center justify-center ${
-                chainType === "sol"
-                  ? "bg-gradient-to-br from-purple-500 to-blue-500"
-                  : "bg-gradient-to-br from-yellow-400 to-orange-500"
-              }`}
-            >
-              <span className="text-[8px] font-bold text-white">
-                {chainType === "sol" ? "S" : "B"}
-              </span>
-            </div>
           </div>
 
           {/* Middle: Token Info */}
@@ -286,7 +418,7 @@ export function CompactTokenCard({
               </div>
             </div>
 
-            {/* Price change + Bonding curve */}
+            {/* Price change + Bonding curve / Migrated tag */}
             <div className="mb-1.5 space-y-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
@@ -306,20 +438,32 @@ export function CompactTokenCard({
                   {formatCurrency(token.price)}
                 </span>
               </div>
-              <div>
-                <div className="flex items-center justify-between text-[9px] text-gray-500 mb-0.5">
-                  <span>Bonding Curve Progress</span>
-                  <span className="text-gray-300 font-semibold">
-                    {Math.round(bondingProgress * 100)}%
+              {/* Show migrated tag if migrated, otherwise show bonding curve */}
+              {isTokenMigrated || bondingProgress >= 1.0 ? (
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-gray-500 font-medium">
+                    Status
+                  </span>
+                  <span className="px-2 py-0.5 rounded-md bg-green-500/20 border border-green-500/50 text-[9px] font-semibold text-green-400">
+                    Migrated
                   </span>
                 </div>
-                <div className="h-2 rounded-full bg-gray-800/60 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 transition-all"
-                    style={{ width: `${bondingProgress * 100}%` }}
-                  />
+              ) : (
+                <div>
+                  <div className="flex items-center justify-between text-[9px] text-gray-500 mb-0.5">
+                    <span>Bonding Curve Progress</span>
+                    <span className="text-gray-300 font-semibold">
+                      {Math.round(bondingProgress * 100)}%
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full bg-gray-800/60 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 transition-all"
+                      style={{ width: `${bondingProgress * 100}%` }}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Metrics Row - More Colorful */}
@@ -392,12 +536,22 @@ export function CompactTokenCard({
               }}
               className={`${displaySettings?.quickBuySize === "large" ? "px-3 py-2 text-xs" : displaySettings?.quickBuySize === "mega" ? "px-4 py-2.5 text-sm" : displaySettings?.quickBuySize === "ultra" ? "px-5 py-3 text-base" : "px-2.5 py-1.5 text-[10px]"} bg-primary-dark hover:bg-primary-darker text-white font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap`}
             >
-              <span>4 O</span>
-              <span
-                className={`${displaySettings?.quickBuySize === "ultra" ? "text-xs" : displaySettings?.quickBuySize === "mega" ? "text-[10px]" : "text-[8px]"} opacity-80`}
-              >
-                SOL
-              </span>
+              <span>{quickBuyAmount}</span>
+              {chainLogoUrl && !chainLogoError ? (
+                <img
+                  src={chainLogoUrl}
+                  alt={chainType === "sol" ? "SOL" : "BNB"}
+                  className={`${displaySettings?.quickBuySize === "ultra" ? "w-4 h-4" : displaySettings?.quickBuySize === "mega" ? "w-3.5 h-3.5" : "w-3 h-3"} rounded-full object-cover`}
+                  onError={() => setChainLogoError(true)}
+                  loading="lazy"
+                />
+              ) : (
+                <span
+                  className={`${displaySettings?.quickBuySize === "ultra" ? "text-xs" : displaySettings?.quickBuySize === "mega" ? "text-[10px]" : "text-[8px]"} opacity-80`}
+                >
+                  {chainType === "sol" ? "SOL" : "BNB"}
+                </span>
+              )}
             </button>
             {/* {token.isPaid && (
               <span className="text-[9px] text-green-400">Paid</span>

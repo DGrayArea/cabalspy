@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { TokenData } from "@/types/token";
+import { axiomService } from "@/services/axiom";
 
 // Request deduplication - prevent multiple simultaneous requests
 let pendingRequest: Promise<TokenData[]> | null = null;
@@ -38,16 +39,8 @@ export const useTokens = () => {
       setIsLoading(true);
       setError(null);
 
-      // Create request promise for deduplication
-      pendingRequest = fetch("/api/tokens", {
-        next: { revalidate: 15 }, // Use Next.js fetch cache
-      }).then(async (response) => {
-        if (!response.ok) {
-          throw new Error("Failed to fetch tokens");
-        }
-        const data = await response.json();
-        return data.tokens || [];
-      });
+      // Call axiomService directly from client (better for rate limits)
+      pendingRequest = axiomService.fetchTokens();
 
       const data = await pendingRequest;
       setTokens(data);

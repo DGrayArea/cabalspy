@@ -268,7 +268,6 @@ export class PumpFunService {
     // advanced-api-v2 uses 'coinMint', frontend-api-v3 uses 'mint'
     const mint = tokenData.mint || (tokenData as any).coinMint || (tokenData as any).token || (tokenData as any).address || (tokenData as any).id;
     if (!tokenData || !mint) {
-      console.warn(`⚠️ parseTokenData: Token missing mint address. Keys:`, Object.keys(tokenData || {}));
       return null;
     }
     
@@ -352,8 +351,6 @@ export class PumpFunService {
           url += url.includes("?") ? `&limit=${limit}` : `?limit=${limit}`;
         }
 
-        console.log(`🌐 [${i + 1}/${endpointsToTry.length}] Fetching ${endpointType} from: ${url}`);
-        
         try {
           const response = await fetch(url, {
             method: "GET",
@@ -366,48 +363,20 @@ export class PumpFunService {
           });
 
           if (!response.ok) {
-            // Try to get error details from response
-            let errorDetails = "";
-            try {
-              const errorText = await response.text();
-              errorDetails = errorText.substring(0, 200);
-            } catch {
-              // Ignore if we can't read error response
-            }
-            
-            console.warn(`⚠️ ${endpointType} endpoint ${i + 1} failed:`, {
-              url,
-              status: response.status,
-              statusText: response.statusText,
-              errorDetails,
-            });
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             throw new Error(`Failed to fetch ${endpointType}: ${response.status} ${response.statusText}`);
           }
 
           // Check if response is empty
           const contentLength = response.headers.get("content-length");
-          const contentType = response.headers.get("content-type");
-          
-          console.log(`📦 ${endpointType} response:`, {
-            status: response.status,
-            contentType,
-            contentLength,
-            endpoint: i + 1,
-          });
-
-          // If content-length is 0, try next endpoint
           if (contentLength === "0") {
-            console.warn(`⚠️ ${endpointType} endpoint ${i + 1} returned empty response (Content-Length: 0)`);
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             return [];
           }
 
           // Get response text first to check if it's actually empty
           const responseText = await response.text();
-          
           if (!responseText || responseText.trim() === "") {
-            console.warn(`⚠️ ${endpointType} endpoint ${i + 1} returned empty body`);
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             return [];
           }
@@ -416,94 +385,46 @@ export class PumpFunService {
           try {
             data = JSON.parse(responseText);
           } catch (parseError) {
-            console.error(`❌ Failed to parse JSON for ${endpointType} endpoint ${i + 1}:`, parseError);
-            console.log("Raw response (first 200 chars):", responseText.substring(0, 200));
+            console.error(`Failed to parse JSON for ${endpointType}:`, parseError);
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             return [];
           }
-          
-          console.log(`📊 ${endpointType} parsed data:`, {
-            type: Array.isArray(data) ? "array" : typeof data,
-            keys: Object.keys(data || {}),
-            length: Array.isArray(data) ? data.length : "N/A",
-            endpoint: i + 1,
-          });
       
           // Handle different response formats
           let tokens: PumpFunToken[] = [];
           if (Array.isArray(data)) {
             tokens = data;
-            console.log(`✅ ${endpointType}: Found ${tokens.length} tokens (array format)`);
           } else if (data && data.coins && Array.isArray(data.coins)) {
             tokens = data.coins;
-            console.log(`✅ ${endpointType}: Found ${tokens.length} tokens (data.coins format)`);
           } else if (data && data.tokens && Array.isArray(data.tokens)) {
             tokens = data.tokens;
-            console.log(`✅ ${endpointType}: Found ${tokens.length} tokens (data.tokens format)`);
           } else if (data && data.data && Array.isArray(data.data)) {
             tokens = data.data;
-            console.log(`✅ ${endpointType}: Found ${tokens.length} tokens (data.data format)`);
           } else {
-            console.warn(`⚠️ ${endpointType}: Unknown response format. Data type:`, typeof data);
-            if (data) {
-              console.warn("Data keys:", Object.keys(data));
-              console.warn("Sample:", JSON.stringify(data).substring(0, 500));
-            }
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             return [];
-          }
-
-          console.log(`🔍 ${endpointType}: Parsing ${tokens.length} tokens...`);
-          if (tokens.length > 0) {
-            console.log(`📋 Sample token structure (first token):`, {
-              keys: Object.keys(tokens[0]),
-              hasMint: !!(tokens[0] as any).mint,
-              hasToken: !!(tokens[0] as any).token,
-              hasAddress: !!(tokens[0] as any).address,
-              sample: JSON.stringify(tokens[0]).substring(0, 300),
-            });
           }
           
           const tokenInfos = tokens
             .map((t: PumpFunToken) => {
-              // Try to get mint address from various possible field names
-              // The advanced-api-v2 uses 'coinMint' instead of 'mint'
               const mint = t.mint || (t as any).coinMint || (t as any).token || (t as any).address || (t as any).id;
-              if (!mint) {
-                console.warn(`⚠️ Token missing mint address. Keys:`, Object.keys(t));
-                return null;
-              }
-              const parsed = this.parseTokenData(t, mint);
-              if (!parsed) {
-                console.warn(`⚠️ Failed to parse token with mint: ${mint}`);
-              }
-              return parsed;
+              if (!mint) return null;
+              return this.parseTokenData(t, mint);
             })
             .filter((info): info is PumpFunTokenInfo => info !== null);
-          
-          console.log(`✅ ${endpointType}: Successfully parsed ${tokenInfos.length} out of ${tokens.length} tokens`);
 
           if (tokenInfos.length > 0) {
-            console.log(`✅ ${endpointType}: Successfully fetched ${tokenInfos.length} tokens from endpoint ${i + 1}`);
             this.cache.set(cacheKey, {
               data: tokenInfos,
               timestamp: Date.now(),
             });
             return tokenInfos;
           } else {
-            console.warn(`⚠️ ${endpointType} endpoint ${i + 1} returned 0 tokens after parsing`);
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
           }
         } catch (endpointError) {
-          const errorMessage = endpointError instanceof Error ? endpointError.message : String(endpointError);
-          const errorName = endpointError instanceof Error ? endpointError.name : "Unknown";
-          console.error(`❌ ${endpointType} endpoint ${i + 1} error:`, {
-            url,
-            error: errorMessage,
-            name: errorName,
-            stack: endpointError instanceof Error ? endpointError.stack : undefined,
-          });
           if (i < endpointsToTry.length - 1) continue; // Try next endpoint
+          console.error(`Failed to fetch ${endpointType}:`, endpointError instanceof Error ? endpointError.message : endpointError);
         }
       }
 

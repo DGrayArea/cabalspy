@@ -31,6 +31,9 @@ import { formatCurrency, formatNumber } from "@/utils/format";
 import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
 import { WalletSettingsModal } from "@/services/WalletSettingsModal";
+import { pumpFunService } from "@/services/pumpfun";
+import { dexscreenerService } from "@/services/dexscreener";
+import { multiChainTokenService } from "@/services/multichain-tokens";
 
 interface TokenDetailData {
   chain: string;
@@ -93,6 +96,12 @@ function TokenDetailContent() {
   );
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [slippage, setSlippage] = useState<string>("1");
+  const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("quickBuyAmount") || "0.1";
+    }
+    return "0.1";
+  });
 
   useEffect(() => {
     if (!chain || !tokenAddress) return;
@@ -100,12 +109,66 @@ function TokenDetailContent() {
     const fetchTokenData = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/tokens/${chain}/${tokenAddress}`);
-        if (!response.ok) {
-          throw new Error("Failed to fetch token data");
+
+        // Validate chain
+        const validChains = ["sol", "solana", "bsc"];
+        const normalizedChain = chain.toLowerCase();
+        if (!validChains.includes(normalizedChain)) {
+          throw new Error(
+            `Invalid chain. Must be one of: ${validChains.join(", ")}`
+          );
         }
-        const data = await response.json();
-        setTokenData(data);
+
+        // Fetch token data from multiple sources directly (better for rate limits)
+        const tokenData: TokenDetailData["data"] = {};
+
+        // For Solana tokens, try pump.fun first
+        if (normalizedChain === "sol" || normalizedChain === "solana") {
+          try {
+            const pumpFunData =
+              await pumpFunService.fetchTokenInfo(tokenAddress);
+            if (pumpFunData) {
+              tokenData.pumpfun = pumpFunData;
+            }
+          } catch (error) {
+            console.warn("Failed to fetch pump.fun data", error);
+          }
+        }
+
+        // Fetch DexScreener data (works for both Solana and BSC)
+        try {
+          const dexScreenerChain =
+            normalizedChain === "sol" || normalizedChain === "solana"
+              ? "solana"
+              : "bsc";
+          const dexScreenerData = await dexscreenerService.fetchTokenInfo(
+            dexScreenerChain,
+            tokenAddress
+          );
+          if (dexScreenerData) {
+            tokenData.dexscreener = dexScreenerData;
+          }
+        } catch (error) {
+          console.warn("Failed to fetch DexScreener data", error);
+        }
+
+        // Get token from multi-chain service cache
+        const allTokens = [
+          ...multiChainTokenService.getSolanaTokens(),
+          ...multiChainTokenService.getBSCTokens(),
+        ];
+        const cachedToken = allTokens.find(
+          (t) => t.id.toLowerCase() === tokenAddress.toLowerCase()
+        );
+        if (cachedToken) {
+          tokenData.base = cachedToken;
+        }
+
+        setTokenData({
+          chain: normalizedChain,
+          address: tokenAddress,
+          data: tokenData,
+        });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
@@ -255,6 +318,8 @@ function TokenDetailContent() {
                     <WalletSettingsModal
                       slippage={slippage}
                       setSlippage={setSlippage}
+                      quickBuyAmount={quickBuyAmount}
+                      setQuickBuyAmount={setQuickBuyAmount}
                       onClose={() => setShowWalletSettings(false)}
                     />
                   </Suspense>

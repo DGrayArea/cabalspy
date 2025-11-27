@@ -14,6 +14,8 @@ import {
   ArrowDownRight,
   Zap,
 } from "lucide-react";
+import { getPlatformLogo, getPlatformIcon, getChainLogo, getPlatformName } from "@/utils/platformLogos";
+import { aiPlatformDetector } from "@/services/ai-platform-detector";
 
 const TradingPanel = lazy(() => import("@/components/TradingPanel"));
 
@@ -29,6 +31,8 @@ export function TokenListCard({
   formatNumber,
 }: TokenListCardProps) {
   const [imageError, setImageError] = useState(false);
+  const [platformLogoError, setPlatformLogoError] = useState(false);
+  const [chainLogoError, setChainLogoError] = useState(false);
   const [showTradingPanel, setShowTradingPanel] = useState(false);
 
   const percentageChange =
@@ -40,6 +44,23 @@ export function TokenListCard({
 
   // Determine chain from token data
   const chainRoute = token.chain === "bsc" ? "bsc" : "sol";
+  const chainType = token.chain === "bsc" ? "bsc" : "sol";
+  
+  // Get platform info using AI detector
+  const platform = aiPlatformDetector.detectPlatform({
+    id: token.id,
+    name: token.name,
+    symbol: token.symbol,
+    image: token.image,
+    source: (token as any).source,
+    protocol: (token as any).protocol,
+    chain: token.chain,
+    raydiumPool: (token as any).raydiumPool,
+  });
+  const platformLogo = getPlatformLogo(platform);
+  const platformIcon = getPlatformIcon(platform);
+  const platformName = getPlatformName(platform);
+  const chainLogoUrl = getChainLogo(token.chain || 'solana');
 
   return (
     <>
@@ -51,7 +72,7 @@ export function TokenListCard({
           {/* Token Icon */}
           <div className="flex-shrink-0 relative group/token">
             {token.image && !imageError ? (
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden ring-2 ring-gray-800/50">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden ring-2 ring-gray-800/50 relative">
                 <Image
                   src={token.image}
                   alt={token.symbol}
@@ -61,10 +82,42 @@ export function TokenListCard({
                   onError={() => setImageError(true)}
                   unoptimized
                 />
+                {/* Platform logo overlay - bottom right */}
+                {platformLogo && !platformLogoError ? (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4.5 sm:h-4.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                    <img
+                      src={platformLogo}
+                      alt={platformName}
+                      className="w-full h-full object-cover"
+                      onError={() => setPlatformLogoError(true)}
+                      loading="lazy"
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4.5 sm:h-4.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[10px] sm:text-xs">
+                    {platformIcon}
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg sm:text-xl shadow-lg shadow-[var(--primary)]/10">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg sm:text-xl shadow-lg shadow-[var(--primary)]/10 relative">
                 {token.icon}
+                {/* Platform logo overlay - bottom right */}
+                {platformLogo && !platformLogoError ? (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4.5 sm:h-4.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                    <img
+                      src={platformLogo}
+                      alt={platformName}
+                      className="w-full h-full object-cover"
+                      onError={() => setPlatformLogoError(true)}
+                      loading="lazy"
+                    />
+                  </div>
+                ) : (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 sm:w-4.5 sm:h-4.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[10px] sm:text-xs">
+                    {platformIcon}
+                  </div>
+                )}
               </div>
             )}
             <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 rounded-xl cursor-pointer">

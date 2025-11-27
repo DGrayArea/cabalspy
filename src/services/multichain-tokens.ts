@@ -122,14 +122,14 @@ export class MultiChainTokenService {
           const data = JSON.parse(event.data);
 
           // Debug: Log received events in development
-          if (process.env.NODE_ENV === "development") {
-            console.log("📨 PumpPortal event received:", {
-              hasMint: !!data.mint || !!data.token,
-              hasName: !!data.name,
-              hasSymbol: !!data.symbol,
-              txType: data.txType || data.type || "unknown",
-            });
-          }
+          // if (process.env.NODE_ENV === "development") {
+          //   console.log("📨 PumpPortal event received:", {
+          //     hasMint: !!data.mint || !!data.token,
+          //     hasName: !!data.name,
+          //     hasSymbol: !!data.symbol,
+          //     txType: data.txType || data.type || "unknown",
+          //   });
+          // }
 
           // Handle different event types from PumpPortal
           this.handlePumpPortalEvent(data);
@@ -331,15 +331,15 @@ export class MultiChainTokenService {
         source: "pumpportal",
       };
 
-      if (process.env.NODE_ENV === "development") {
-        console.log("✨ New token created:", {
-          id: token.id,
-          name: token.name,
-          symbol: token.symbol,
-          time: token.time,
-          marketCap: token.marketCap,
-        });
-      }
+      // if (process.env.NODE_ENV === "development") {
+      //   console.log("✨ New token created:", {
+      //     id: token.id,
+      //     name: token.name,
+      //     symbol: token.symbol,
+      //     time: token.time,
+      //     marketCap: token.marketCap,
+      //   });
+      // }
 
       this.solanaTokens.set(token.id, token);
       this.emit("tokenUpdate", token);
@@ -368,23 +368,23 @@ export class MultiChainTokenService {
           },
           time: this.formatTime(event.timestamp || Date.now()),
         };
-        
+
         // Store in both regular tokens and migrated tokens
         this.solanaTokens.set(mint, migratedToken);
         this.migratedTokens.set(mint, migratedToken);
-        
+
         // Emit both token update and migration update
         this.emit("tokenUpdate", migratedToken);
         this.emit("migrationUpdate", migratedToken);
-        
-        if (process.env.NODE_ENV === "development") {
-          console.log("🔄 Token migrated:", {
-            id: migratedToken.id,
-            name: migratedToken.name,
-            symbol: migratedToken.symbol,
-            pool: event.pool,
-          });
-        }
+
+        // if (process.env.NODE_ENV === "development") {
+        //   console.log("🔄 Token migrated:", {
+        //     id: migratedToken.id,
+        //     name: migratedToken.name,
+        //     symbol: migratedToken.symbol,
+        //     pool: event.pool,
+        //   });
+        // }
       } else {
         // Migration event for token we haven't seen yet - create new token
         const timestamp = event.timestamp || Date.now();
@@ -410,7 +410,7 @@ export class MultiChainTokenService {
           chain: "solana",
           source: "pumpportal",
         };
-        
+
         this.solanaTokens.set(mint, migratedToken);
         this.migratedTokens.set(mint, migratedToken);
         this.emit("tokenUpdate", migratedToken);
@@ -434,12 +434,12 @@ export class MultiChainTokenService {
           time: this.formatTime(event.timestamp || Date.now()),
         };
         this.solanaTokens.set(mint, updatedToken);
-        
+
         // If token was migrated, also update migrated tokens
         if (this.migratedTokens.has(mint)) {
           this.migratedTokens.set(mint, updatedToken);
         }
-        
+
         this.emit("tokenUpdate", updatedToken);
       }
     }
@@ -1025,17 +1025,17 @@ export class MultiChainTokenService {
             await this.enrichWithDexScreener(token);
           }
 
-          if (process.env.NODE_ENV === "development") {
-            console.log(
-              `✨ Enriched Solana token ${token.symbol} with pump.fun data:`,
-              {
-                logo: pumpFunInfo.logo ? "✅" : "❌",
-                price: pumpFunInfo.priceUsd ? "✅" : "❌",
-                migrated: pumpFunInfo.isMigrated ? "✅" : "❌",
-                socials: pumpFunInfo.socials ? "✅" : "❌",
-              }
-            );
-          }
+          // if (process.env.NODE_ENV === "development") {
+          //   console.log(
+          //     `✨ Enriched Solana token ${token.symbol} with pump.fun data:`,
+          //     {
+          //       logo: pumpFunInfo.logo ? "✅" : "❌",
+          //       price: pumpFunInfo.priceUsd ? "✅" : "❌",
+          //       migrated: pumpFunInfo.isMigrated ? "✅" : "❌",
+          //       socials: pumpFunInfo.socials ? "✅" : "❌",
+          //     }
+          //   );
+          // }
           return; // Successfully enriched with pump.fun
         }
       }
@@ -1077,11 +1077,11 @@ export class MultiChainTokenService {
 
       if (!dexscreenerInfo) {
         // Token not found on DexScreener
-        if (process.env.NODE_ENV === "development") {
-          console.log(
-            `ℹ️ Token ${token.symbol} (${token.id}) not found on DexScreener`
-          );
-        }
+        // if (process.env.NODE_ENV === "development") {
+        //   console.log(
+        //     `ℹ️ Token ${token.symbol} (${token.id}) not found on DexScreener`
+        //   );
+        // }
         return;
       }
 
@@ -1116,16 +1116,16 @@ export class MultiChainTokenService {
       // Emit updated token with DexScreener data
       this.emit("tokenUpdate", enrichedToken);
 
-      if (process.env.NODE_ENV === "development") {
-        console.log(
-          `✨ Enriched token ${token.symbol} with DexScreener data:`,
-          {
-            logo: dexscreenerInfo.logo ? "✅" : "❌",
-            price: dexscreenerInfo.priceUsd ? "✅" : "❌",
-            socials: dexscreenerInfo.socials?.length || 0,
-          }
-        );
-      }
+      // if (process.env.NODE_ENV === "development") {
+      //   console.log(
+      //     `✨ Enriched token ${token.symbol} with DexScreener data:`,
+      //     {
+      //       logo: dexscreenerInfo.logo ? "✅" : "❌",
+      //       price: dexscreenerInfo.priceUsd ? "✅" : "❌",
+      //       socials: dexscreenerInfo.socials?.length || 0,
+      //     }
+      //   );
+      // }
     } catch (error: unknown) {
       // Silently fail - don't break token updates if DexScreener fails
       logger.warn("Failed to enrich token with DexScreener data", {
