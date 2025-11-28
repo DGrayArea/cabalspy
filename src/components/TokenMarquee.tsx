@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TokenData } from "@/types/token";
 import { formatCurrency } from "@/utils/format";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -17,8 +17,37 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [platformLogoErrors, setPlatformLogoErrors] = useState<Set<string>>(new Set());
 
-  // Duplicate tokens for seamless loop (only for desktop auto-scroll)
+  // Duplicate tokens for seamless loop
   const duplicatedTokens = [...tokens, ...tokens];
+
+  // Speed configuration
+  const speedConfig = {
+    slow: "60s",
+    normal: "40s",
+    fast: "25s",
+  };
+
+  const animationDuration = speedConfig[speed];
+
+  // Inject marquee animation styles
+  useEffect(() => {
+    const styleId = "token-marquee-animation";
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        @keyframes tokenMarquee {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }, []);
 
   const handleImageError = (tokenId: string) => {
     setImageErrors((prev) => new Set(prev).add(tokenId));
@@ -33,10 +62,22 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   }
 
   return (
-    <div className="relative w-full bg-panel/50 border-y border-gray-800/50 py-3">
-      <div className=" overflow-x-auto scrollbar-hide scroll-smooth px-2">
-        <div className="flex gap-3 min-w-max">
-          {tokens.map((token, index) => {
+    <div className="relative w-full bg-panel/50 border-y border-gray-800/50 py-3 overflow-hidden">
+      <div
+        className="flex gap-3"
+        style={{
+          animation: `tokenMarquee ${animationDuration} linear infinite`,
+          willChange: "transform",
+          width: "max-content",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.animationPlayState = "paused";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.animationPlayState = "running";
+        }}
+      >
+        {duplicatedTokens.map((token, index) => {
             const hasImageError = imageErrors.has(token.id);
             // Get 24h change from percentages array (last element) or calculate from average
             const priceChange =
@@ -155,7 +196,6 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
               </div>
             );
           })}
-        </div>
       </div>
     </div>
   );
