@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { TrendingUp, Users, Coins, Rocket, BarChart3, Sparkles } from "lucide-react";
+import { TrendingUp, Users, Rocket, Sparkles } from "lucide-react";
 import { getPlatformLogo, getPlatformIcon } from "@/utils/platformLogos";
 
 interface LaunchpadStats {
@@ -89,12 +89,22 @@ export default function LaunchpadStatsCard() {
 
   if (loading || !stats) {
     return (
-      <div className="bg-panel border border-gray-800/50 rounded-xl p-4">
+      <div className="bg-gradient-to-br from-panel via-panel-elev/50 to-panel border border-gray-800/50 rounded-xl p-4 shadow-lg">
         <div className="animate-pulse">
-          <div className="h-5 bg-gray-800/50 rounded w-1/3 mb-3"></div>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <div className="h-4 bg-gray-800/50 rounded w-32 mb-2"></div>
+              <div className="h-3 bg-gray-800/30 rounded w-48"></div>
+            </div>
+            <div className="flex gap-1">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="w-10 h-8 bg-gray-800/30 rounded-md"></div>
+              ))}
+            </div>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-20 bg-gray-800/30 rounded-lg"></div>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-36 bg-gray-800/30 rounded-xl"></div>
             ))}
           </div>
         </div>
@@ -134,21 +144,22 @@ export default function LaunchpadStatsCard() {
   };
 
   return (
-    <div className="bg-panel border border-gray-800/50 rounded-lg p-3 hover:border-gray-700/50 transition-colors">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-1.5">
-          <BarChart3 className="w-3.5 h-3.5 text-purple-400" />
-          <h2 className="text-xs font-semibold text-white">Launchpad Stats</h2>
+    <div className="bg-gradient-to-br from-panel via-panel-elev/50 to-panel border border-gray-800/50 rounded-xl p-4 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 transition-all">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm sm:text-base font-semibold text-white tracking-tight">Launchpad Stats</h2>
+          <p className="text-xs text-gray-500 mt-0.5">Performance metrics across top platforms</p>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1 bg-panel-elev/50 p-1 rounded-lg border border-gray-800/50">
           {(["1d", "7d", "30d"] as const).map((tf) => (
             <button
               key={tf}
               onClick={() => setSelectedTimeframe(tf)}
-              className={`px-2 py-0.5 rounded text-[10px] font-medium transition-all ${
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                 selectedTimeframe === tf
-                  ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                  : "bg-panel-elev text-gray-500 hover:text-gray-400 border border-gray-800/50"
+                  ? "bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-white shadow-sm shadow-purple-500/20 border border-purple-500/40"
+                  : "bg-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800/30"
               }`}
             >
               {tf}
@@ -158,10 +169,12 @@ export default function LaunchpadStatsCard() {
       </div>
 
       {filteredLaunchpads.length === 0 ? (
-        <p className="text-gray-500 text-center py-4 text-xs">No stats available</p>
+        <div className="text-center py-8">
+          <p className="text-gray-500 text-sm">No stats available</p>
+        </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-          {filteredLaunchpads.map((lp) => {
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {filteredLaunchpads.map((lp, index) => {
             const timeframeStats = getStatsForTimeframe(lp);
             const displayName = launchpadDisplayNames[lp.launchpad] || lp.launchpad;
             const platformLogo = getPlatformLogo(lp.launchpad);
@@ -170,78 +183,89 @@ export default function LaunchpadStatsCard() {
             return (
               <div
                 key={lp.launchpad}
-                className="bg-panel-elev/50 border border-gray-800/30 rounded-lg p-2 hover:border-gray-700/50 hover:bg-panel-elev/70 transition-all group"
+                className="group relative bg-gradient-to-br from-panel-elev/80 via-panel-elev/60 to-panel-elev/80 border border-gray-800/40 rounded-xl p-3 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all overflow-hidden"
               >
+                {/* Gradient overlay on hover */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 via-blue-500/0 to-green-500/0 group-hover:from-purple-500/5 group-hover:via-blue-500/5 group-hover:to-green-500/5 transition-all pointer-events-none" />
+                
+                {/* Rank badge */}
+                <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-full flex items-center justify-center text-[10px] font-bold text-purple-300 shadow-sm">
+                  #{index + 1}
+                </div>
+
                 {/* Header with logo and name */}
-                <div className="flex items-center gap-1.5 mb-2">
-                  <div className="relative w-4 h-4 flex-shrink-0">
+                <div className="flex items-center gap-2 mb-3 relative z-10">
+                  <div className="relative w-7 h-7 flex-shrink-0">
                     {platformLogo ? (
                       <img
                         src={platformLogo}
                         alt={displayName}
-                        className="w-4 h-4 rounded-full object-cover"
+                        className="w-full h-full rounded-lg object-cover ring-1 ring-gray-800/50 group-hover:ring-purple-500/50 transition-all"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none';
                           const fallback = e.currentTarget.parentElement?.querySelector('.fallback-icon') as HTMLElement;
-                          if (fallback) fallback.style.display = 'block';
+                          if (fallback) fallback.style.display = 'flex';
                         }}
                       />
                     ) : null}
-                    <span
-                      className="text-sm fallback-icon"
-                      style={{ display: platformLogo ? 'none' : 'block' }}
+                    <div
+                      className="w-full h-full rounded-lg bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center text-xs fallback-icon ring-1 ring-gray-800/50 group-hover:ring-purple-500/50 transition-all"
+                      style={{ display: platformLogo ? 'none' : 'flex' }}
                     >
                       {platformIcon}
-                    </span>
+                    </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-[10px] font-semibold text-white truncate group-hover:text-purple-400 transition-colors leading-tight">
+                    <h3 className="text-xs font-semibold text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-blue-400 transition-all">
                       {displayName}
                     </h3>
-                    <p className="text-[9px] text-gray-500 leading-tight">
+                    <div className="px-1.5 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded-md text-[9px] font-semibold text-purple-300 inline-block mt-1">
                       {formatPercent(timeframeStats.marketShare)}
-                    </p>
+                    </div>
                   </div>
                 </div>
 
-                {/* Stats grid - more compact */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5 text-blue-400" />
-                      <span className="text-[9px] text-gray-500">Mints</span>
+                {/* Stats grid - improved spacing */}
+                <div className="space-y-1.5 relative z-10">
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20 group-hover:border-blue-500/40 transition-all">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-3 h-3 text-blue-400" />
+                      <span className="text-[10px] text-gray-400 font-medium">Mints</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-white">
+                    <span className="text-[11px] font-bold text-blue-300">
                       {timeframeStats.mints >= 1000
                         ? `${(timeframeStats.mints / 1000).toFixed(1)}K`
                         : timeframeStats.mints.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <Rocket className="w-2.5 h-2.5 text-green-400" />
-                      <span className="text-[9px] text-gray-500">Grads</span>
+                  
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-green-500/10 to-green-500/5 rounded-lg border border-green-500/20 group-hover:border-green-500/40 transition-all">
+                    <div className="flex items-center gap-1.5">
+                      <Rocket className="w-3 h-3 text-green-400" />
+                      <span className="text-[10px] text-gray-400 font-medium">Grads</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-green-400">
+                    <span className="text-[11px] font-bold text-green-300">
                       {timeframeStats.graduates.toLocaleString()}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="w-2.5 h-2.5 text-purple-400" />
-                      <span className="text-[9px] text-gray-500">Vol</span>
+                  
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20 group-hover:border-purple-500/40 transition-all">
+                    <div className="flex items-center gap-1.5">
+                      <TrendingUp className="w-3 h-3 text-purple-400" />
+                      <span className="text-[10px] text-gray-400 font-medium">Volume</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-purple-400 truncate ml-1">
+                    <span className="text-[11px] font-bold text-purple-300 truncate ml-1">
                       {formatNumber(timeframeStats.volume)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1">
-                      <Users className="w-2.5 h-2.5 text-orange-400" />
-                      <span className="text-[9px] text-gray-500">Traders</span>
+                  
+                  <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-orange-500/10 to-orange-500/5 rounded-lg border border-orange-500/20 group-hover:border-orange-500/40 transition-all">
+                    <div className="flex items-center gap-1.5">
+                      <Users className="w-3 h-3 text-orange-400" />
+                      <span className="text-[10px] text-gray-400 font-medium">Traders</span>
                     </div>
-                    <span className="text-[10px] font-semibold text-orange-400">
+                    <span className="text-[11px] font-bold text-orange-300">
                       {timeframeStats.traders >= 1000
                         ? `${(timeframeStats.traders / 1000).toFixed(1)}K`
                         : timeframeStats.traders.toLocaleString()}

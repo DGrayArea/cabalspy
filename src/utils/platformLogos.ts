@@ -38,49 +38,53 @@ export function getPlatformLogo(platform: string | undefined): string | null {
   const normalized = platform.toLowerCase().replace(/[_-]/g, '');
 
   const logoMap: Record<string, string> = {
-    // Pump.fun - using favicon with no-cors fallback
-    pump: 'https://pump.fun/favicon.ico',
-    pumpfun: 'https://pump.fun/favicon.ico',
-    'pump.fun': 'https://pump.fun/favicon.ico', // Jupiter API format
-    pumpportal: 'https://pump.fun/favicon.ico', // PumpPortal is pump.fun data source
+    // Pump.fun - using logo from their assets
+    pump: 'https://pump.fun/_next/static/media/pump-logo.avif',
+    pumpfun: 'https://pump.fun/_next/static/media/pump-logo.avif',
+    'pump.fun': 'https://pump.fun/_next/static/media/pump-logo.avif', // Jupiter API format
+    pumpportal: 'https://pump.fun/_next/static/media/pump-logo.avif', // PumpPortal is pump.fun data source
     
-    // Raydium - using favicon
-    raydium: 'https://raydium.io/favicon.ico',
-    'raydium-launchlab': 'https://raydium.io/favicon.ico', // Jupiter API format
+    // Raydium - using CoinGecko logo (reliable source)
+    raydium: 'https://assets.coingecko.com/coins/images/13902/small/PSigc4ie_400x400.jpg',
+    'raydium-launchlab': 'https://assets.coingecko.com/coins/images/13902/small/PSigc4ie_400x400.jpg', // Jupiter API format
     
-    // Meteora - using favicon
-    meteora: 'https://meteora.ag/favicon.ico',
+    // Meteora - using logo from their website/CDN
+    meteora: 'https://meteora.ag/logo.png',
+    'met-dbc': 'https://meteora.ag/logo.png', // Meteora DBC format
+    'dynamic-bc': 'https://meteora.ag/logo.png', // Uses Meteora DBC
     
-    // Orca - using favicon
-    orca: 'https://orca.so/favicon.ico',
+    // Orca - using CoinGecko logo (reliable source)
+    orca: 'https://assets.coingecko.com/coins/images/17547/small/Orca_Logo.png',
     
-    // Moonshot - using favicon
-    moonshot: 'https://moonshot.cc/favicon.ico',
+    // Moonshot - using logo from their website
+    moonshot: 'https://moonshot.cc/logo.png',
     
-    // Jupiter - using favicon
-    jupiter: 'https://jup.ag/favicon.ico',
-    jupiterstudio: 'https://jup.ag/favicon.ico',
-    'jupiter-studio': 'https://jup.ag/favicon.ico',
-    'jup-studio': 'https://jup.ag/favicon.ico', // Jupiter API format
+    // Jupiter - using logo from Jupiter aggregator
+    jupiter: 'https://jup.ag/logo.png',
+    jupiterstudio: 'https://jup.ag/logo.png',
+    'jupiter-studio': 'https://jup.ag/logo.png',
+    'jup-studio': 'https://jup.ag/logo.png', // Jupiter API format
     
-    // Bonk - using CoinGecko logo
+    // Bonk - using CoinGecko logo (reliable source)
     bonk: 'https://assets.coingecko.com/coins/images/28600/small/bonk.png',
     'letsbonk.fun': 'https://assets.coingecko.com/coins/images/28600/small/bonk.png', // Jupiter API format
     
-    // Other platforms - using favicons
-    bags: 'https://bags.fun/favicon.ico',
-    heaven: 'https://heaven.fun/favicon.ico',
-    'daos-fun': 'https://daos.fun/favicon.ico',
-    candle: 'https://candle.fun/favicon.ico',
-    sugar: 'https://sugar.fun/favicon.ico',
-    believe: 'https://believe.fun/favicon.ico',
-    moonit: 'https://moonit.fun/favicon.ico',
-    boop: 'https://boop.fun/favicon.ico',
-    launchlab: 'https://launchlab.fun/favicon.ico',
-    'dynamic-bc': 'https://meteora.ag/favicon.ico', // Uses Meteora DBC
-    mayhem: 'https://mayhem.fun/favicon.ico',
-    'pump-amm': 'https://pump.fun/favicon.ico',
-    wavebreak: 'https://wavebreak.fun/favicon.ico',
+    // Other platforms - trying common logo paths
+    bags: 'https://bags.fun/logo.png',
+    'bags.fun': 'https://bags.fun/logo.png',
+    heaven: 'https://heaven.fun/logo.png',
+    'daos-fun': 'https://daos.fun/logo.png',
+    'daos.fun': 'https://daos.fun/logo.png',
+    candle: 'https://candle.fun/logo.png',
+    sugar: 'https://sugar.fun/logo.png',
+    believe: 'https://believe.fun/logo.png',
+    moonit: 'https://moonit.fun/logo.png',
+    boop: 'https://boop.fun/logo.png',
+    launchlab: 'https://assets.coingecko.com/coins/images/13902/small/PSigc4ie_400x400.jpg', // Launchlab is part of Raydium
+    'america.fun': 'https://america.fun/logo.png',
+    mayhem: 'https://mayhem.fun/logo.png',
+    'pump-amm': 'https://pump.fun/_next/static/media/pump-logo.avif',
+    wavebreak: 'https://wavebreak.fun/logo.png',
   };
 
   return logoMap[normalized] || null;
