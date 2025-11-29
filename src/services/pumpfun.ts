@@ -61,6 +61,22 @@ export interface PumpFunTokenInfo {
     token?: number;
   };
   priceChange24h?: number;
+  bondingProgress?: number; // 0-1, from API bondingCurveProgress (0-100)
+  numHolders?: number;
+  holders?: any[]; // Top holders data
+  transactions?: number;
+  buyTransactions?: number;
+  sellTransactions?: number;
+  createdTimestamp?: number;
+}
+
+export interface PumpFunCandle {
+  timestamp: number;
+  open: string;
+  high: string;
+  low: string;
+  close: string;
+  volume: string;
 }
 
 export type PumpFunEndpointType =
@@ -79,13 +95,13 @@ export class PumpFunService {
   private advancedApiUrl = "https://advanced-api-v2.pump.fun";
   private frontendApiV3Url = "https://frontend-api-v3.pump.fun";
   private swapApiUrl = "https://swap-api.pump.fun";
-  
+
   private cache: Map<
     string,
     { data: PumpFunTokenInfo | PumpFunTokenInfo[]; timestamp: number }
   > = new Map();
   private cacheTTL = 30000; // 30 second cache (shorter for real-time data)
-  
+
   // Endpoint definitions - try multiple endpoint patterns
   private endpoints: Record<PumpFunEndpointType, string> = {
     graduatedByTime: `${this.advancedApiUrl}/coins/graduated?sortBy=creationTime`,
@@ -142,8 +158,14 @@ export class PumpFunService {
     try {
       // Try multiple possible endpoints (using working APIs)
       const endpoints = [
-        { url: `${this.frontendApiV3Url}/coins/${mintAddress}`, name: "v3/coins" },
-        { url: `${this.frontendApiV3Url}/coins?mint=${mintAddress}`, name: "v3/coins?mint" },
+        {
+          url: `${this.frontendApiV3Url}/coins/${mintAddress}`,
+          name: "v3/coins",
+        },
+        {
+          url: `${this.frontendApiV3Url}/coins?mint=${mintAddress}`,
+          name: "v3/coins?mint",
+        },
       ];
 
       for (const { url, name } of endpoints) {
@@ -176,10 +198,7 @@ export class PumpFunService {
       // If all endpoints fail, try search endpoint
       return await this.searchToken(mintAddress);
     } catch (error) {
-      console.error(
-        `Failed to fetch pump.fun data for ${mintAddress}:`,
-        error
-      );
+      console.error(`Failed to fetch pump.fun data for ${mintAddress}:`, error);
       return null;
     }
   }
@@ -195,8 +214,14 @@ export class PumpFunService {
     try {
       // Try search endpoints (only working APIs)
       const searchEndpoints = [
-        { url: `${this.frontendApiV3Url}/coins?search=${mintAddress}`, name: "v3/coins?search" },
-        { url: `${this.frontendApiV3Url}/coins?mint=${mintAddress}`, name: "v3/coins?mint" },
+        {
+          url: `${this.frontendApiV3Url}/coins?search=${mintAddress}`,
+          name: "v3/coins?search",
+        },
+        {
+          url: `${this.frontendApiV3Url}/coins?mint=${mintAddress}`,
+          name: "v3/coins?mint",
+        },
       ];
 
       for (const { url, name } of searchEndpoints) {
@@ -252,13 +277,11 @@ export class PumpFunService {
     let tokenData: PumpFunToken;
     if (Array.isArray(data)) {
       tokenData = data.find(
-        (t: PumpFunToken) =>
-          t.mint?.toLowerCase() === mintAddress.toLowerCase()
+        (t: PumpFunToken) => t.mint?.toLowerCase() === mintAddress.toLowerCase()
       ) as PumpFunToken;
     } else if ("coins" in token && Array.isArray(token.coins)) {
       tokenData = token.coins.find(
-        (t: PumpFunToken) =>
-          t.mint?.toLowerCase() === mintAddress.toLowerCase()
+        (t: PumpFunToken) => t.mint?.toLowerCase() === mintAddress.toLowerCase()
       ) as PumpFunToken;
     } else {
       tokenData = data as PumpFunToken;
@@ -266,11 +289,16 @@ export class PumpFunService {
 
     // Check for mint in various possible field names
     // advanced-api-v2 uses 'coinMint', frontend-api-v3 uses 'mint'
-    const mint = tokenData.mint || (tokenData as any).coinMint || (tokenData as any).token || (tokenData as any).address || (tokenData as any).id;
+    const mint =
+      tokenData.mint ||
+      (tokenData as any).coinMint ||
+      (tokenData as any).token ||
+      (tokenData as any).address ||
+      (tokenData as any).id;
     if (!tokenData || !mint) {
       return null;
     }
-    
+
     // Ensure mint is set in tokenData
     if (!tokenData.mint) {
       tokenData.mint = mint;
@@ -279,18 +307,44 @@ export class PumpFunService {
     // Handle different field name variations
     // advanced-api-v2 uses: coinMint, ticker, imageUrl, marketCap, currentMarketPrice
     // frontend-api-v3 uses: mint, symbol, image_uri, usd_market_cap, price
-    const logo = tokenData.image_uri || (tokenData as any).imageUrl || (tokenData as any).image || (tokenData as any).logo;
+    const logo =
+      tokenData.image_uri ||
+      (tokenData as any).imageUrl ||
+      (tokenData as any).image ||
+      (tokenData as any).logo;
     const name = tokenData.name || (tokenData as any).tokenName || "";
-    const symbol = tokenData.symbol || (tokenData as any).ticker || (tokenData as any).tokenSymbol || "";
-    const marketCap = tokenData.usd_market_cap || tokenData.market_cap || (tokenData as any).marketCap || 0;
+    const symbol =
+      tokenData.symbol ||
+      (tokenData as any).ticker ||
+      (tokenData as any).tokenSymbol ||
+      "";
+    const marketCap =
+      tokenData.usd_market_cap ||
+      tokenData.market_cap ||
+      (tokenData as any).marketCap ||
+      0;
     const volume = tokenData.volume || (tokenData as any).vol || 0;
-    const price = tokenData.price || (tokenData as any).currentMarketPrice || (tokenData as any).priceUsd || 0;
-    // Check if migrated/graduated: advanced-api-v2 has graduationDate, frontend-api-v3 has complete
-    const isComplete = tokenData.complete === true || 
-                       (tokenData as any).isComplete === true || 
-                       (tokenData as any).migrated === true ||
-                       !!(tokenData as any).graduationDate; // If graduationDate exists, token is migrated
-    
+    const price =
+      tokenData.price ||
+      (tokenData as any).currentMarketPrice ||
+      (tokenData as any).priceUsd ||
+      0;
+    // CRITICAL: Check migration status using EXACT API field names
+    // advanced-api-v2 uses: graduationDate (timestamp) and poolAddress (Raydium pool)
+    // frontend-api-v3 uses: complete (boolean)
+    // NEVER infer from market cap or bondingCurveProgress - tokens can drop below threshold after migrating
+    const graduationDate = (tokenData as any).graduationDate;
+    const poolAddress =
+      (tokenData as any).poolAddress ||
+      tokenData.raydium_pool ||
+      (tokenData as any).raydiumPool;
+    const isComplete =
+      tokenData.complete === true ||
+      (tokenData as any).isComplete === true ||
+      (tokenData as any).migrated === true ||
+      (graduationDate !== null && graduationDate !== undefined) || // graduationDate exists = migrated
+      (poolAddress !== null && poolAddress !== undefined); // poolAddress exists = migrated
+
     return {
       mint: mint,
       logo: logo,
@@ -302,25 +356,51 @@ export class PumpFunService {
       marketCap: marketCap,
       volume: volume,
       isMigrated: isComplete,
-      migrationTimestamp: tokenData.complete_timestamp || 
-                          (tokenData as any).migrationTimestamp || 
-                          (tokenData as any).completeTimestamp ||
-                          ((tokenData as any).graduationDate ? new Date((tokenData as any).graduationDate).getTime() : undefined),
-      raydiumPool: tokenData.raydium_pool || (tokenData as any).raydiumPool || (tokenData as any).poolAddress,
+      migrationTimestamp:
+        tokenData.complete_timestamp ||
+        (tokenData as any).migrationTimestamp ||
+        (tokenData as any).completeTimestamp ||
+        (graduationDate ? new Date(graduationDate).getTime() : undefined),
+      raydiumPool:
+        poolAddress || tokenData.raydium_pool || (tokenData as any).raydiumPool,
       socials: {
         website: tokenData.website || (tokenData as any).websiteUrl,
         twitter: tokenData.twitter || (tokenData as any).twitterUrl,
         telegram: tokenData.telegram || (tokenData as any).telegramUrl,
       },
       reserves: {
-        sol: tokenData.sol_reserves || tokenData.real_sol_reserves || (tokenData as any).solReserves,
-        token: tokenData.token_reserves || tokenData.real_token_reserves || (tokenData as any).tokenReserves,
+        sol:
+          tokenData.sol_reserves ||
+          tokenData.real_sol_reserves ||
+          (tokenData as any).solReserves,
+        token:
+          tokenData.token_reserves ||
+          tokenData.real_token_reserves ||
+          (tokenData as any).tokenReserves,
       },
-      priceChange24h: tokenData.price_change_24h || (tokenData as any).priceChange24h,
-      createdTimestamp: tokenData.created_timestamp || 
-                        (tokenData as any).createdTimestamp || 
-                        (tokenData as any).creationTimestamp ||
-                        (tokenData as any).creationTime, // advanced-api-v2 uses creationTime
+      priceChange24h:
+        tokenData.price_change_24h || (tokenData as any).priceChange24h,
+      createdTimestamp:
+        tokenData.created_timestamp ||
+        (tokenData as any).createdTimestamp ||
+        (tokenData as any).creationTimestamp ||
+        (tokenData as any).creationTime, // advanced-api-v2 uses creationTime
+      // CRITICAL: Use bondingCurveProgress from API if available (0-100, convert to 0-1)
+      // This is more accurate than calculating from market cap
+      bondingProgress:
+        (tokenData as any).bondingCurveProgress !== undefined &&
+        (tokenData as any).bondingCurveProgress !== null
+          ? Math.min((tokenData as any).bondingCurveProgress / 100, 1.0) // Convert 0-100 to 0-1
+          : undefined,
+      // Preserve additional data for token pages
+      numHolders: (tokenData as any).numHolders,
+      holders: (tokenData as any).holders, // Top holders data
+      transactions:
+        (tokenData as any).transactions ||
+        (tokenData as any).buyTransactions +
+          (tokenData as any).sellTransactions,
+      buyTransactions: (tokenData as any).buyTransactions,
+      sellTransactions: (tokenData as any).sellTransactions,
     };
   }
 
@@ -339,13 +419,16 @@ export class PumpFunService {
 
     try {
       // Try primary endpoint first, then alternatives
-      const endpointsToTry = [this.endpoints[endpointType], ...this.getAlternativeEndpoints(endpointType)].filter(
+      const endpointsToTry = [
+        this.endpoints[endpointType],
+        ...this.getAlternativeEndpoints(endpointType),
+      ].filter(
         (url, index, self) => self.indexOf(url) === index // Remove duplicates
       );
 
       for (let i = 0; i < endpointsToTry.length; i++) {
         let url = endpointsToTry[i];
-        
+
         // Add limit if provided and endpoint supports it
         if (limit && !url.includes("limit=")) {
           url += url.includes("?") ? `&limit=${limit}` : `?limit=${limit}`;
@@ -356,7 +439,8 @@ export class PumpFunService {
             method: "GET",
             headers: {
               Accept: "application/json",
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+              "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
               "Content-Type": "application/json",
             },
             credentials: "omit",
@@ -364,7 +448,9 @@ export class PumpFunService {
 
           if (!response.ok) {
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
-            throw new Error(`Failed to fetch ${endpointType}: ${response.status} ${response.statusText}`);
+            throw new Error(
+              `Failed to fetch ${endpointType}: ${response.status} ${response.statusText}`
+            );
           }
 
           // Check if response is empty
@@ -385,11 +471,14 @@ export class PumpFunService {
           try {
             data = JSON.parse(responseText);
           } catch (parseError) {
-            console.error(`Failed to parse JSON for ${endpointType}:`, parseError);
+            console.error(
+              `Failed to parse JSON for ${endpointType}:`,
+              parseError
+            );
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             return [];
           }
-      
+
           // Handle different response formats
           let tokens: PumpFunToken[] = [];
           if (Array.isArray(data)) {
@@ -404,10 +493,15 @@ export class PumpFunService {
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             return [];
           }
-          
+
           const tokenInfos = tokens
             .map((t: PumpFunToken) => {
-              const mint = t.mint || (t as any).coinMint || (t as any).token || (t as any).address || (t as any).id;
+              const mint =
+                t.mint ||
+                (t as any).coinMint ||
+                (t as any).token ||
+                (t as any).address ||
+                (t as any).id;
               if (!mint) return null;
               return this.parseTokenData(t, mint);
             })
@@ -424,7 +518,12 @@ export class PumpFunService {
           }
         } catch (endpointError) {
           if (i < endpointsToTry.length - 1) continue; // Try next endpoint
-          console.error(`Failed to fetch ${endpointType}:`, endpointError instanceof Error ? endpointError.message : endpointError);
+          console.error(
+            `Failed to fetch ${endpointType}:`,
+            endpointError instanceof Error
+              ? endpointError.message
+              : endpointError
+          );
         }
       }
 
@@ -491,6 +590,130 @@ export class PumpFunService {
   }
 
   /**
+   * Fetch candles/OHLCV data for a token (for charting)
+   * Endpoint: https://swap-api.pump.fun/v2/coins/{mintAddress}/candles
+   *
+   * NOTE: This endpoint may not work for all coins - some tokens may not have candle data
+   *
+   * @param mintAddress - Token mint address
+   * @param interval - Candle interval: '1m', '5m', '15m', '1h', '4h', '1d' (default: '1h')
+   * @param limit - Number of candles to fetch (default: 1000, max: 1000)
+   * @param currency - Currency for prices: 'USD' or 'SOL' (default: 'USD')
+   * @param createdTs - Token creation timestamp (optional, helps with data accuracy)
+   * @returns Array of candle data or empty array if not available
+   */
+  async fetchTokenCandles(
+    mintAddress: string,
+    interval: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" = "1h",
+    limit: number = 1000,
+    currency: "USD" | "SOL" = "USD",
+    createdTs?: number
+  ): Promise<
+    Array<{
+      timestamp: number;
+      open: string;
+      high: string;
+      low: string;
+      close: string;
+      volume: string;
+    }>
+  > {
+    const cacheKey = `candles:${mintAddress}:${interval}:${limit}:${currency}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      return cached.data as Array<{
+        timestamp: number;
+        open: string;
+        high: string;
+        low: string;
+        close: string;
+        volume: string;
+      }>;
+    }
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      // Build URL with query parameters
+      const params = new URLSearchParams({
+        interval,
+        limit: limit.toString(),
+        currency,
+      });
+
+      // Add createdTs if provided
+      if (createdTs) {
+        params.append("createdTs", createdTs.toString());
+      }
+
+      const url = `${this.swapApiUrl}/v2/coins/${mintAddress}/candles?${params.toString()}`;
+
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "User-Agent": "Mozilla/5.0",
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        // If 404 or other error, token may not have candle data - return empty array
+        if (response.status === 404) {
+          console.warn(`⚠️ No candle data available for token ${mintAddress}`);
+          return [];
+        }
+        console.error(
+          `❌ Pump.fun candles API error: ${response.status} ${response.statusText}`
+        );
+        return [];
+      }
+
+      const data = await response.json();
+
+      // Validate response format
+      if (!Array.isArray(data)) {
+        console.warn(
+          `⚠️ Unexpected candles response format for ${mintAddress}`
+        );
+        return [];
+      }
+
+      // Parse candles - keep as strings (as returned by API) for precision
+      const candles = data.map((candle: any) => ({
+        timestamp: candle.timestamp,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume,
+      }));
+
+      // Cache the result
+      this.cache.set(cacheKey, {
+        data: candles,
+        timestamp: Date.now(),
+      });
+
+      return candles;
+    } catch (error: any) {
+      if (error.name === "AbortError") {
+        console.error(
+          `❌ Pump.fun candles API request timeout for ${mintAddress}`
+        );
+      } else {
+        console.error(
+          `❌ Failed to fetch candles for ${mintAddress}:`,
+          error.message || error
+        );
+      }
+      return [];
+    }
+  }
+
+  /**
    * Clear cache
    */
   clearCache(): void {
@@ -500,4 +723,3 @@ export class PumpFunService {
 
 // Singleton instance
 export const pumpFunService = new PumpFunService();
-

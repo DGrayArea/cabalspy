@@ -413,12 +413,15 @@ export class ProtocolService {
       const data = await response.json();
       const tokens: ProtocolToken[] = [];
 
-      if (data.data && Array.isArray(data.data)) {
+          if (data.data && Array.isArray(data.data)) {
         for (const token of data.data.slice(0, limit)) {
           if (token.mintAddress) {
+            // CRITICAL: If state='GRADUATED' endpoint is used, ALL tokens are migrated
+            // No need to check API fields - the endpoint itself guarantees migration status
+            const isFromGraduatedEndpoint = state === 'GRADUATED';
             // progressPercent is in basis points (10000 = 100%)
             const bondingProgress = token.progressPercent ? token.progressPercent / 10000 : 0;
-            const isMigrated = token.state === 'MIGRATED' || token.migrated === true;
+            const isMigrated = isFromGraduatedEndpoint || token.state === 'MIGRATED' || token.migrated === true;
 
             // Calculate price from marketcap if available
             const marketCap = token.marketcap ? parseFloat(token.marketcap) : 0;
@@ -1203,14 +1206,16 @@ export class ProtocolService {
 
         case 'moonit':
           // Combine Moonit from Jupiter API + Moonit public API (api.mintlp.io)
+          // CRITICAL: Moonit API has state='GRADUATED' endpoint - tokens from there are ALWAYS migrated
           if (status === 'new') {
             // Fetch from both sources
             fetchPromises.push({ protocol: 'moonit-jupiter', promise: this.fetchJupiterGems(['moonit'], '24h', 30) });
             fetchPromises.push({ protocol: 'moonit-api', promise: this.fetchMoonitTokens('TRENDING', 'NOT_GRADUATED', 30) });
           } else if (status === 'migrated') {
             // For migrated, use both sources
+            // CRITICAL: fetchMoonitTokens with state='GRADUATED' returns ONLY migrated tokens
             fetchPromises.push({ protocol: 'moonit-jupiter', promise: this.fetchJupiterTopTraded(['moonit'], 100) });
-            fetchPromises.push({ protocol: 'moonit-api', promise: this.fetchMoonitTokens('MARKET_CAP', 'GRADUATED', 100) });
+            fetchPromises.push({ protocol: 'moonit-api-graduated', promise: this.fetchMoonitTokens('MARKET_CAP', 'GRADUATED', 100) });
           } else {
             // For trending/finalStretch, use both sources
             fetchPromises.push({ protocol: 'moonit-jupiter', promise: this.fetchJupiterTopTraded(['moonit'], 100) });
@@ -1270,12 +1275,21 @@ export class ProtocolService {
         const tokens = result.value;
         if (tokens.length > 0) {
           console.log(`✅ ${protocol}: Fetched ${tokens.length} tokens`);
-          // For moonit-jupiter and ensure protocol is set to 'moonit' (not 'moonit-jupiter' or 'moonit-api')
+          // CRITICAL: Tokens from graduated endpoints are ALWAYS migrated
+          // Normalize protocol names and mark tokens from graduated endpoints
           const normalizedTokens = tokens.map(token => {
-            if (protocol === 'moonit-jupiter' || protocol === 'moonit-api') {
-              return { ...token, protocol: 'moonit' };
-            }
-            return token;
+            const isFromGraduatedEndpoint = protocol === 'moonit-api-graduated';
+            const normalizedProtocol = (protocol === 'moonit-jupiter' || protocol === 'moonit-api' || protocol === 'moonit-api-graduated') 
+              ? 'moonit' 
+              : protocol;
+            
+            return { 
+              ...token, 
+              protocol: normalizedProtocol,
+              // Force migrated status if from graduated endpoint (no need to check API fields)
+              isMigrated: isFromGraduatedEndpoint || token.isMigrated,
+              bondingProgress: isFromGraduatedEndpoint ? 1.0 : token.bondingProgress,
+            };
           });
           allTokens.push(...normalizedTokens);
         } else {

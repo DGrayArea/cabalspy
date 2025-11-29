@@ -35,59 +35,77 @@ export type ChainType = 'solana' | 'bsc' | 'ethereum' | 'base';
 export function getPlatformLogo(platform: string | undefined): string | null {
   if (!platform) return null;
 
-  const normalized = platform.toLowerCase().replace(/[_-]/g, '');
+  // Normalize: lowercase and create variations
+  const lower = platform.toLowerCase();
+  const normalized = lower.replace(/[_-]/g, '');
+  const normalizedDots = lower.replace(/\./g, '');
 
   const logoMap: Record<string, string> = {
-    // Pump.fun - using logo from their assets
-    pump: 'https://pump.fun/_next/static/media/pump-logo.avif',
-    pumpfun: 'https://pump.fun/_next/static/media/pump-logo.avif',
-    'pump.fun': 'https://pump.fun/_next/static/media/pump-logo.avif', // Jupiter API format
-    pumpportal: 'https://pump.fun/_next/static/media/pump-logo.avif', // PumpPortal is pump.fun data source
+    // Pump.fun - using Google favicon proxy (more reliable)
+    pump: 'https://www.google.com/s2/favicons?domain=pump.fun&sz=128',
+    pumpfun: 'https://www.google.com/s2/favicons?domain=pump.fun&sz=128',
+    'pump.fun': 'https://www.google.com/s2/favicons?domain=pump.fun&sz=128', // Jupiter API format
+    pumpportal: 'https://www.google.com/s2/favicons?domain=pump.fun&sz=128', // PumpPortal is pump.fun data source
     
-    // Raydium - using CoinGecko logo (reliable source)
-    raydium: 'https://assets.coingecko.com/coins/images/13902/small/PSigc4ie_400x400.jpg',
-    'raydium-launchlab': 'https://assets.coingecko.com/coins/images/13902/small/PSigc4ie_400x400.jpg', // Jupiter API format
+    // Raydium - using DexScreener logo (reliable source)
+    raydium: 'https://dd.dexscreener.com/ds-data/dexes/raydium.png',
+    'raydium-launchlab': 'https://dd.dexscreener.com/ds-data/dexes/raydium.png', // Jupiter API format
+    raydiumlaunchlab: 'https://dd.dexscreener.com/ds-data/dexes/raydium.png',
     
-    // Meteora - using logo from their website/CDN
-    meteora: 'https://meteora.ag/logo.png',
-    'met-dbc': 'https://meteora.ag/logo.png', // Meteora DBC format
-    'dynamic-bc': 'https://meteora.ag/logo.png', // Uses Meteora DBC
+    // Meteora - using Google favicon proxy (more reliable)
+    meteora: 'https://www.google.com/s2/favicons?domain=meteora.ag&sz=128',
+    'met-dbc': 'https://www.google.com/s2/favicons?domain=meteora.ag&sz=128', // Meteora DBC format
+    metdbc: 'https://www.google.com/s2/favicons?domain=meteora.ag&sz=128',
+    'dynamic-bc': 'https://www.google.com/s2/favicons?domain=meteora.ag&sz=128', // Uses Meteora DBC
+    dynamicbc: 'https://www.google.com/s2/favicons?domain=meteora.ag&sz=128',
     
     // Orca - using CoinGecko logo (reliable source)
     orca: 'https://assets.coingecko.com/coins/images/17547/small/Orca_Logo.png',
     
-    // Moonshot - using logo from their website
-    moonshot: 'https://moonshot.cc/logo.png',
+    // Moonshot - using direct logo URL (reliable source)
+    moonshot: 'https://moonshot.money/images/webclip.png',
     
-    // Jupiter - using logo from Jupiter aggregator
-    jupiter: 'https://jup.ag/logo.png',
-    jupiterstudio: 'https://jup.ag/logo.png',
-    'jupiter-studio': 'https://jup.ag/logo.png',
-    'jup-studio': 'https://jup.ag/logo.png', // Jupiter API format
+    // Jupiter - using Google favicon proxy (more reliable)
+    jupiter: 'https://www.google.com/s2/favicons?domain=jup.ag&sz=128',
+    jupiterstudio: 'https://www.google.com/s2/favicons?domain=jup.ag&sz=128',
+    'jupiter-studio': 'https://www.google.com/s2/favicons?domain=jup.ag&sz=128',
+    'jup-studio': 'https://www.google.com/s2/favicons?domain=jup.ag&sz=128', // Jupiter API format
+    jupstudio: 'https://www.google.com/s2/favicons?domain=jup.ag&sz=128',
     
-    // Bonk - using CoinGecko logo (reliable source)
-    bonk: 'https://assets.coingecko.com/coins/images/28600/small/bonk.png',
-    'letsbonk.fun': 'https://assets.coingecko.com/coins/images/28600/small/bonk.png', // Jupiter API format
+    // Bonk - using direct logo URL (reliable source)
+    bonk: 'https://bonk.fun/logos/bonk_fun.png',
+    'letsbonk.fun': 'https://bonk.fun/logos/bonk_fun.png', // Jupiter API format
+    letsbonkfun: 'https://bonk.fun/logos/bonk_fun.png',
     
-    // Other platforms - trying common logo paths
-    bags: 'https://bags.fun/logo.png',
-    'bags.fun': 'https://bags.fun/logo.png',
-    heaven: 'https://heaven.fun/logo.png',
-    'daos-fun': 'https://daos.fun/logo.png',
-    'daos.fun': 'https://daos.fun/logo.png',
-    candle: 'https://candle.fun/logo.png',
-    sugar: 'https://sugar.fun/logo.png',
-    believe: 'https://believe.fun/logo.png',
-    moonit: 'https://moonit.fun/logo.png',
-    boop: 'https://boop.fun/logo.png',
-    launchlab: 'https://assets.coingecko.com/coins/images/13902/small/PSigc4ie_400x400.jpg', // Launchlab is part of Raydium
-    'america.fun': 'https://america.fun/logo.png',
-    mayhem: 'https://mayhem.fun/logo.png',
-    'pump-amm': 'https://pump.fun/_next/static/media/pump-logo.avif',
-    wavebreak: 'https://wavebreak.fun/logo.png',
+    // Moonit - using DexScreener logo (reliable source)
+    moonit: 'https://dd.dexscreener.com/ds-data/dexes/moonit.png',
+    
+    // Other platforms - using Google favicon proxy (more reliable than direct favicons)
+    bags: 'https://www.google.com/s2/favicons?domain=bags.fun&sz=128',
+    'bags.fun': 'https://www.google.com/s2/favicons?domain=bags.fun&sz=128',
+    bagsfun: 'https://www.google.com/s2/favicons?domain=bags.fun&sz=128',
+    heaven: 'https://www.google.com/s2/favicons?domain=heaven.fun&sz=128',
+    'daos-fun': 'https://www.google.com/s2/favicons?domain=daos.fun&sz=128',
+    'daos.fun': 'https://www.google.com/s2/favicons?domain=daos.fun&sz=128',
+    daosfun: 'https://www.google.com/s2/favicons?domain=daos.fun&sz=128',
+    candle: 'https://www.google.com/s2/favicons?domain=candle.fun&sz=128',
+    sugar: 'https://www.google.com/s2/favicons?domain=sugar.fun&sz=128',
+    believe: 'https://www.google.com/s2/favicons?domain=believe.fun&sz=128',
+    boop: 'https://www.google.com/s2/favicons?domain=boop.fun&sz=128',
+    launchlab: 'https://dd.dexscreener.com/ds-data/dexes/launchlab.png', // Launchlab logo from DexScreener
+    'america.fun': 'https://www.google.com/s2/favicons?domain=america.fun&sz=128',
+    americafun: 'https://www.google.com/s2/favicons?domain=america.fun&sz=128',
+    mayhem: 'https://www.google.com/s2/favicons?domain=mayhem.fun&sz=128',
+    'pump-amm': 'https://www.google.com/s2/favicons?domain=pump.fun&sz=128',
+    pumpamm: 'https://www.google.com/s2/favicons?domain=pump.fun&sz=128',
+    wavebreak: 'https://www.google.com/s2/favicons?domain=wavebreak.fun&sz=128',
+    'trends.fun': 'https://www.google.com/s2/favicons?domain=trends.fun&sz=128',
+    trendsfun: 'https://www.google.com/s2/favicons?domain=trends.fun&sz=128',
+    dubdub: 'https://www.google.com/s2/favicons?domain=dubdub.fun&sz=128',
   };
 
-  return logoMap[normalized] || null;
+  // Try exact match first, then normalized versions
+  return logoMap[lower] || logoMap[normalized] || logoMap[normalizedDots] || null;
 }
 
 /**

@@ -114,26 +114,56 @@ export function CompactTokenCard({
   const buyCount = Math.floor(token.transactions * 0.55);
   const sellCount = token.transactions - buyCount;
 
-  // Check if token is migrated (has migration indicators)
+  // CRITICAL: Check migration status FIRST using explicit API indicators
+  // NEVER infer from market cap or bonding progress - tokens can drop below threshold after migrating
+  // API fields: graduationDate (timestamp), poolAddress (Raydium pool), complete (boolean)
+  const graduationDate = (token as any).graduationDate;
+  const poolAddress = (token as any).poolAddress || (token as any).raydiumPool;
   const isTokenMigrated =
     (token as any).isMigrated === true ||
     (token as any).migrationTimestamp !== undefined ||
-    (token as any).raydiumPool !== undefined;
+    (poolAddress !== undefined && poolAddress !== null) ||
+    (token as any).complete === true ||
+    (token as any).isComplete === true ||
+    (token as any).migrated === true ||
+    (token as any).graduated === true ||
+    (graduationDate !== null && graduationDate !== undefined) ||
+    (token as any).completeTimestamp !== undefined;
 
-  // Use bonding progress from token if available, otherwise calculate from market cap
-  // For migrated tokens, bonding progress should be 100% (even if MC dropped below threshold)
-  const bondingProgress =
-    (token as any).bondingProgress !== undefined
-      ? (token as any).bondingProgress
-      : isTokenMigrated
-        ? 1.0
-        : (() => {
-            const bondingCurveTarget = 69000;
-            return Math.min(
-              Math.max(token.marketCap / bondingCurveTarget, 0),
-              1
-            );
-          })();
+  // CRITICAL: For migrated tokens, ALWAYS set bonding progress to 1.0
+  // Even if market cap dropped below threshold, if it's migrated, it's migrated
+  // Check migration status FIRST before using any bondingProgress value
+  const bondingProgress = isTokenMigrated
+    ? 1.0 // Migrated tokens are always 100% - don't recalculate from MC
+    : (token as any).bondingProgress !== undefined &&
+        (token as any).bondingProgress < 1.0
+      ? (token as any).bondingProgress // Use provided progress if not migrated
+      : (() => {
+          // Only calculate bonding progress for NON-MIGRATED tokens
+          // Pump.fun bonding curve target is ~69 SOL (not $69k USD)
+          // If SOL reserves are available, use them directly
+          const solReserves =
+            (token as any).reserves?.sol ||
+            (token as any).solReserves ||
+            (token as any).realSolReserves ||
+            (token as any).virtualSolReserves;
+
+          if (solReserves && solReserves > 0) {
+            // Target is 69 SOL for pump.fun bonding curve
+            const SOL_TARGET = 69;
+            return Math.min(Math.max(solReserves / SOL_TARGET, 0), 1);
+          }
+
+          // Fallback: Calculate from market cap using approximate SOL price
+          // This is less accurate but works when SOL reserves aren't available
+          // Using current SOL price approximation (~$150-200 range, but varies)
+          // Better to use marketCap / (69 * currentSOLPrice), but for now use fallback
+          const bondingCurveTargetUSD = 69000; // Approximate USD equivalent at ~$1000 SOL
+          return Math.min(
+            Math.max(token.marketCap / bondingCurveTargetUSD, 0),
+            1
+          );
+        })();
 
   // Determine chain from token data
   const chainType = token.chain === "bsc" ? "bsc" : "sol";

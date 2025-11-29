@@ -83,6 +83,7 @@ import {
   Palette,
   MessageCircle,
   Sliders,
+  Circle,
 } from "lucide-react";
 import { getChainLogo } from "@/utils/platformLogos";
 
@@ -174,13 +175,7 @@ export default function PulsePage() {
   >("marketCap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filter, setFilter] = useState<
-    | "new"
-    | "finalStretch"
-    | "migrated"
-    | "latest"
-    | "featured"
-    | "graduated"
-    | "marketCap"
+    "new" | "finalStretch" | "latest" | "featured" | "graduated" | "marketCap"
   >("new");
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([
     "pump",
@@ -209,15 +204,19 @@ export default function PulsePage() {
     TokenData[]
   >([]);
   // Store protocol tokens per filter type to prevent reverting on rerenders
+  // CRITICAL: Track which filter was active when tokens were fetched to prevent cross-contamination
   const [protocolTokensByFilter, setProtocolTokensByFilter] = useState<{
     new: TokenData[];
     finalStretch: TokenData[];
-    migrated: TokenData[];
+    graduated: TokenData[];
   }>({
     new: [],
     finalStretch: [],
-    migrated: [],
+    graduated: [],
   });
+  const [lastFetchedFilter, setLastFetchedFilter] = useState<
+    typeof filter | null
+  >(null);
   const [isLoadingPumpFun, setIsLoadingPumpFun] = useState(false);
   const [isLoadingProtocols, setIsLoadingProtocols] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -245,13 +244,22 @@ export default function PulsePage() {
 
   // Helper function to convert PumpFunTokenInfo to TokenData
   const convertPumpFunToTokenData = useCallback(
-    (pumpFunData: Awaited<ReturnType<typeof pumpFunService.fetchLatest>>) => {
+    (
+      pumpFunData: Awaited<ReturnType<typeof pumpFunService.fetchLatest>>,
+      isFromGraduatedEndpoint = false
+    ) => {
       return pumpFunData.map((info) => {
         // Use creation timestamp for time calculation (not migration timestamp)
         // For migrated/graduated tokens, we still want to show time since creation
         // PumpFunTokenInfo should have createdTimestamp from parseTokenData
         const creationTimestamp = (info as any).createdTimestamp;
         const timeFromCreation = formatTimeFromTimestamp(creationTimestamp);
+
+        // CRITICAL: If token comes from graduated endpoint, it's ALWAYS migrated
+        // No need to check API fields - the endpoint itself guarantees migration status
+        const isMigrated = isFromGraduatedEndpoint || info.isMigrated === true;
+        const migrationTimestamp = info.migrationTimestamp;
+        const raydiumPool = info.raydiumPool;
 
         return {
           id: info.mint || crypto.randomUUID(),
@@ -284,6 +292,25 @@ export default function PulsePage() {
           },
           chain: "solana" as const,
           source: "pumpfun",
+          // CRITICAL: Preserve migration indicators - these are the source of truth
+          isMigrated: isMigrated,
+          migrationTimestamp: migrationTimestamp,
+          raydiumPool: raydiumPool,
+          // CRITICAL: Use bondingProgress from API if available (more accurate than calculating from MC)
+          // API provides bondingCurveProgress as 0-100, we convert to 0-1
+          // For migrated tokens, always 1.0 regardless of API value
+          bondingProgress: isMigrated
+            ? 1.0
+            : info.bondingProgress !== undefined
+              ? info.bondingProgress
+              : undefined,
+          // Preserve reserves if available
+          reserves: info.reserves,
+          // Preserve additional data for token pages
+          numHolders: (info as any).numHolders,
+          holders: (info as any).holders,
+          buyTransactions: (info as any).buyTransactions,
+          sellTransactions: (info as any).sellTransactions,
           dexscreener: info.socials
             ? {
                 logo: info.logo,
@@ -328,7 +355,7 @@ export default function PulsePage() {
                 return await pumpFunService.fetchGraduated(100);
               case "marketCap":
                 return await pumpFunService.fetchByMarketCap(100);
-              case "migrated":
+              case "graduated":
                 return await pumpFunService.fetchMigratedTokens(100);
               default:
                 return [];
@@ -340,14 +367,12 @@ export default function PulsePage() {
         };
 
         // Fetch all types in parallel
-        const [latest, featured, graduated, marketCap, migrated] =
-          await Promise.all([
-            fetchTokens("latest"),
-            fetchTokens("featured"),
-            fetchTokens("graduated"),
-            fetchTokens("marketCap"),
-            fetchTokens("migrated"),
-          ]);
+        const [latest, featured, graduated, marketCap] = await Promise.all([
+          fetchTokens("latest"),
+          fetchTokens("featured"),
+          fetchTokens("graduated"),
+          fetchTokens("marketCap"),
+        ]);
 
         // console.log("✅ Pump.fun API results:", {
         //   latest: latest.length,
@@ -358,11 +383,11 @@ export default function PulsePage() {
         // });
 
         // Convert and store each type
-        const convertedLatest = convertPumpFunToTokenData(latest);
-        const convertedFeatured = convertPumpFunToTokenData(featured);
-        const convertedGraduated = convertPumpFunToTokenData(graduated);
-        const convertedMarketCap = convertPumpFunToTokenData(marketCap);
-        const convertedMigrated = convertPumpFunToTokenData(migrated);
+        // CRITICAL: Tokens from graduated endpoint are ALWAYS migrated - no need to check API fields
+        const convertedLatest = convertPumpFunToTokenData(latest, false);
+        const convertedFeatured = convertPumpFunToTokenData(featured, false);
+        const convertedGraduated = convertPumpFunToTokenData(graduated, true); // Mark as migrated automatically
+        const convertedMarketCap = convertPumpFunToTokenData(marketCap, false);
 
         // console.log("✅ Converted tokens:", {
         //   latest: convertedLatest.length,
@@ -379,12 +404,12 @@ export default function PulsePage() {
           marketCap: convertedMarketCap,
         });
 
-        // Store migrated tokens separately
-        setPumpFunMigratedTokens(convertedMigrated);
-        if (convertedMigrated.length > 0) {
+        // Store migrated tokens separately (graduated = migrated)
+        setPumpFunMigratedTokens(convertedGraduated);
+        if (convertedGraduated.length > 0) {
           // console.log(
           //   "📦 Migrated tokens from pump.fun:",
-          //   convertedMigrated.length
+          //   convertedGraduated.length
           // );
         }
       } catch (error) {
@@ -425,7 +450,10 @@ export default function PulsePage() {
         ]);
 
         // Convert pump.fun tokens
-        const convertedPumpFun = convertPumpFunToTokenData(pumpFunFeatured);
+        const convertedPumpFun = convertPumpFunToTokenData(
+          pumpFunFeatured,
+          false
+        );
 
         // Convert Jupiter trending tokens
         const convertedJupiter = jupiterTrending.map((token: any) => ({
@@ -496,21 +524,52 @@ export default function PulsePage() {
             ? "new"
             : filter === "finalStretch"
               ? "finalStretch"
-              : filter === "migrated"
-                ? "migrated"
+              : filter === "graduated"
+                ? "migrated" // API uses "migrated" but we call it "graduated" in UI
                 : undefined
         );
 
         // Convert ProtocolToken to TokenData format
         const converted = protocolTokenData.map((token: any) => {
-          const isMigrated = token.isMigrated === true;
-          // For migrated tokens, bonding progress should be 100%
-          // For non-migrated, calculate from market cap
+          // CRITICAL: Check multiple indicators for migration status
+          const isMigrated =
+            token.isMigrated === true ||
+            !!token.migrationTimestamp ||
+            !!token.raydiumPool ||
+            token.bondingProgress === 1.0 ||
+            (token.bondingProgress && token.bondingProgress >= 1.0);
+
+          // For migrated/graduated tokens, bonding progress should ALWAYS be 100%
+          // NOTE: Migrated = Graduated (same thing - token completed bonding curve)
+          // For non-migrated, calculate from SOL reserves (preferred) or market cap (fallback)
           const bondingProgress = isMigrated
             ? 1.0
-            : token.marketCap
-              ? Math.min((token.marketCap || 0) / 69000, 1.0)
-              : 0;
+            : token.bondingProgress !== undefined && token.bondingProgress < 1.0
+              ? token.bondingProgress
+              : (() => {
+                  // Pump.fun bonding curve target is ~69 SOL (not fixed USD)
+                  // If SOL reserves available, use them (more accurate as SOL price changes)
+                  const solReserves =
+                    (token as any).reserves?.sol ||
+                    (token as any).solReserves ||
+                    (token as any).realSolReserves ||
+                    (token as any).virtualSolReserves;
+
+                  if (solReserves && solReserves > 0) {
+                    const SOL_TARGET = 69; // Pump.fun target is ~69 SOL
+                    return Math.min(Math.max(solReserves / SOL_TARGET, 0), 1.0);
+                  }
+
+                  // Fallback: Calculate from market cap (less accurate, varies with SOL price)
+                  // This is approximate since SOL price changes affect USD equivalent
+                  const bondingCurveTargetUSD = 69000; // Approximate at ~$1000 SOL
+                  return token.marketCap
+                    ? Math.min(
+                        (token.marketCap || 0) / bondingCurveTargetUSD,
+                        1.0
+                      )
+                    : 0;
+                })();
 
           return {
             id: token.id,
@@ -547,11 +606,52 @@ export default function PulsePage() {
           };
         });
 
-        // Store tokens for the current filter type
+        // CRITICAL: Filter converted tokens based on filter type to ensure data integrity
+        let filteredConverted = converted;
+        if (filter === "new") {
+          // NEW: Must exclude ALL migrated tokens
+          filteredConverted = converted.filter((token: any) => {
+            return (
+              !token.isMigrated &&
+              !token.migrationTimestamp &&
+              !token.raydiumPool &&
+              token.bondingProgress !== 1.0 &&
+              token.bondingProgress < 1.0
+            );
+          });
+        } else if (filter === "finalStretch") {
+          // FINAL STRETCH: Must exclude migrated AND have bonding progress 90-100%
+          filteredConverted = converted.filter((token: any) => {
+            const isNotMigrated =
+              !token.isMigrated &&
+              !token.migrationTimestamp &&
+              !token.raydiumPool &&
+              token.bondingProgress !== 1.0;
+            if (!isNotMigrated) return false;
+            const bondingProgress =
+              token.bondingProgress ||
+              Math.min((token.marketCap || 0) / 69000, 1.0);
+            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+          });
+        } else if (filter === "graduated") {
+          // GRADUATED: Must ONLY include migrated/graduated tokens
+          filteredConverted = converted.filter((token: any) => {
+            return (
+              token.isMigrated ||
+              token.migrationTimestamp ||
+              token.raydiumPool ||
+              token.bondingProgress === 1.0
+            );
+          });
+        }
+
+        // CRITICAL: Only store tokens for the CURRENT filter to prevent cross-contamination
+        // Track which filter these tokens belong to
         setProtocolTokensByFilter((prev) => ({
           ...prev,
-          [filter]: converted,
+          [filter]: filteredConverted,
         }));
+        setLastFetchedFilter(filter);
 
         console.log(
           `✅ Fetched ${converted.length} tokens from protocols for ${filter} tab`,
@@ -573,18 +673,36 @@ export default function PulsePage() {
     };
 
     // Only fetch protocol tokens for protocol-based filters
-    // This prevents unnecessary fetches and ensures tokens persist for other filters
+    // CRITICAL: Clear tracking when switching filters to prevent cross-contamination
     if (
       filter === "new" ||
       filter === "finalStretch" ||
-      filter === "migrated"
+      filter === "graduated"
     ) {
+      // Clear tokens for other filters to prevent stale data
+      setProtocolTokensByFilter((prev) => ({
+        new: filter === "new" ? prev.new : [],
+        finalStretch: filter === "finalStretch" ? prev.finalStretch : [],
+        graduated: filter === "graduated" ? prev.graduated : [],
+      }));
+
+      // Reset tracking - will be set when fetch completes
+      setLastFetchedFilter(null);
+
       fetchProtocolTokens();
+    } else {
+      // Clear all protocol tokens when switching to pump.fun filters
+      setProtocolTokensByFilter({
+        new: [],
+        finalStretch: [],
+        graduated: [],
+      });
+      setLastFetchedFilter(null);
     }
   }, [filter, selectedProtocols, formatTimeFromTimestamp]);
 
   // Filter tokens by selected chain (using chain-specific lists from useWebSocket)
-  // This is used for "new" and "migrated" filters - always use WebSocket tokens
+  // This is used for "new" and "graduated" filters - always use WebSocket tokens
   const chainFilteredTokens = useMemo(() => {
     if (chain === "all") return tokens;
     if (chain === "sol") return solanaTokens;
@@ -685,11 +803,11 @@ export default function PulsePage() {
   // Helper to get tokens for a specific filter
   const getTokensForFilter = useCallback(
     (filterType: typeof filter) => {
-      // For pump.fun filters (latest, featured, graduated, marketCap) - use pump.fun tokens
+      // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
+      // NOTE: "graduated" is handled separately below (same as "migrated")
       if (
         filterType === "latest" ||
         filterType === "featured" ||
-        filterType === "graduated" ||
         filterType === "marketCap"
       ) {
         // Return the specific type from pumpFunTokensByType
@@ -698,58 +816,131 @@ export default function PulsePage() {
         return tokens;
       }
 
-      // Use protocol tokens for the three main tabs (new, finalStretch, migrated)
+      // Use protocol tokens for the three main tabs (new, finalStretch, graduated)
       if (
         filterType === "new" ||
         filterType === "finalStretch" ||
-        filterType === "migrated"
+        filterType === "graduated"
       ) {
-        // Use stored protocol tokens for this filter type if available
-        const storedProtocolTokens = protocolTokensByFilter[filterType] || [];
-        if (storedProtocolTokens.length > 0) {
-          // console.log(
-          //   `🔍 Filter ${filterType}: Using ${storedProtocolTokens.length} tokens from protocol API`
-          // );
-          return storedProtocolTokens;
+        // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter
+        // This prevents tokens from one filter leaking into another when switching filters
+        const storedProtocolTokens =
+          lastFetchedFilter === filterType && protocolTokensByFilter[filterType]
+            ? protocolTokensByFilter[filterType]
+            : [];
+
+        // CRITICAL: Add safety filters to ensure correct tokens are shown
+        // This is a double-check to catch any API issues
+        let filteredTokens = storedProtocolTokens;
+
+        if (filterType === "new") {
+          // NEW filter: MUST exclude ALL migrated tokens, regardless of what API returns
+          filteredTokens = storedProtocolTokens.filter((token: any) => {
+            const isNotMigrated =
+              !token.isMigrated &&
+              !token.migrationTimestamp &&
+              !token.raydiumPool &&
+              token.bondingProgress !== 1.0 &&
+              token.bondingProgress < 1.0;
+            return isNotMigrated;
+          });
+        } else if (filterType === "finalStretch") {
+          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-100%
+          filteredTokens = storedProtocolTokens.filter((token: any) => {
+            const isNotMigrated =
+              !token.isMigrated &&
+              !token.migrationTimestamp &&
+              !token.raydiumPool &&
+              token.bondingProgress !== 1.0 &&
+              token.bondingProgress < 1.0;
+            if (!isNotMigrated) return false;
+
+            // Calculate bonding progress (prefer SOL reserves, fallback to market cap)
+            const solReserves =
+              (token as any).reserves?.sol || (token as any).solReserves;
+            const bondingProgress =
+              token.bondingProgress !== undefined && token.bondingProgress < 1.0
+                ? token.bondingProgress
+                : solReserves && solReserves > 0
+                  ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
+                  : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
+            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+          });
+        } else if (filterType === "graduated") {
+          // GRADUATED: Must ONLY include migrated/graduated tokens
+          filteredTokens = storedProtocolTokens.filter((token: any) => {
+            return (
+              token.isMigrated ||
+              token.migrationTimestamp ||
+              token.raydiumPool ||
+              token.bondingProgress === 1.0
+            );
+          });
         }
+
+        // Only return stored tokens if they exist AND pass the safety filter
+        if (filteredTokens.length > 0) {
+          console.log(
+            `🔍 Filter ${filterType}: Using ${filteredTokens.length} tokens from protocol API (filtered from ${storedProtocolTokens.length})`
+          );
+          return filteredTokens;
+        }
+
+        // If stored tokens don't exist or are empty, fall through to fallback logic
 
         // Fallback to pump.fun API tokens (not WebSocket)
         if (filterType === "new") {
           // Prefer pump.fun API tokens over WebSocket tokens for "New" filter
           const pumpFunNewTokens = pumpFunTokensByType.latest || [];
           if (pumpFunNewTokens.length > 0) {
-            // Filter for truly new tokens (less than 5 minutes old)
+            // Filter for truly new tokens (less than 5 minutes old) AND not migrated
             const veryNewTokens = pumpFunNewTokens.filter((token) => {
               const timeSeconds = parseTimeToSeconds(token.time);
-              return timeSeconds < 300; // Less than 5 minutes
+              const isNew = timeSeconds < 300; // Less than 5 minutes
+              const isNotMigrated =
+                !(token as any).isMigrated &&
+                !(token as any).migrationTimestamp &&
+                !(token as any).raydiumPool;
+              return isNew && isNotMigrated;
             });
             if (veryNewTokens.length > 0) {
-              // console.log(
-              //   `🔍 Filter new: Found ${veryNewTokens.length} tokens from pump.fun API (fallback)`
-              // );
               return veryNewTokens;
             }
           }
 
-          // Last resort: WebSocket tokens
+          // Last resort: WebSocket tokens - exclude migrated tokens
           const newPairs = filteredAndSortedTokens.filter((token) => {
             const timeSeconds = parseTimeToSeconds(token.time);
-            return timeSeconds < 300; // Less than 5 minutes
+            const isNew = timeSeconds < 300; // Less than 5 minutes
+            const isNotMigrated =
+              !(token as any).isMigrated &&
+              !(token as any).migrationTimestamp &&
+              !(token as any).raydiumPool;
+            return isNew && isNotMigrated;
           });
-          // console.log(
-          //   `🔍 Filter new: Found ${newPairs.length} tokens from WebSocket (last resort fallback)`
-          // );
           return newPairs;
         }
 
         if (filterType === "finalStretch") {
-          // Filter tokens with bonding progress 90-100%
+          // Filter tokens with bonding progress 90-100% AND not migrated
           const finalStretch = filteredAndSortedTokens.filter((token) => {
-            // Calculate bonding progress from market cap (typical pump.fun target is $69k)
-            const bondingProgress = Math.min(
-              (token.marketCap || 0) / 69000,
-              1.0
-            );
+            // Exclude migrated tokens
+            const isNotMigrated =
+              !(token as any).isMigrated &&
+              !(token as any).migrationTimestamp &&
+              !(token as any).raydiumPool;
+            if (!isNotMigrated) return false;
+
+            // Calculate bonding progress
+            // Pump.fun target is ~69 SOL (not fixed USD - varies with SOL price)
+            const solReserves =
+              (token as any).reserves?.sol ||
+              (token as any).solReserves ||
+              (token as any).realSolReserves;
+            const bondingProgress =
+              solReserves && solReserves > 0
+                ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (more accurate)
+                : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD (less accurate)
             return bondingProgress >= 0.9 && bondingProgress < 1.0;
           });
           console.log(
@@ -758,50 +949,50 @@ export default function PulsePage() {
           return finalStretch;
         }
 
-        if (filterType === "migrated") {
-          // Prefer WebSocket migrated tokens
-          if (wsMigratedTokens.length > 0) {
-            console.log(
-              `🔍 Filter migrated: Using ${wsMigratedTokens.length} tokens from WebSocket`
-            );
-            return wsMigratedTokens;
-          }
+        if (filterType === "graduated") {
+          // GRADUATED: Combine all migrated/graduated sources
+          const allGraduated = [
+            ...(wsMigratedTokens || []),
+            ...(pumpFunMigratedTokens || []),
+            ...(pumpFunTokensByType.graduated || []),
+          ];
 
-          // Fallback to pump.fun migrated tokens
-          if (pumpFunMigratedTokens.length > 0) {
-            // console.log(
-            //   `🔍 Filter migrated: Using ${pumpFunMigratedTokens.length} tokens from pump.fun`
-            // );
-            return pumpFunMigratedTokens;
+          // Deduplicate by ID
+          const seen = new Set<string>();
+          const unique = allGraduated.filter((token) => {
+            if (seen.has(token.id)) return false;
+            seen.add(token.id);
+            return true;
+          });
+
+          if (unique.length > 0) {
+            console.log(
+              `🔍 Filter graduated: Using ${unique.length} tokens (combined sources)`
+            );
+            return unique;
           }
 
           // Last resort: filter by migration indicators (isMigrated, migrationTimestamp, raydiumPool)
-          // or by age/market cap for tokens that may have dumped below migration MC
-          const migratedFromWS = filteredAndSortedTokens.filter((token) => {
-            // Check for explicit migration indicators first
-            const hasMigrationIndicator =
+          const graduatedFromWS = filteredAndSortedTokens.filter((token) => {
+            // Check for explicit migration indicators
+            return (
               (token as any).isMigrated === true ||
               (token as any).migrationTimestamp !== undefined ||
-              (token as any).raydiumPool !== undefined;
-
-            if (hasMigrationIndicator) {
-              return true;
-            }
-
-            // Fallback: filter by age/market cap for tokens that may have migrated but dumped
-            const timeSeconds = parseTimeToSeconds(token.time);
-            const isOldEnough = timeSeconds >= 300;
-            const hasMarketCap = token.marketCap > 10000;
-            return isOldEnough && hasMarketCap;
+              (token as any).raydiumPool !== undefined
+            );
           });
           console.log(
-            `🔍 Filter migrated: Found ${migratedFromWS.length} tokens (fallback)`
+            `🔍 Filter graduated: Found ${graduatedFromWS.length} tokens (fallback)`
           );
-          return migratedFromWS;
+          return graduatedFromWS;
         }
       }
 
-      return filteredAndSortedTokens;
+      // CRITICAL: Don't fall back to filteredAndSortedTokens - this causes cross-contamination
+      // Each filter should ONLY return tokens from its specific source
+      // If no tokens found, return empty array
+      console.warn(`⚠️ No tokens found for filter: ${filterType}`);
+      return [];
     },
     [
       filteredAndSortedTokens,
@@ -816,65 +1007,165 @@ export default function PulsePage() {
   const tokensToDisplay = useMemo(() => {
     const tokens = getTokensForFilter(filter);
 
-    // If no tokens match, show all tokens (fallback)
-    if (tokens.length === 0 && (filter === "new" || filter === "migrated")) {
-      return filteredAndSortedTokens.slice(0, 50);
+    // If no tokens match, show empty array (don't show fallback tokens from other filters)
+    // Each filter should be isolated - no cross-contamination
+    if (tokens.length === 0) {
+      return [];
     }
 
-    return tokens;
+    // CRITICAL: Deduplicate tokens by ID to prevent duplicate React keys
+    // Tokens can appear in multiple sources (protocol APIs, pump.fun, WebSocket)
+    const seen = new Set<string>();
+    const uniqueTokens = tokens.filter((token) => {
+      if (seen.has(token.id)) {
+        return false; // Skip duplicate
+      }
+      seen.add(token.id);
+      return true;
+    });
+
+    return uniqueTokens;
   }, [filter, getTokensForFilter, filteredAndSortedTokens]);
 
   // Calculate filter counts - must match the data sources used in getTokensForFilter
-  // Note: protocolTokens only contains tokens for the CURRENT filter, so we use fallback data for counts
   const filterCounts = useMemo(() => {
-    // For pump.fun filters (latest, featured, graduated, marketCap) - use pump.fun tokens
+    // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
     const latestCount = pumpFunTokensByType.latest.length;
     const featuredCount = pumpFunTokensByType.featured.length;
-    const graduatedCount = pumpFunTokensByType.graduated.length;
     const marketCapCount = pumpFunTokensByType.marketCap.length;
 
-    // For protocol-based filters (new, finalStretch, migrated)
-    // Always use fallback data for counts since protocolTokens only has current filter's data
-    // New count - tokens less than 5 minutes old
-    const newCount = filteredAndSortedTokens.filter((token) => {
-      const timeSeconds = parseTimeToSeconds(token.time);
-      return timeSeconds < 300; // Less than 5 minutes
-    }).length;
+    // NOTE: Graduated = Migrated (same thing - token completed bonding curve)
+    // Calculate combined count to avoid double counting
+    const allMigratedGraduated = [
+      ...(wsMigratedTokens || []),
+      ...(pumpFunMigratedTokens || []),
+      ...(pumpFunTokensByType.graduated || []),
+    ];
+    const seenMigrated = new Set<string>();
+    const uniqueMigratedGraduated = allMigratedGraduated.filter((token) => {
+      if (seenMigrated.has(token.id)) return false;
+      seenMigrated.add(token.id);
+      return true;
+    });
+    const migratedGraduatedCount = uniqueMigratedGraduated.length;
 
-    // Final stretch count - bonding progress 90-100% but not migrated
-    const finalStretchCount = filteredAndSortedTokens.filter((token) => {
-      const bondingProgress = Math.min((token.marketCap || 0) / 69000, 1.0);
-      return bondingProgress >= 0.9 && bondingProgress < 1.0;
-    }).length;
+    // For protocol-based filters (new, finalStretch, graduated)
+    // Use the same logic as getTokensForFilter to get accurate counts
 
-    // Migrated count - prefer WebSocket migrated tokens, then pump.fun, then fallback
-    const migratedCount =
-      wsMigratedTokens.length > 0
-        ? wsMigratedTokens.length
-        : pumpFunMigratedTokens.length > 0
-          ? pumpFunMigratedTokens.length
-          : filteredAndSortedTokens.filter((token) => {
-              // Check for explicit migration indicators first
-              const hasMigrationIndicator =
-                (token as any).isMigrated === true ||
-                (token as any).migrationTimestamp !== undefined ||
-                (token as any).raydiumPool !== undefined;
+    // New count - use protocol tokens if available, otherwise use same fallback logic
+    let newCount = 0;
+    if (protocolTokensByFilter.new && protocolTokensByFilter.new.length > 0) {
+      // CRITICAL: Filter out migrated tokens from count (safety check)
+      const filteredNew = protocolTokensByFilter.new.filter((token: any) => {
+        return (
+          !token.isMigrated &&
+          !token.migrationTimestamp &&
+          !token.raydiumPool &&
+          token.bondingProgress !== 1.0
+        );
+      });
+      newCount = filteredNew.length;
+    } else {
+      // Try pump.fun latest tokens filtered by time AND not migrated
+      const pumpFunNewTokens = pumpFunTokensByType.latest || [];
+      const veryNewTokens = pumpFunNewTokens.filter((token) => {
+        const timeSeconds = parseTimeToSeconds(token.time);
+        const isNew = timeSeconds < 300; // Less than 5 minutes
+        const isNotMigrated =
+          !(token as any).isMigrated &&
+          !(token as any).migrationTimestamp &&
+          !(token as any).raydiumPool;
+        return isNew && isNotMigrated;
+      });
+      if (veryNewTokens.length > 0) {
+        newCount = veryNewTokens.length;
+      } else {
+        // Fallback to WebSocket tokens - exclude migrated
+        newCount = filteredAndSortedTokens.filter((token) => {
+          const timeSeconds = parseTimeToSeconds(token.time);
+          const isNew = timeSeconds < 300; // Less than 5 minutes
+          const isNotMigrated =
+            !(token as any).isMigrated &&
+            !(token as any).migrationTimestamp &&
+            !(token as any).raydiumPool;
+          return isNew && isNotMigrated;
+        }).length;
+      }
+    }
 
-              if (hasMigrationIndicator) {
-                return true;
-              }
+    // Final stretch count - use protocol tokens if available, otherwise use same fallback logic
+    let finalStretchCount = 0;
+    if (
+      protocolTokensByFilter.finalStretch &&
+      protocolTokensByFilter.finalStretch.length > 0
+    ) {
+      // CRITICAL: Filter out migrated tokens and ensure bonding progress is correct
+      const filteredFinalStretch = protocolTokensByFilter.finalStretch.filter(
+        (token: any) => {
+          const isNotMigrated =
+            !token.isMigrated &&
+            !token.migrationTimestamp &&
+            !token.raydiumPool &&
+            token.bondingProgress !== 1.0;
+          if (!isNotMigrated) return false;
+          // Calculate bonding progress (prefer SOL reserves, fallback to market cap)
+          const solReserves =
+            (token as any).reserves?.sol || (token as any).solReserves;
+          const bondingProgress =
+            token.bondingProgress !== undefined
+              ? token.bondingProgress
+              : solReserves && solReserves > 0
+                ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
+                : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
+          return bondingProgress >= 0.9 && bondingProgress < 1.0;
+        }
+      );
+      finalStretchCount = filteredFinalStretch.length;
+    } else {
+      // Fallback: filter tokens with bonding progress 90-100% AND not migrated
+      finalStretchCount = filteredAndSortedTokens.filter((token) => {
+        // Exclude migrated tokens
+        const isNotMigrated =
+          !(token as any).isMigrated &&
+          !(token as any).migrationTimestamp &&
+          !(token as any).raydiumPool;
+        if (!isNotMigrated) return false;
 
-              // Fallback: filter by age/market cap for tokens that may have migrated but dumped
-              const timeSeconds = parseTimeToSeconds(token.time);
-              const isOldEnough = timeSeconds >= 300; // At least 5 minutes old
-              const hasMarketCap = token.marketCap > 10000; // Has some market cap
-              return isOldEnough && hasMarketCap;
-            }).length;
+        // Calculate bonding progress (prefer SOL reserves, fallback to market cap)
+        const solReserves =
+          (token as any).reserves?.sol || (token as any).solReserves;
+        const bondingProgress =
+          solReserves && solReserves > 0
+            ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
+            : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
+        return bondingProgress >= 0.9 && bondingProgress < 1.0;
+      }).length;
+    }
+
+    // Graduated count - combine all sources and deduplicate
+    // NOTE: Graduated = tokens that completed bonding curve and migrated to Raydium
+    let graduatedCount = migratedGraduatedCount; // Use the combined deduplicated count calculated above
+
+    // If protocol tokens available, add them and deduplicate
+    if (
+      protocolTokensByFilter.graduated &&
+      protocolTokensByFilter.graduated.length > 0
+    ) {
+      const allSources = [
+        ...uniqueMigratedGraduated,
+        ...protocolTokensByFilter.graduated,
+      ];
+      const seen = new Set<string>();
+      graduatedCount = allSources.filter((token: any) => {
+        if (seen.has(token.id)) return false;
+        seen.add(token.id);
+        return true;
+      }).length;
+    }
 
     return {
       new: newCount,
       finalStretch: finalStretchCount,
-      migrated: migratedCount,
       latest: latestCount,
       featured: featuredCount,
       graduated: graduatedCount,
@@ -883,6 +1174,7 @@ export default function PulsePage() {
   }, [
     filteredAndSortedTokens,
     pumpFunTokensByType,
+    protocolTokensByFilter,
     pumpFunMigratedTokens,
     wsMigratedTokens,
   ]);
@@ -1199,8 +1491,8 @@ export default function PulsePage() {
           )}
 
           {/* Filter Tabs with Counts */}
-          <div className="mb-4 w-full sticky top-20 bg-app/95 backdrop-blur-sm z-30 py-3 border-b border-gray-800/50 overflow-x-auto scrollbar-hide scroll-smooth">
-            <div className="px-3 sm:px-4 min-w-max">
+          <div className="mb-4 w-full sticky top-[64px] bg-app/98 backdrop-blur-md z-40 py-3 border-b border-gray-800/50 overflow-x-auto scrollbar-hide scroll-smooth shadow-lg -mx-3 sm:-mx-4 px-3 sm:px-4">
+            <div className="min-w-max">
               <div className="flex items-center justify-between gap-4">
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
@@ -1210,6 +1502,7 @@ export default function PulsePage() {
                       label: "New Pairs",
                       count: filterCounts.new,
                       icon: Sparkles,
+                      live: true,
                     },
                     {
                       id: "finalStretch",
@@ -1218,10 +1511,10 @@ export default function PulsePage() {
                       icon: Zap,
                     },
                     {
-                      id: "migrated",
-                      label: "Migrated",
-                      count: filterCounts.migrated,
-                      icon: ArrowUpRight,
+                      id: "graduated",
+                      label: "Graduated",
+                      count: filterCounts.graduated,
+                      icon: CheckCircle2,
                     },
                     {
                       id: "latest",
@@ -1236,22 +1529,16 @@ export default function PulsePage() {
                       icon: Star,
                     },
                     {
-                      id: "graduated",
-                      label: "Graduated",
-                      count: filterCounts.graduated,
-                      icon: CheckCircle2,
-                    },
-                    {
                       id: "marketCap",
                       label: "Top MC",
                       count: filterCounts.marketCap,
                       icon: TrendingUp,
                     },
-                  ].map(({ id, label, count, icon: Icon }) => (
+                  ].map(({ id, label, count, icon: Icon, live }) => (
                     <button
                       key={id}
                       onClick={() => setFilter(id as typeof filter)}
-                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 border-2 whitespace-nowrap ${
+                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 border-2 whitespace-nowrap relative ${
                         filter === id
                           ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
                           : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
@@ -1260,6 +1547,12 @@ export default function PulsePage() {
                       {Icon && <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                       <span className="hidden xs:inline">{label}</span>
                       <span className="xs:hidden">{label.split(" ")[0]}</span>
+                      {live && (
+                        <span className="px-1 py-0.5 rounded bg-red-500 text-white text-[8px] font-bold flex items-center gap-0.5 animate-pulse">
+                          <Circle className="w-1 h-1 fill-white" />
+                          LIVE
+                        </span>
+                      )}
                       <span
                         className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${
                           filter === id
