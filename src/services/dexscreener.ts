@@ -64,6 +64,7 @@ export interface DexScreenerTokenInfo {
   priceUsd?: number;
   priceNative?: number;
   priceChange24h?: number;
+  priceChange6h?: number;
   priceChange1h?: number;
   priceChange5m?: number;
   volume24h?: number;
@@ -159,6 +160,7 @@ export class DexScreenerService {
           ? parseFloat(pair.priceNative)
           : undefined,
         priceChange24h: pair.priceChange?.h24,
+        priceChange6h: pair.priceChange?.h6,
         priceChange1h: pair.priceChange?.h1,
         priceChange5m: pair.priceChange?.m5,
         volume24h: pair.volume?.h24,

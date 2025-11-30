@@ -34,6 +34,7 @@ import { WalletSettingsModal } from "@/services/WalletSettingsModal";
 import { pumpFunService } from "@/services/pumpfun";
 import { dexscreenerService } from "@/services/dexscreener";
 import { multiChainTokenService } from "@/services/multichain-tokens";
+import { TokenChart } from "@/components/TokenChart";
 
 interface TokenDetailData {
   chain: string;
@@ -45,22 +46,53 @@ interface TokenDetailData {
       logo?: string;
       name: string;
       symbol: string;
+      description?: string;
       price?: number;
       priceUsd?: number;
       marketCap?: number;
       volume?: number;
       isMigrated: boolean;
+      migrationTimestamp?: number;
       raydiumPool?: string;
       socials?: {
         website?: string;
         twitter?: string;
         telegram?: string;
       };
+      reserves?: {
+        sol?: number;
+        token?: number;
+      };
+      priceChange24h?: number;
+      bondingProgress?: number; // 0-1
+      numHolders?: number;
+      transactions?: number;
+      buyTransactions?: number;
+      sellTransactions?: number;
+      createdTimestamp?: number;
+      holders?: Array<{
+        address?: string;
+        wallet?: string;
+        publicKey?: string;
+        balance?: number | string;
+        amount?: number | string;
+        tokens?: number | string;
+        percentage?: number | string;
+        pct?: number | string;
+        percent?: number | string;
+        isDev?: boolean;
+        dev?: boolean;
+        creator?: boolean;
+        label?: string;
+        tag?: string;
+      }>;
     };
     dexscreener?: {
       logo?: string;
       priceUsd?: number;
       priceChange24h?: number;
+      priceChange6h?: number;
+      priceChange1h?: number;
       volume24h?: number;
       liquidity?: number;
       fdv?: number;
@@ -102,6 +134,87 @@ function TokenDetailContent() {
     }
     return "0.1";
   });
+  const [timeDisplay, setTimeDisplay] = useState<string>("");
+  const [solPrice, setSolPrice] = useState<number | null>(null);
+
+  // Fetch SOL price from CoinGecko or Jupiter
+  useEffect(() => {
+    const fetchSolPrice = async () => {
+      try {
+        // Try CoinGecko first (free, no API key needed)
+        const response = await fetch(
+          "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
+        );
+        if (response.ok) {
+          const data = await response.json();
+          if (data.solana?.usd) {
+            setSolPrice(data.solana.usd);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to fetch SOL price from CoinGecko:", error);
+      }
+
+      // Fallback: Try Jupiter price API
+      try {
+        const jupiterResponse = await fetch(
+          "https://price.jup.ag/v4/price?ids=SOL"
+        );
+        if (jupiterResponse.ok) {
+          const jupiterData = await jupiterResponse.json();
+          if (jupiterData.data?.SOL?.price) {
+            setSolPrice(jupiterData.data.SOL.price);
+            return;
+          }
+        }
+      } catch (error) {
+        console.warn("Failed to fetch SOL price from Jupiter:", error);
+      }
+
+      // Final fallback: Use approximate price
+      setSolPrice(150); // Approximate SOL price
+    };
+
+    fetchSolPrice();
+  }, []);
+
+  // Update time display client-side only to avoid hydration mismatch
+  // Must be before any conditional returns to follow Rules of Hooks
+  useEffect(() => {
+    if (!tokenData) {
+      setTimeDisplay("");
+      return;
+    }
+
+    const baseToken = tokenData?.data?.base;
+    const pumpfunData = tokenData?.data?.pumpfun;
+    const createdTimestamp =
+      pumpfunData?.createdTimestamp || baseToken?.createdTimestamp;
+
+    if (!createdTimestamp) {
+      setTimeDisplay(baseToken?.time || "Unknown");
+      return;
+    }
+
+    const updateTime = () => {
+      const diff = Date.now() - createdTimestamp;
+      if (diff < 60000) {
+        setTimeDisplay(`${Math.floor(diff / 1000)}s`);
+      } else if (diff < 3600000) {
+        setTimeDisplay(`${Math.floor(diff / 60000)}m`);
+      } else {
+        setTimeDisplay(`${Math.floor(diff / 3600000)}h`);
+      }
+    };
+
+    // Update immediately
+    updateTime();
+
+    // Update every second
+    const interval = setInterval(updateTime, 1000);
+    return () => clearInterval(interval);
+  }, [tokenData]);
 
   useEffect(() => {
     if (!chain || !tokenAddress) return;
@@ -208,9 +321,9 @@ function TokenDetailContent() {
     );
   }
 
-  const baseToken = tokenData.data.base;
-  const pumpfunData = tokenData.data.pumpfun;
-  const dexscreenerData = tokenData.data.dexscreener;
+  const baseToken = tokenData?.data?.base;
+  const pumpfunData = tokenData?.data?.pumpfun;
+  const dexscreenerData = tokenData?.data?.dexscreener;
 
   // Merge data from all sources
   const tokenName = pumpfunData?.name || baseToken?.name || "Unknown Token";
@@ -220,6 +333,7 @@ function TokenDetailContent() {
     pumpfunData?.logo ||
     baseToken?.image ||
     baseToken?.icon;
+  const description = pumpfunData?.description;
   const price =
     dexscreenerData?.priceUsd ||
     pumpfunData?.priceUsd ||
@@ -230,10 +344,68 @@ function TokenDetailContent() {
     pumpfunData?.marketCap || baseToken?.marketCap || dexscreenerData?.fdv || 0;
   const volume =
     dexscreenerData?.volume24h || pumpfunData?.volume || baseToken?.volume || 0;
-  const liquidity = dexscreenerData?.liquidity || 0;
-  const priceChange24h = dexscreenerData?.priceChange24h || 0;
+  // Get price change - prefer shorter timeframes (1h, 6h) over 24h
+  const priceChange =
+    dexscreenerData?.priceChange1h ??
+    dexscreenerData?.priceChange6h ??
+    pumpfunData?.priceChange24h ??
+    dexscreenerData?.priceChange24h ??
+    0;
+  const priceChangeLabel =
+    dexscreenerData?.priceChange1h !== undefined
+      ? "1h"
+      : dexscreenerData?.priceChange6h !== undefined
+        ? "6h"
+        : "24h";
   const isMigrated = pumpfunData?.isMigrated || false;
-  const bondingCurveProgress = baseToken?.activity?.Q || 0;
+  // Use bondingProgress from pump.fun if available, otherwise calculate from baseToken
+  const bondingProgress =
+    pumpfunData?.bondingProgress !== undefined
+      ? pumpfunData?.bondingProgress
+      : baseToken?.activity?.Q !== undefined
+        ? (baseToken?.activity?.Q ?? 0) / 100 // Convert from percentage to 0-1
+        : 0;
+  const bondingCurveProgress = (bondingProgress ?? 0) * 100; // Convert to percentage for display
+  // Only use reserves if they exist, are > 0, and token is not migrated
+  // API might return stale/incorrect data, so validate against bonding curve progress
+  const rawSolReserves = pumpfunData?.reserves?.sol;
+  const rawTokenReserves = pumpfunData?.reserves?.token;
+  // Only show reserves if:
+  // 1. Token is not migrated (migrated tokens don't have bonding curve reserves)
+  // 2. Reserves are > 0
+  // 3. Bonding curve progress > 0% (if 0%, there are no reserves)
+  const solReserves =
+    !isMigrated &&
+    rawSolReserves !== undefined &&
+    rawSolReserves > 0 &&
+    bondingCurveProgress > 0
+      ? rawSolReserves
+      : undefined;
+  const tokenReserves =
+    !isMigrated &&
+    rawTokenReserves !== undefined &&
+    rawTokenReserves > 0 &&
+    bondingCurveProgress > 0
+      ? rawTokenReserves
+      : undefined;
+  // Calculate liquidity: For migrated tokens use DexScreener, for bonding curve tokens calculate from SOL reserves
+  // Only calculate from reserves if they're valid (> 0 and not migrated)
+  const liquidity =
+    dexscreenerData?.liquidity ||
+    (solReserves !== undefined && solReserves > 0 && solPrice
+      ? solReserves * solPrice
+      : 0) ||
+    0;
+  const numHolders =
+    pumpfunData?.numHolders || baseToken?.activity?.holders || 0;
+  const holders = pumpfunData?.holders || [];
+  const transactions =
+    pumpfunData?.transactions || baseToken?.transactions || 0;
+  const buyTransactions = pumpfunData?.buyTransactions;
+  const sellTransactions = pumpfunData?.sellTransactions;
+  const socials = pumpfunData?.socials || dexscreenerData?.socials;
+  const createdTimestamp =
+    pumpfunData?.createdTimestamp || baseToken?.createdTimestamp;
 
   return (
     <div className="min-h-screen bg-app text-white pb-16">
@@ -342,14 +514,23 @@ function TokenDetailContent() {
               {/* Left: Token Info */}
               <div className="flex items-start gap-4 flex-1">
                 {tokenImage ? (
-                  <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-full overflow-hidden flex-shrink-0">
-                    <Image
-                      src={tokenImage}
-                      alt={tokenSymbol}
-                      fill
-                      className="object-cover"
-                      unoptimized
-                    />
+                  <div
+                    className="relative w-16 h-fit md:w-20 md:h-fit flex-shrink-0"
+                    style={{ aspectRatio: "1 / 1" }}
+                  >
+                    <div className="absolute inset-0 rounded-full overflow-hidden">
+                      <Image
+                        src={tokenImage}
+                        alt={tokenSymbol}
+                        fill
+                        className="object-cover"
+                        style={{
+                          borderRadius: "50%",
+                        }}
+                        sizes="(max-width: 768px) 64px, 80px"
+                        unoptimized
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center flex-shrink-0 text-2xl">
@@ -372,30 +553,37 @@ function TokenDetailContent() {
                       <span className="text-lg font-semibold">
                         {formatCurrency(price)}
                       </span>
-                      {priceChange24h !== 0 && (
+                      {priceChange !== 0 && (
                         <span
                           className={`text-sm flex items-center gap-1 ${
-                            priceChange24h >= 0
-                              ? "text-green-400"
-                              : "text-red-400"
+                            priceChange >= 0 ? "text-green-400" : "text-red-400"
                           }`}
                         >
-                          {priceChange24h >= 0 ? (
+                          {priceChange >= 0 ? (
                             <TrendingUp className="w-4 h-4" />
                           ) : (
                             <TrendingDown className="w-4 h-4" />
                           )}
-                          {Math.abs(priceChange24h).toFixed(2)}%
+                          {Math.abs(priceChange).toFixed(2)}% (
+                          {priceChangeLabel})
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-gray-400" />
                       <span className="text-sm text-gray-400">
-                        {baseToken?.time || "Unknown"}
+                        {timeDisplay || baseToken?.time || "Unknown"}
                       </span>
                     </div>
                   </div>
+                  {/* Description */}
+                  {description && (
+                    <div className="mt-3">
+                      <p className="text-sm text-gray-300 leading-relaxed">
+                        {description}
+                      </p>
+                    </div>
+                  )}
                   {/* Contract Address */}
                   <div className="mt-3 flex items-center gap-2 flex-wrap">
                     <span className="text-xs text-gray-400">CA:</span>
@@ -424,6 +612,56 @@ function TokenDetailContent() {
                     >
                       <ExternalLink className="w-4 h-4 text-gray-400" />
                     </a>
+                    {/* Social Links */}
+                    {socials && !Array.isArray(socials) && (
+                      <div className="flex items-center gap-2 ml-2">
+                        {socials?.website && (
+                          <a
+                            href={socials.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-panel-elev rounded transition-colors"
+                            title="Website"
+                          >
+                            <ExternalLink className="w-4 h-4 text-blue-400" />
+                          </a>
+                        )}
+                        {socials?.twitter && (
+                          <a
+                            href={socials.twitter}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-panel-elev rounded transition-colors"
+                            title="Twitter"
+                          >
+                            <svg
+                              className="w-4 h-4 text-blue-400"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z" />
+                            </svg>
+                          </a>
+                        )}
+                        {socials?.telegram && (
+                          <a
+                            href={socials.telegram}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 hover:bg-panel-elev rounded transition-colors"
+                            title="Telegram"
+                          >
+                            <svg
+                              className="w-4 h-4 text-blue-400"
+                              fill="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.559z" />
+                            </svg>
+                          </a>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -451,8 +689,18 @@ function TokenDetailContent() {
                 <div className="bg-panel-elev rounded-lg p-3 border border-gray-800/50">
                   <div className="text-xs text-gray-400 mb-1">B.Curve</div>
                   <div className="text-lg font-bold">
-                    {bondingCurveProgress.toFixed(2)}%
+                    {(bondingCurveProgress ?? 0).toFixed(2)}%
                   </div>
+                  {solReserves !== undefined && (
+                    <div className="text-xs text-gray-500 mt-1">
+                      {(solReserves ?? 0).toFixed(2)} SOL
+                      {solPrice && solReserves !== undefined && (
+                        <span className="text-gray-400 ml-1">
+                          ({formatCurrency((solReserves ?? 0) * solPrice)})
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -464,7 +712,7 @@ function TokenDetailContent() {
                 <div>
                   <div className="text-xs text-gray-400">Holders</div>
                   <div className="text-sm font-semibold">
-                    {baseToken?.activity?.holders || 0}
+                    {formatNumber(numHolders)}
                   </div>
                 </div>
               </div>
@@ -473,8 +721,15 @@ function TokenDetailContent() {
                 <div>
                   <div className="text-xs text-gray-400">Transactions</div>
                   <div className="text-sm font-semibold">
-                    {formatNumber(baseToken?.transactions || 0)}
+                    {formatNumber(transactions)}
                   </div>
+                  {buyTransactions !== undefined &&
+                    sellTransactions !== undefined && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {formatNumber(buyTransactions)} buy /{" "}
+                        {formatNumber(sellTransactions)} sell
+                      </div>
+                    )}
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -500,6 +755,52 @@ function TokenDetailContent() {
                 </div>
               </div>
             </div>
+            {/* Reserves Info (if available from pump.fun) */}
+            {(solReserves !== undefined || tokenReserves !== undefined) && (
+              <div className="mt-4 pt-4 border-t border-gray-800/50">
+                <div className="text-xs text-gray-400 mb-2">
+                  Bonding Curve Reserves
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  {solReserves !== undefined && (
+                    <div className="bg-panel-elev rounded-lg p-3 border border-gray-800/50">
+                      <div className="text-xs text-gray-400 mb-1">
+                        SOL Reserves
+                      </div>
+                      <div className="text-sm font-semibold">
+                        {(solReserves ?? 0).toFixed(4)} SOL
+                      </div>
+                      {solPrice && solReserves !== undefined && (
+                        <div className="text-xs text-gray-500 mt-1">
+                          ≈ {formatCurrency((solReserves ?? 0) * solPrice)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {tokenReserves !== undefined && (
+                    <div className="bg-panel-elev rounded-lg p-3 border border-gray-800/50">
+                      <div className="text-xs text-gray-400 mb-1">
+                        Token Reserves
+                      </div>
+                      <div className="text-sm font-semibold">
+                        {formatNumber(tokenReserves)}
+                      </div>
+                      {solPrice &&
+                        solReserves !== undefined &&
+                        (price ?? 0) > 0 &&
+                        tokenReserves !== undefined && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            ≈{" "}
+                            {formatCurrency(
+                              (tokenReserves ?? 0) * (price ?? 0)
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -508,14 +809,27 @@ function TokenDetailContent() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Chart Area - 2/3 width on desktop */}
             <div className="lg:col-span-2 bg-panel border border-gray-800/50 rounded-xl p-4 md:p-6">
-              <div className="h-[400px] md:h-[500px] flex items-center justify-center bg-panel-elev rounded-lg border border-gray-800/50">
-                <div className="text-center text-gray-400">
-                  <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Chart integration coming soon</p>
-                  <p className="text-xs mt-1">
-                    Consider using TradingView, Chart.js, or Recharts
-                  </p>
-                </div>
+              <div className="h-[400px] md:h-[500px] bg-panel-elev rounded-lg border border-gray-800/50 p-4">
+                {pumpfunData ? (
+                  <TokenChart
+                    mintAddress={tokenAddress}
+                    tokenSymbol={tokenSymbol}
+                    isPumpFun={true}
+                    createdTimestamp={createdTimestamp}
+                  />
+                ) : (
+                  <div className="h-full flex items-center justify-center">
+                    <div className="text-center text-gray-400">
+                      <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">
+                        Chart available for pump.fun tokens
+                      </p>
+                      <p className="text-xs mt-1">
+                        Chart data will load for pump.fun tokens
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -586,7 +900,7 @@ function TokenDetailContent() {
                 { id: "trades", label: "Trades" },
                 {
                   id: "holders",
-                  label: `Holders (${baseToken?.activity?.holders || 0})`,
+                  label: `Holders (${numHolders || 0})`,
                 },
                 { id: "info", label: "Token Info" },
               ].map((tab) => (
@@ -610,20 +924,50 @@ function TokenDetailContent() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold">
-                      Recent Transactions
+                      Transaction Statistics
                     </h3>
                     <span className="text-sm text-gray-400">
-                      {baseToken?.transactions || 0} total
+                      {transactions || 0} total
                     </span>
                   </div>
-                  {baseToken?.transactions ? (
+                  {pumpfunData &&
+                  (buyTransactions !== undefined ||
+                    sellTransactions !== undefined) ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                        <div className="text-xs text-gray-400 mb-1">
+                          Total Transactions
+                        </div>
+                        <div className="text-2xl font-bold">
+                          {transactions || 0}
+                        </div>
+                      </div>
+                      <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                        <div className="text-xs text-gray-400 mb-1">
+                          Buy Transactions
+                        </div>
+                        <div className="text-2xl font-bold text-green-400">
+                          {buyTransactions ?? 0}
+                        </div>
+                      </div>
+                      <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                        <div className="text-xs text-gray-400 mb-1">
+                          Sell Transactions
+                        </div>
+                        <div className="text-2xl font-bold text-red-400">
+                          {sellTransactions ?? 0}
+                        </div>
+                      </div>
+                    </div>
+                  ) : transactions > 0 ? (
                     <div className="text-center text-gray-400 py-12">
                       <Activity className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p className="text-sm mb-1">
                         Transaction history coming soon
                       </p>
                       <p className="text-xs text-gray-500">
-                        We're working on integrating real-time transaction data
+                        We&apos;re working on integrating real-time transaction
+                        data
                       </p>
                     </div>
                   ) : (
@@ -638,17 +982,92 @@ function TokenDetailContent() {
               {activeTab === "holders" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold">Token Holders</h3>
+                    <h3 className="text-lg font-semibold">Top Holders</h3>
                     <span className="text-sm text-gray-400">
-                      {baseToken?.activity?.holders || 0} holders
+                      {numHolders || 0} total holders
                     </span>
                   </div>
-                  {baseToken?.activity?.holders ? (
+                  {pumpfunData &&
+                  Array.isArray(holders) &&
+                  holders.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-4 gap-4 text-xs text-gray-400 pb-2 border-b border-gray-800/50">
+                        <div>Rank</div>
+                        <div>Address</div>
+                        <div className="text-right">Balance</div>
+                        <div className="text-right">Percentage</div>
+                      </div>
+                      {holders.slice(0, 10).map((holder, index: number) => {
+                        const address =
+                          holder.address ||
+                          holder.wallet ||
+                          holder.publicKey ||
+                          "Unknown";
+                        const balance =
+                          holder.balance || holder.amount || holder.tokens || 0;
+                        const percentage =
+                          holder.percentage ||
+                          holder.pct ||
+                          holder.percent ||
+                          0;
+                        const isDev =
+                          holder.isDev ||
+                          holder.dev ||
+                          holder.creator ||
+                          address === pumpfunData?.mint;
+                        const label =
+                          holder.label ||
+                          holder.tag ||
+                          (isDev ? "Dev" : undefined);
+
+                        return (
+                          <div
+                            key={index}
+                            className="grid grid-cols-4 gap-4 py-2 border-b border-gray-800/30 hover:bg-panel-elev rounded px-2 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">#{index + 1}</span>
+                              {label && (
+                                <span className="px-1.5 py-0.5 bg-primary/20 text-primary text-xs rounded">
+                                  {label}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <code className="text-xs font-mono truncate">
+                                {address.length > 20
+                                  ? `${address.slice(0, 8)}...${address.slice(-8)}`
+                                  : address}
+                              </code>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(address);
+                                }}
+                                className="text-gray-500 hover:text-white transition-colors"
+                                title="Copy address"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <div className="text-right font-medium">
+                              {formatNumber(parseFloat(balance.toString()))}
+                            </div>
+                            <div className="text-right font-medium text-primary">
+                              {typeof percentage === "number"
+                                ? percentage.toFixed(2)
+                                : parseFloat(percentage.toString()).toFixed(2)}
+                              %
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : numHolders > 0 ? (
                     <div className="text-center text-gray-400 py-12">
                       <Users className="w-12 h-12 mx-auto mb-2 opacity-50" />
                       <p className="text-sm mb-1">Holders list coming soon</p>
                       <p className="text-xs text-gray-500">
-                        We're working on integrating holder data from the
+                        We&apos;re working on integrating holder data from the
                         blockchain
                       </p>
                     </div>
@@ -714,7 +1133,7 @@ function TokenDetailContent() {
                       <div className="flex flex-wrap gap-2">
                         {pumpfunData?.socials?.twitter && (
                           <a
-                            href={pumpfunData.socials.twitter}
+                            href={pumpfunData?.socials?.twitter}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-4 py-2 bg-panel-elev hover:bg-panel border border-gray-800/50 rounded-lg text-sm transition-colors flex items-center gap-2"
@@ -725,7 +1144,7 @@ function TokenDetailContent() {
                         )}
                         {pumpfunData?.socials?.website && (
                           <a
-                            href={pumpfunData.socials.website}
+                            href={pumpfunData?.socials?.website}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-4 py-2 bg-panel-elev hover:bg-panel border border-gray-800/50 rounded-lg text-sm transition-colors flex items-center gap-2"
@@ -736,7 +1155,7 @@ function TokenDetailContent() {
                         )}
                         {dexscreenerData?.dexUrl && (
                           <a
-                            href={dexscreenerData.dexUrl}
+                            href={dexscreenerData?.dexUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="px-4 py-2 bg-panel-elev hover:bg-panel border border-gray-800/50 rounded-lg text-sm transition-colors flex items-center gap-2"

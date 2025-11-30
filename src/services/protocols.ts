@@ -1309,9 +1309,34 @@ export class ProtocolService {
         return bTime - aTime;
       });
     } else if (status === 'finalStretch') {
-      return allTokens.filter(
-        (t) => t.bondingProgress && t.bondingProgress >= 0.9 && t.bondingProgress < 1.0
-      ).sort((a, b) => {
+      return allTokens.filter((t) => {
+        // Exclude migrated tokens
+        if (t.isMigrated || t.migrationTimestamp || t.raydiumPool) {
+          return false;
+        }
+
+        // Calculate bonding progress if not set
+        // Prefer explicit bondingProgress, then SOL reserves, then market cap
+        let bondingProgress = t.bondingProgress;
+        
+        if (bondingProgress === undefined || bondingProgress === null) {
+          // Try to calculate from SOL reserves (more accurate)
+          const solReserves = (t as any).reserves?.sol || (t as any).solReserves || (t as any).realSolReserves;
+          if (solReserves && solReserves > 0) {
+            const SOL_TARGET = 69; // Pump.fun target is ~69 SOL
+            bondingProgress = Math.min(Math.max(solReserves / SOL_TARGET, 0), 1.0);
+          } else {
+            // Fallback to market cap calculation (less accurate)
+            const bondingCurveTargetUSD = 69000; // Approximate at ~$1000 SOL
+            bondingProgress = t.marketCap
+              ? Math.min((t.marketCap || 0) / bondingCurveTargetUSD, 1.0)
+              : 0;
+          }
+        }
+
+        // Final stretch: bonding progress between 90% and 100% (not migrated)
+        return bondingProgress >= 0.9 && bondingProgress < 1.0;
+      }).sort((a, b) => {
         // Sort by created timestamp (newest first)
         const aTime = a.createdTimestamp || 0;
         const bTime = b.createdTimestamp || 0;
