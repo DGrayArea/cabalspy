@@ -90,15 +90,53 @@ interface TokenDetailData {
     dexscreener?: {
       logo?: string;
       priceUsd?: number;
+      priceNative?: number;
       priceChange24h?: number;
       priceChange6h?: number;
       priceChange1h?: number;
+      priceChange5m?: number;
       volume24h?: number;
+      volume6h?: number;
+      volume1h?: number;
+      volume5m?: number;
       liquidity?: number;
       fdv?: number;
       socials?: Array<{ type: string; url: string }>;
       websites?: Array<{ label: string; url: string }>;
       dexUrl?: string;
+      dexId?: string;
+      pairAddress?: string;
+      pairCreatedAt?: number;
+      txns24h?: {
+        buys: number;
+        sells: number;
+        total: number;
+      };
+      txns6h?: {
+        buys: number;
+        sells: number;
+        total: number;
+      };
+      txns1h?: {
+        buys: number;
+        sells: number;
+        total: number;
+      };
+      txns5m?: {
+        buys: number;
+        sells: number;
+        total: number;
+      };
+      baseToken?: {
+        address: string;
+        name: string;
+        symbol: string;
+      };
+      quoteToken?: {
+        address: string;
+        name: string;
+        symbol: string;
+      };
     };
     transactions?: unknown[];
     holders?: unknown[];
@@ -930,34 +968,92 @@ function TokenDetailContent() {
                       {transactions || 0} total
                     </span>
                   </div>
-                  {pumpfunData &&
-                  (buyTransactions !== undefined ||
-                    sellTransactions !== undefined) ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
-                        <div className="text-xs text-gray-400 mb-1">
-                          Total Transactions
+                  {buyTransactions !== undefined ||
+                  sellTransactions !== undefined ||
+                  dexscreenerData?.txns24h ? (
+                    <div className="space-y-4">
+                      {/* 24h Stats */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                          <div className="text-xs text-gray-400 mb-1">
+                            Total Transactions (24h)
+                          </div>
+                          <div className="text-2xl font-bold">
+                            {transactions || 0}
+                          </div>
                         </div>
-                        <div className="text-2xl font-bold">
-                          {transactions || 0}
+                        <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                          <div className="text-xs text-gray-400 mb-1">
+                            Buy Transactions (24h)
+                          </div>
+                          <div className="text-2xl font-bold text-green-400">
+                            {buyTransactions ?? 0}
+                          </div>
+                        </div>
+                        <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                          <div className="text-xs text-gray-400 mb-1">
+                            Sell Transactions (24h)
+                          </div>
+                          <div className="text-2xl font-bold text-red-400">
+                            {sellTransactions ?? 0}
+                          </div>
                         </div>
                       </div>
-                      <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
-                        <div className="text-xs text-gray-400 mb-1">
-                          Buy Transactions
+                      {/* Additional timeframes from DexScreener */}
+                      {dexscreenerData?.txns1h && (
+                        <div>
+                          <div className="text-xs text-gray-400 mb-2">
+                            1h Transactions
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div className="bg-panel-elev rounded p-2 border border-gray-800/30">
+                              <span className="text-gray-400">Total: </span>
+                              <span className="font-semibold">
+                                {dexscreenerData.txns1h.total}
+                              </span>
+                            </div>
+                            <div className="bg-panel-elev rounded p-2 border border-gray-800/30">
+                              <span className="text-gray-400">Buys: </span>
+                              <span className="font-semibold text-green-400">
+                                {dexscreenerData.txns1h.buys}
+                              </span>
+                            </div>
+                            <div className="bg-panel-elev rounded p-2 border border-gray-800/30">
+                              <span className="text-gray-400">Sells: </span>
+                              <span className="font-semibold text-red-400">
+                                {dexscreenerData.txns1h.sells}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-2xl font-bold text-green-400">
-                          {buyTransactions ?? 0}
+                      )}
+                      {dexscreenerData?.txns5m && (
+                        <div>
+                          <div className="text-xs text-gray-400 mb-2">
+                            5m Transactions
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-sm">
+                            <div className="bg-panel-elev rounded p-2 border border-gray-800/30">
+                              <span className="text-gray-400">Total: </span>
+                              <span className="font-semibold">
+                                {dexscreenerData.txns5m.total}
+                              </span>
+                            </div>
+                            <div className="bg-panel-elev rounded p-2 border border-gray-800/30">
+                              <span className="text-gray-400">Buys: </span>
+                              <span className="font-semibold text-green-400">
+                                {dexscreenerData.txns5m.buys}
+                              </span>
+                            </div>
+                            <div className="bg-panel-elev rounded p-2 border border-gray-800/30">
+                              <span className="text-gray-400">Sells: </span>
+                              <span className="font-semibold text-red-400">
+                                {dexscreenerData.txns5m.sells}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
-                        <div className="text-xs text-gray-400 mb-1">
-                          Sell Transactions
-                        </div>
-                        <div className="text-2xl font-bold text-red-400">
-                          {sellTransactions ?? 0}
-                        </div>
-                      </div>
+                      )}
                     </div>
                   ) : transactions > 0 ? (
                     <div className="text-center text-gray-400 py-12">
@@ -1082,6 +1178,74 @@ function TokenDetailContent() {
 
               {activeTab === "info" && (
                 <div className="space-y-6">
+                  {/* DexScreener Info */}
+                  {dexscreenerData && (
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4">
+                        DEX Information
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {dexscreenerData.dexId && (
+                          <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                            <div className="text-xs text-gray-400 mb-1">
+                              DEX
+                            </div>
+                            <div className="text-lg font-bold capitalize">
+                              {dexscreenerData.dexId}
+                            </div>
+                          </div>
+                        )}
+                        {dexscreenerData.pairAddress && (
+                          <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                            <div className="text-xs text-gray-400 mb-1">
+                              Pair Address
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <code className="text-xs font-mono truncate">
+                                {dexscreenerData.pairAddress.length > 20
+                                  ? `${dexscreenerData.pairAddress.slice(0, 8)}...${dexscreenerData.pairAddress.slice(-8)}`
+                                  : dexscreenerData.pairAddress}
+                              </code>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(
+                                    dexscreenerData.pairAddress!
+                                  );
+                                }}
+                                className="text-gray-500 hover:text-white transition-colors"
+                                title="Copy pair address"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {dexscreenerData.pairCreatedAt && (
+                          <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                            <div className="text-xs text-gray-400 mb-1">
+                              Pair Created
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {new Date(
+                                dexscreenerData.pairCreatedAt * 1000
+                              ).toLocaleDateString()}
+                            </div>
+                          </div>
+                        )}
+                        {dexscreenerData.baseToken && (
+                          <div className="bg-panel-elev rounded-lg p-4 border border-gray-800/50">
+                            <div className="text-xs text-gray-400 mb-1">
+                              Trading Pair
+                            </div>
+                            <div className="text-sm font-semibold">
+                              {dexscreenerData.baseToken.symbol} /{" "}
+                              {dexscreenerData.quoteToken?.symbol || "?"}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <h4 className="text-lg font-semibold mb-4">
                       Token Statistics

@@ -68,11 +68,47 @@ export interface DexScreenerTokenInfo {
   priceChange1h?: number;
   priceChange5m?: number;
   volume24h?: number;
+  volume6h?: number;
+  volume1h?: number;
+  volume5m?: number;
   liquidity?: number;
   fdv?: number;
   socials?: Array<{ type: string; url: string }>;
   websites?: Array<{ label: string; url: string }>;
   dexUrl?: string;
+  dexId?: string; // Which DEX (e.g., "raydium", "orca", "jupiter")
+  pairAddress?: string;
+  pairCreatedAt?: number; // Timestamp when pair was created
+  txns24h?: {
+    buys: number;
+    sells: number;
+    total: number;
+  };
+  txns6h?: {
+    buys: number;
+    sells: number;
+    total: number;
+  };
+  txns1h?: {
+    buys: number;
+    sells: number;
+    total: number;
+  };
+  txns5m?: {
+    buys: number;
+    sells: number;
+    total: number;
+  };
+  baseToken?: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
+  quoteToken?: {
+    address: string;
+    name: string;
+    symbol: string;
+  };
   isPaid?: boolean; // DexScreener paid listing indicator
 }
 
@@ -164,11 +200,47 @@ export class DexScreenerService {
         priceChange1h: pair.priceChange?.h1,
         priceChange5m: pair.priceChange?.m5,
         volume24h: pair.volume?.h24,
+        volume6h: pair.volume?.h6,
+        volume1h: pair.volume?.h1,
+        volume5m: pair.volume?.m5,
         liquidity: pair.liquidity?.usd,
         fdv: pair.fdv,
         socials: pair.info?.socials,
         websites: pair.info?.websites,
         dexUrl: pair.url,
+        dexId: pair.dexId,
+        pairAddress: pair.pairAddress,
+        pairCreatedAt: pair.pairCreatedAt,
+        txns24h: pair.txns?.h24
+          ? {
+              buys: pair.txns.h24.buys,
+              sells: pair.txns.h24.sells,
+              total: pair.txns.h24.buys + pair.txns.h24.sells,
+            }
+          : undefined,
+        txns6h: pair.txns?.h6
+          ? {
+              buys: pair.txns.h6.buys,
+              sells: pair.txns.h6.sells,
+              total: pair.txns.h6.buys + pair.txns.h6.sells,
+            }
+          : undefined,
+        txns1h: pair.txns?.h1
+          ? {
+              buys: pair.txns.h1.buys,
+              sells: pair.txns.h1.sells,
+              total: pair.txns.h1.buys + pair.txns.h1.sells,
+            }
+          : undefined,
+        txns5m: pair.txns?.m5
+          ? {
+              buys: pair.txns.m5.buys,
+              sells: pair.txns.m5.sells,
+              total: pair.txns.m5.buys + pair.txns.m5.sells,
+            }
+          : undefined,
+        baseToken: pair.baseToken,
+        quoteToken: pair.quoteToken,
         // DexScreener doesn't explicitly indicate paid listings in API
         // You might need to check other indicators or use a different method
         isPaid: false, // TODO: Determine paid listing status if needed
