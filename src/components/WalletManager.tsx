@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import { useWallet } from '@/hooks/useWallet';
-import { useAuth } from '@/context/AuthContext';
 import { Wallet, Plus, RefreshCw, Send, Copy, Check } from 'lucide-react';
 
 export default function WalletManager() {
-  const { user } = useAuth();
   const { wallet, isLoading, error, createWallet, sendTransaction, refreshBalance } = useWallet();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showSendModal, setShowSendModal] = useState(false);
@@ -47,18 +45,6 @@ export default function WalletManager() {
       setTimeout(() => setCopied(false), 2000);
     }
   };
-
-  if (!user) {
-    return (
-      <div className="bg-gray-800 rounded-lg p-6">
-        <div className="text-center">
-          <Wallet className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-semibold mb-2">Connect to Access Wallet</h3>
-          <p className="text-gray-400">Please sign in to manage your wallet</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!wallet) {
     return (
