@@ -64,7 +64,37 @@ export function WalletSettingsModal({
       isLoadingSolana,
       solanaError: solanaError?.message,
       turnkeyWalletsCount: turnkeyWallets?.length || 0,
+      turnkeyWallets: turnkeyWallets?.map((w: TurnkeyWallet) => ({
+        walletId: w.walletId,
+        walletName: w.walletName,
+        source: w.source,
+        accountsCount: w.accounts?.length || 0,
+        hasSolanaAccount: w.accounts?.some(
+          (acc: TurnkeyAccount) =>
+            acc.addressFormat === "ADDRESS_FORMAT_SOLANA" ||
+            (acc.path && acc.path.includes("501"))
+        ),
+      })),
     });
+
+    // If wallets exist but solWallet is null, log a warning
+    if (
+      turnkeyWallets &&
+      turnkeyWallets.length > 0 &&
+      !solWallet &&
+      !isLoadingSolana
+    ) {
+      console.warn(
+        "⚠️ Wallets exist but solWallet is null! Context may not have detected the wallet.",
+        {
+          wallets: turnkeyWallets.map((w: TurnkeyWallet) => ({
+            walletId: w.walletId,
+            walletName: w.walletName,
+            source: w.source,
+          })),
+        }
+      );
+    }
   }, [
     solWallet,
     walletId,

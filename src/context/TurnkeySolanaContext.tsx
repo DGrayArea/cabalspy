@@ -56,6 +56,12 @@ export function TurnkeySolanaContextProvider(props: {
       authState,
       clientState,
       hasTurnkeyUser: !!turnkeyUser,
+      walletDetails: turnkeyWallets?.map((w: any) => ({
+        walletId: w.walletId,
+        walletName: w.walletName,
+        source: w.source,
+        accountsCount: w.accounts?.length || 0,
+      })),
     });
     
     // Reset retry count when wallets change

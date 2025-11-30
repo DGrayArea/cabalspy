@@ -96,8 +96,8 @@ export class PumpFunService {
   // Request deduplication - prevent multiple simultaneous requests to the same endpoint
   private pendingRequests = new Map<string, Promise<any>>();
   private requestCache = new Map<string, { data: any; timestamp: number }>();
-  private readonly CACHE_DURATION = 30000; // 30 seconds cache
-  private readonly MIN_REQUEST_INTERVAL = 1000; // Minimum 1 second between requests to same endpoint
+  private readonly CACHE_DURATION = 60000; // 60 seconds cache (increased to reduce API calls)
+  private readonly MIN_REQUEST_INTERVAL = 2000; // Minimum 2 seconds between requests (increased to avoid rate limits)
   private lastRequestTime = new Map<string, number>();;
   private advancedApiUrl = "https://advanced-api-v2.pump.fun";
   private frontendApiV3Url = "https://frontend-api-v3.pump.fun";
@@ -510,11 +510,32 @@ export class PumpFunService {
           });
 
           if (!response.ok) {
+            // Handle rate limiting (429) - wait a bit before trying next endpoint
+            if (response.status === 429) {
+              console.warn(`⏸️ Rate limited (429) for ${endpointType}, waiting before next attempt...`);
+              if (i < endpointsToTry.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                continue; // Try next endpoint
+              }
+              throw new Error(`Rate limited: ${endpointType}`);
+            }
+            
+            // Handle server errors (5xx) - don't try other endpoints if server is down
+            if (response.status >= 500) {
+              console.warn(`🚫 Server error (${response.status}) for ${endpointType}, skipping remaining endpoints`);
+              if (endpointType === "featured") {
+                // Featured endpoint often fails, return empty silently
+                return [];
+              }
+              throw new Error(`Server error: ${endpointType} (${response.status})`);
+            }
+            
             // If it's a CORS-related error (status 0 or network error), don't try other endpoints
             if (response.status === 0 || response.type === "opaque") {
               console.warn(`🚫 CORS blocked request to ${url}, skipping remaining endpoints`);
               throw new Error(`CORS blocked: ${endpointType}`);
             }
+            
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             throw new Error(
               `Failed to fetch ${endpointType}: ${response.status} ${response.statusText}`
@@ -576,10 +597,7 @@ export class PumpFunService {
             .filter((info): info is PumpFunTokenInfo => info !== null);
 
           if (tokenInfos.length > 0) {
-            this.cache.set(cacheKey, {
-              data: tokenInfos,
-              timestamp: Date.now(),
-            });
+            // Cache is handled in the outer fetchFromEndpoint function
             return tokenInfos;
           } else {
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint

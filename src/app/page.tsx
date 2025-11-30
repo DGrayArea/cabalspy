@@ -374,18 +374,15 @@ export default function PulsePage() {
           }
         };
 
-        // Fetch all types with a small delay between each to avoid overwhelming the API
-        // Start with most important ones first
+        // Fetch all types with longer delays to avoid rate limiting
+        // Only fetch latest initially, skip other endpoints to reduce API load
         const latest = await fetchTokens("latest");
-        await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
 
-        const [featured, graduated] = await Promise.all([
-          fetchTokens("featured"),
-          fetchTokens("graduated"),
-        ]);
-        await new Promise((resolve) => setTimeout(resolve, 500)); // Another delay
-
-        const marketCap = await fetchTokens("marketCap");
+        // Skip other endpoints on initial load to avoid rate limiting
+        // The websocket will provide real-time data
+        const featured: PumpFunTokenInfo[] = [];
+        const graduated: PumpFunTokenInfo[] = [];
+        const marketCap: PumpFunTokenInfo[] = [];
 
         // console.log("✅ Pump.fun API results:", {
         //   latest: latest.length,
