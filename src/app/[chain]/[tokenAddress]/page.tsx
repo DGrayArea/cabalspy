@@ -26,15 +26,19 @@ import {
   Bell,
   Volume2,
   Calendar,
+  Search,
 } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
+import { useAuth } from "@/context/AuthContext";
+import { useViewport } from "@/context/ViewportContext";
 import { WalletSettingsModal } from "@/services/WalletSettingsModal";
 import { pumpFunService } from "@/services/pumpfun";
 import { dexscreenerService } from "@/services/dexscreener";
 import { multiChainTokenService } from "@/services/multichain-tokens";
 import { TokenChart } from "@/components/TokenChart";
+import { SearchModal } from "@/components/SearchModal";
 
 interface TokenDetailData {
   chain: string;
@@ -156,6 +160,10 @@ function TokenDetailContent() {
   const router = useRouter();
   const chain = params.chain as string;
   const tokenAddress = params.tokenAddress as string;
+  const { user, turnkeyUser, turnkeySession } = useAuth();
+  // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
+  const isAuthenticated = user || turnkeyUser || turnkeySession;
+  const { isDesktop, isMobile } = useViewport();
 
   const [tokenData, setTokenData] = useState<TokenDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -165,6 +173,7 @@ function TokenDetailContent() {
     "trades"
   );
   const [showWalletSettings, setShowWalletSettings] = useState(false);
+  const [showSearchModal, setShowSearchModal] = useState(false);
   const [slippage, setSlippage] = useState<string>("1");
   const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
     if (typeof window !== "undefined") {
@@ -483,23 +492,37 @@ function TokenDetailContent() {
                 >
                   Home
                 </Link>
-                <Link
+                {/* <Link
                   href="/pulse"
                   className="text-sm text-white font-medium cursor-pointer"
                 >
                   Pulse
-                </Link>
-                <Link
+                </Link> */}
+                {/* <Link
                   href="/profile"
                   className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   Profile
-                </Link>
+                </Link> */}
               </nav>
             </div>
 
-            {/* Right: Action Buttons */}
-            <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
+            {/* Right: Action Buttons - Show on desktop (md and above) */}
+            <div
+              style={{
+                display: isDesktop ? "flex" : "none",
+                alignItems: "center",
+                gap: "0.5rem",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                onClick={() => setShowSearchModal(true)}
+                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                title="Search Token"
+              >
+                <Search className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
+              </button>
               <button
                 onClick={() => window.location.reload()}
                 className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
@@ -507,37 +530,68 @@ function TokenDetailContent() {
               >
                 <RefreshCw className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
               </button>
+              {/* Profile - Only show when authenticated */}
+              {/* {isAuthenticated && (
               <Link
                 href="/profile"
-                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95 hidden sm:flex"
+                  className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
                 title="Profile"
               >
                 <User className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
               </Link>
-              {/* Wallet Settings */}
-              <div className="relative">
+              )} */}
+              {/* Wallet Settings - Only show when authenticated */}
+              {isAuthenticated && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowWalletSettings(!showWalletSettings)}
+                    className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
+                    title="Wallet Settings"
+                  >
+                    <Wallet className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
+                  </button>
+                  {showWalletSettings && (
+                    <Suspense fallback={null}>
+                      <WalletSettingsModal
+                        slippage={slippage}
+                        setSlippage={setSlippage}
+                        quickBuyAmount={quickBuyAmount}
+                        setQuickBuyAmount={setQuickBuyAmount}
+                        onClose={() => setShowWalletSettings(false)}
+                      />
+                    </Suspense>
+                  )}
+                </div>
+              )}
+              <AuthButton />
+            </div>
+
+            {/* Mobile: Search, Wallet, and Auth - Show only on mobile (below md breakpoint) */}
+            <div
+              style={{
+                display: isMobile ? "flex" : "none",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              <button
+                onClick={() => setShowSearchModal(true)}
+                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                title="Search Token"
+              >
+                <Search className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
+              </button>
+              {/* Wallet Settings - Only show when authenticated */}
+              {isAuthenticated && (
                 <button
                   onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
+                  className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
                   title="Wallet Settings"
                 >
                   <Wallet className="w-4 h-4 sm:w-4 sm:h-4 cursor-pointer" />
                 </button>
-                {showWalletSettings && (
-                  <Suspense fallback={null}>
-                    <WalletSettingsModal
-                      slippage={slippage}
-                      setSlippage={setSlippage}
-                      quickBuyAmount={quickBuyAmount}
-                      setQuickBuyAmount={setQuickBuyAmount}
-                      onClose={() => setShowWalletSettings(false)}
-                    />
-                  </Suspense>
-                )}
-              </div>
-              <div className="hidden sm:block">
-                <AuthButton />
-              </div>
+              )}
+              <AuthButton />
             </div>
           </div>
         </div>
@@ -846,8 +900,15 @@ function TokenDetailContent() {
         <div className="px-3 sm:px-4 mb-4 sm:mb-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
             {/* Chart Area - 2/3 width on desktop */}
-            <div className="lg:col-span-2 bg-panel border border-gray-800/50 rounded-xl p-4 md:p-6">
-              <div className="h-[400px] md:h-[500px] bg-panel-elev rounded-lg border border-gray-800/50 p-4">
+            <div className="lg:col-span-2 bg-panel border border-gray-800/50 rounded-xl p-3 sm:p-4 md:p-6">
+              <div
+                className="bg-panel-elev rounded-lg border border-gray-800/50 p-2 sm:p-3 md:p-4 overflow-hidden flex flex-col"
+                style={{
+                  height: "100%",
+                  minHeight: "300px",
+                  maxHeight: "600px",
+                }}
+              >
                 {pumpfunData ? (
                   <TokenChart
                     mintAddress={tokenAddress}
@@ -1226,9 +1287,38 @@ function TokenDetailContent() {
                               Pair Created
                             </div>
                             <div className="text-sm font-semibold">
-                              {new Date(
-                                dexscreenerData.pairCreatedAt * 1000
-                              ).toLocaleDateString()}
+                              {(() => {
+                                // DexScreener returns timestamp in milliseconds (Unix timestamp in ms)
+                                // Check if it's in seconds (< year 2000 in seconds = 946684800)
+                                const timestamp =
+                                  dexscreenerData.pairCreatedAt!;
+                                const timestampInMs =
+                                  timestamp < 946684800
+                                    ? timestamp * 1000 // Convert seconds to milliseconds
+                                    : timestamp; // Already in milliseconds
+
+                                const date = new Date(timestampInMs);
+
+                                // Validate date is reasonable (between 2000 and now)
+                                const now = Date.now();
+                                const year2000 = new Date(
+                                  "2000-01-01"
+                                ).getTime();
+
+                                if (
+                                  date.getTime() > now ||
+                                  date.getTime() < year2000
+                                ) {
+                                  // Invalid date, return formatted error or try alternative
+                                  return "Invalid date";
+                                }
+
+                                return date.toLocaleDateString("en-US", {
+                                  year: "numeric",
+                                  month: "short",
+                                  day: "numeric",
+                                });
+                              })()}
                             </div>
                           </div>
                         )}
@@ -1352,7 +1442,7 @@ function TokenDetailContent() {
           {/* Center Navigation */}
           <div className="flex items-center gap-4 text-xs">
             <Link
-              href="/profile"
+              href="/"
               className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <Wallet className="w-3.5 h-3.5 text-blue-400" />
@@ -1377,6 +1467,12 @@ function TokenDetailContent() {
           </div>
         </div>
       </footer>
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+      />
     </div>
   );
 }

@@ -15,6 +15,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
+import { useViewport } from "@/context/ViewportContext";
 import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
@@ -148,6 +149,7 @@ export default function PulsePage() {
   // Use WebSocket for realtime token data from:
   // - Solana: pumpapi.io / pumpswap (pumpportal.fun)
   // - BSC: forr.meme
+  const { isDesktop, isMobile } = useViewport();
   const {
     tokens,
     solanaTokens,
@@ -159,7 +161,9 @@ export default function PulsePage() {
   } = useWebSocket();
 
   // Get user from auth context
-  const { user } = useAuth();
+  const { user, turnkeyUser, turnkeySession } = useAuth();
+  // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
+  const isAuthenticated = user || turnkeyUser || turnkeySession;
 
   // Refresh function for manual refresh (if needed)
   const refresh = () => {
@@ -350,7 +354,8 @@ export default function PulsePage() {
               case "latest":
                 return await pumpFunService.fetchLatest(100);
               case "featured":
-                return await pumpFunService.fetchFeatured(100);
+                // Featured endpoint is often unavailable, fail silently
+                return await pumpFunService.fetchFeatured(100).catch(() => []);
               case "graduated":
                 return await pumpFunService.fetchGraduated(100);
               case "marketCap":
@@ -361,18 +366,26 @@ export default function PulsePage() {
                 return [];
             }
           } catch (err) {
-            // console.error(`❌ Failed to fetch ${type}:`, err);
+            // Silently fail for featured, log others
+            if (type !== "featured") {
+              console.error(`❌ Failed to fetch ${type}:`, err);
+            }
             return [];
           }
         };
 
-        // Fetch all types in parallel
-        const [latest, featured, graduated, marketCap] = await Promise.all([
-          fetchTokens("latest"),
+        // Fetch all types with a small delay between each to avoid overwhelming the API
+        // Start with most important ones first
+        const latest = await fetchTokens("latest");
+        await new Promise((resolve) => setTimeout(resolve, 500)); // 500ms delay
+
+        const [featured, graduated] = await Promise.all([
           fetchTokens("featured"),
           fetchTokens("graduated"),
-          fetchTokens("marketCap"),
         ]);
+        await new Promise((resolve) => setTimeout(resolve, 500)); // Another delay
+
+        const marketCap = await fetchTokens("marketCap");
 
         // console.log("✅ Pump.fun API results:", {
         //   latest: latest.length,
@@ -444,8 +457,12 @@ export default function PulsePage() {
     const fetchFeatured = async () => {
       try {
         // Fetch from both pump.fun and Jupiter trending
+        // Featured endpoint is often unavailable, fail silently
         const [pumpFunFeatured, jupiterTrending] = await Promise.all([
-          pumpFunService.fetchFeatured(15).catch(() => []),
+          pumpFunService.fetchFeatured(15).catch(() => {
+            // Silently fail - featured endpoint is often unavailable
+            return [];
+          }),
           protocolService.fetchJupiterTopTrending(10).catch(() => []),
         ]);
 
@@ -880,9 +897,9 @@ export default function PulsePage() {
 
         // Only return stored tokens if they exist AND pass the safety filter
         if (filteredTokens.length > 0) {
-          console.log(
-            `🔍 Filter ${filterType}: Using ${filteredTokens.length} tokens from protocol API (filtered from ${storedProtocolTokens.length})`
-          );
+          // console.log(
+          //   `🔍 Filter ${filterType}: Using ${filteredTokens.length} tokens from protocol API (filtered from ${storedProtocolTokens.length})`
+          // );
           return filteredTokens;
         }
 
@@ -943,9 +960,9 @@ export default function PulsePage() {
                 : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD (less accurate)
             return bondingProgress >= 0.9 && bondingProgress < 1.0;
           });
-          console.log(
-            `🔍 Filter finalStretch: Found ${finalStretch.length} tokens (fallback)`
-          );
+          // console.log(
+          //   `🔍 Filter finalStretch: Found ${finalStretch.length} tokens (fallback)`
+          // );
           return finalStretch;
         }
 
@@ -966,9 +983,9 @@ export default function PulsePage() {
           });
 
           if (unique.length > 0) {
-            console.log(
-              `🔍 Filter graduated: Using ${unique.length} tokens (combined sources)`
-            );
+            // console.log(
+            //   `🔍 Filter graduated: Using ${unique.length} tokens (combined sources)`
+            // );
             return unique;
           }
 
@@ -981,9 +998,9 @@ export default function PulsePage() {
               (token as any).raydiumPool !== undefined
             );
           });
-          console.log(
-            `🔍 Filter graduated: Found ${graduatedFromWS.length} tokens (fallback)`
-          );
+          // console.log(
+          //   `🔍 Filter graduated: Found ${graduatedFromWS.length} tokens (fallback)`
+          // );
           return graduatedFromWS;
         }
       }
@@ -1235,23 +1252,30 @@ export default function PulsePage() {
                 >
                   Home
                 </Link>
-                <Link
+                {/* <Link
                   href="/pulse"
                   className="text-sm text-white font-medium cursor-pointer"
                 >
                   Pulse
-                </Link>
-                <Link
+                </Link> */}
+                {/* <Link
                   href="/profile"
                   className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
                 >
                   Profile
-                </Link>
+                </Link> */}
               </nav>
             </div>
 
-            {/* Desktop: Action Buttons - Show on lg and above */}
-            <div className="hidden lg:flex items-center gap-2 shrink-0">
+            {/* Desktop: Action Buttons - Show on desktop (md and above) */}
+            <div
+              style={{
+                display: isDesktop ? "flex" : "none",
+                alignItems: "center",
+                gap: "0.5rem",
+                flexShrink: 0,
+              }}
+            >
               <button
                 onClick={() => setShowSearchModal(true)}
                 className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
@@ -1268,15 +1292,18 @@ export default function PulsePage() {
                   className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
                 />
               </button>
-              {/* <Link
-                href="/profile"
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                title="Profile"
-              >
-                <User className="w-4 h-4 cursor-pointer" />
-              </Link> */}
+              {/* Profile - Only show when authenticated */}
+              {/* {isAuthenticated && (
+                <Link
+                  href="/profile"
+                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                  title="Profile"
+                >
+                  <User className="w-4 h-4 cursor-pointer" />
+                </Link>
+              )} */}
               {/* Wallet Settings - Only show when logged in */}
-              {user && (
+              {isAuthenticated && (
                 <button
                   onClick={() => setShowWalletSettings(!showWalletSettings)}
                   className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
@@ -1285,11 +1312,28 @@ export default function PulsePage() {
                   <Wallet className="w-4 h-4 cursor-pointer" />
                 </button>
               )}
+              {/* Auth Button - Login buttons when not authenticated, profile when authenticated */}
               <AuthButton />
             </div>
 
-            {/* Mobile: Hamburger Menu - Show only on mobile (below lg) */}
-            <div className="lg:hidden">
+            {/* Mobile: Hamburger Menu and Wallet - Show only on mobile (below md breakpoint) */}
+            <div
+              style={{
+                display: isMobile ? "flex" : "none",
+                alignItems: "center",
+                gap: "0.5rem",
+              }}
+            >
+              {/* Wallet Settings - Only show when authenticated */}
+              {isAuthenticated && (
+                <button
+                  onClick={() => setShowWalletSettings(!showWalletSettings)}
+                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                  title="Wallet Settings"
+                >
+                  <Wallet className="w-5 h-5 cursor-pointer" />
+                </button>
+              )}
               <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
                 <DialogTrigger asChild>
                   <button
@@ -1323,7 +1367,7 @@ export default function PulsePage() {
                             Home
                           </span>
                         </Link>
-                        <Link
+                        {/* <Link
                           href="/pulse"
                           onClick={() => setShowMobileMenu(false)}
                           className="flex items-center gap-4 px-4 py-4 text-base font-semibold text-white bg-panel-elev/30 rounded-xl transition-all cursor-pointer group"
@@ -1331,16 +1375,19 @@ export default function PulsePage() {
                           <span className="group-hover:translate-x-1 transition-transform">
                             Pulse
                           </span>
-                        </Link>
-                        <Link
-                          href="/profile"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                        >
-                          <span className="group-hover:translate-x-1 transition-transform">
-                            Profile
-                          </span>
-                        </Link>
+                        </Link> */}
+                        {/* Profile - Only show when authenticated */}
+                        {/* {isAuthenticated && (
+                          <Link
+                            href="/profile"
+                            onClick={() => setShowMobileMenu(false)}
+                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                          >
+                            <span className="group-hover:translate-x-1 transition-transform">
+                              Profile
+                            </span>
+                          </Link>
+                        )} */}
                       </nav>
 
                       {/* Action Buttons */}
@@ -1373,7 +1420,7 @@ export default function PulsePage() {
                             </span>
                           </button>
                           {/* Wallet Settings - Only show when logged in */}
-                          {user && (
+                          {isAuthenticated && (
                             <button
                               onClick={() => {
                                 setShowWalletSettings(true);
@@ -1676,7 +1723,7 @@ export default function PulsePage() {
           {/* Center Navigation */}
           <div className="flex items-center gap-3 sm:gap-4 text-xs">
             <Link
-              href="/profile"
+              href="/"
               className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
             >
               <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
@@ -1699,16 +1746,16 @@ export default function PulsePage() {
               <Search className="w-3.5 h-3.5 text-purple-400" />
               <span>Discover</span>
             </Link>
-            <Link
+            {/* <Link
               href="/pulse"
               className="text-white font-medium cursor-pointer flex items-center gap-1.5 relative"
             >
               <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
               <Activity className="w-3.5 h-3.5 text-green-400" />
               <span>Pulse</span>
-            </Link>
+            </Link> */}
             <Link
-              href="/profile"
+              href="/"
               className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
             >
               <BarChart3 className="w-3.5 h-3.5 text-yellow-400" />
@@ -1900,7 +1947,7 @@ export default function PulsePage() {
       </Dialog>
 
       {/* Wallet Settings Modal - Rendered outside for mobile menu access */}
-      {showWalletSettings && user && (
+      {showWalletSettings && isAuthenticated && (
         <Suspense fallback={null}>
           <WalletSettingsModal
             slippage={slippage}

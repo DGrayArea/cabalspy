@@ -122,13 +122,16 @@ export function CompactTokenCard({
   const isTokenMigrated =
     (token as any).isMigrated === true ||
     (token as any).migrationTimestamp !== undefined ||
-    (poolAddress !== undefined && poolAddress !== null) ||
+    (poolAddress !== undefined && poolAddress !== null && poolAddress !== "") ||
     (token as any).complete === true ||
     (token as any).isComplete === true ||
     (token as any).migrated === true ||
     (token as any).graduated === true ||
     (graduationDate !== null && graduationDate !== undefined) ||
-    (token as any).completeTimestamp !== undefined;
+    (token as any).completeTimestamp !== undefined ||
+    // Also check if bondingProgress is explicitly 1.0 (migrated)
+    (token as any).bondingProgress === 1.0 ||
+    (token as any).bondingProgress >= 1.0;
 
   // CRITICAL: For migrated tokens, ALWAYS set bonding progress to 1.0
   // Even if market cap dropped below threshold, if it's migrated, it's migrated
@@ -469,7 +472,7 @@ export function CompactTokenCard({
                 </span>
               </div>
               {/* Show migrated tag if migrated, otherwise show bonding curve */}
-              {isTokenMigrated || bondingProgress >= 1.0 ? (
+              {isTokenMigrated ? (
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] text-gray-500 font-medium">
                     Status

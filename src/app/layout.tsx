@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { ViewportProvider } from "@/context/ViewportContext";
+import { TurnkeySolanaContextProvider } from "@/context/TurnkeySolanaContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { validateEnv } from "@/lib/env";
 import { TurnKeyProvider } from "@/providers/TurnkeyProvider";
@@ -45,11 +47,15 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TurnKeyProvider>
-          <ErrorBoundary>
-            <AuthProvider>{children}</AuthProvider>
-          </ErrorBoundary>
-        </TurnKeyProvider>
+        <ViewportProvider>
+          <TurnKeyProvider>
+            <TurnkeySolanaContextProvider>
+              <ErrorBoundary>
+                <AuthProvider>{children}</AuthProvider>
+              </ErrorBoundary>
+            </TurnkeySolanaContextProvider>
+          </TurnKeyProvider>
+        </ViewportProvider>
       </body>
     </html>
   );

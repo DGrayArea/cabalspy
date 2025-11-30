@@ -91,7 +91,14 @@ export type PumpFunEndpointType =
 
 export class PumpFunService {
   // Pump.fun frontend API endpoints (unofficial but accessible)
-  private baseUrl = "https://frontend-api.pump.fun";
+  private baseUrl = "https://frontend-api.pump.fun"
+  
+  // Request deduplication - prevent multiple simultaneous requests to the same endpoint
+  private pendingRequests = new Map<string, Promise<any>>();
+  private requestCache = new Map<string, { data: any; timestamp: number }>();
+  private readonly CACHE_DURATION = 30000; // 30 seconds cache
+  private readonly MIN_REQUEST_INTERVAL = 1000; // Minimum 1 second between requests to same endpoint
+  private lastRequestTime = new Map<string, number>();;
   private advancedApiUrl = "https://advanced-api-v2.pump.fun";
   private frontendApiV3Url = "https://frontend-api-v3.pump.fun";
   private swapApiUrl = "https://swap-api.pump.fun";
@@ -406,17 +413,63 @@ export class PumpFunService {
 
   /**
    * Fetch tokens from a specific pump.fun endpoint
+   * Includes request deduplication and caching to prevent too many simultaneous requests
    */
   async fetchFromEndpoint(
     endpointType: PumpFunEndpointType,
     limit?: number
   ): Promise<PumpFunTokenInfo[]> {
-    const cacheKey = `endpoint:${endpointType}`;
-    const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return Array.isArray(cached.data) ? cached.data : [];
+    // Create cache key
+    const cacheKey = `${endpointType}-${limit || 'default'}`;
+    
+    // Check cache first
+    const cached = this.requestCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      console.log(`📦 Using cached data for ${cacheKey}`);
+      return cached.data;
     }
-
+    
+    // Check if there's already a pending request for this endpoint
+    const pending = this.pendingRequests.get(cacheKey);
+    if (pending) {
+      console.log(`⏳ Waiting for existing request to ${cacheKey}...`);
+      return pending;
+    }
+    
+    // Throttle requests - ensure minimum interval between requests to same endpoint
+    const lastRequest = this.lastRequestTime.get(cacheKey) || 0;
+    const timeSinceLastRequest = Date.now() - lastRequest;
+    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
+      const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
+      console.log(`⏸️ Throttling request to ${cacheKey}, waiting ${waitTime}ms...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+    
+    // Create the request promise
+    const requestPromise = this._fetchFromEndpointInternal(endpointType, limit);
+    
+    // Store as pending
+    this.pendingRequests.set(cacheKey, requestPromise);
+    this.lastRequestTime.set(cacheKey, Date.now());
+    
+    try {
+      const result = await requestPromise;
+      // Cache the result
+      this.requestCache.set(cacheKey, { data: result, timestamp: Date.now() });
+      return result;
+    } finally {
+      // Remove from pending requests
+      this.pendingRequests.delete(cacheKey);
+    }
+  }
+  
+  /**
+   * Internal method to actually fetch from endpoint
+   */
+  private async _fetchFromEndpointInternal(
+    endpointType: PumpFunEndpointType,
+    limit?: number
+  ): Promise<PumpFunTokenInfo[]> {
     try {
       // Try primary endpoint first, then alternatives
       const endpointsToTry = [
@@ -435,18 +488,33 @@ export class PumpFunService {
         }
 
         try {
+          // Use minimal headers to avoid CORS preflight issues
+          // Only include Accept header - browser will add User-Agent automatically
+          // Don't include Content-Type for GET requests as it triggers preflight
           const response = await fetch(url, {
             method: "GET",
             headers: {
               Accept: "application/json",
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-              "Content-Type": "application/json",
+              // Removed User-Agent and Content-Type to avoid CORS preflight
+              // Browser automatically adds User-Agent, and Content-Type isn't needed for GET
             },
             credentials: "omit",
+            mode: "cors", // Explicitly set CORS mode
+          }).catch((error) => {
+            // If it's a CORS/network error, don't try other endpoints - they'll likely fail too
+            if (error.message?.includes("CORS") || error.message?.includes("Failed to fetch") || error.name === "TypeError") {
+              console.warn(`🚫 CORS/Network error for ${endpointType}, skipping remaining endpoints`);
+              throw error; // Re-throw to exit early
+            }
+            throw error;
           });
 
           if (!response.ok) {
+            // If it's a CORS-related error (status 0 or network error), don't try other endpoints
+            if (response.status === 0 || response.type === "opaque") {
+              console.warn(`🚫 CORS blocked request to ${url}, skipping remaining endpoints`);
+              throw new Error(`CORS blocked: ${endpointType}`);
+            }
             if (i < endpointsToTry.length - 1) continue; // Try next endpoint
             throw new Error(
               `Failed to fetch ${endpointType}: ${response.status} ${response.statusText}`
@@ -518,20 +586,25 @@ export class PumpFunService {
           }
         } catch (endpointError) {
           if (i < endpointsToTry.length - 1) continue; // Try next endpoint
-          console.error(
-            `Failed to fetch ${endpointType}:`,
-            endpointError instanceof Error
-              ? endpointError.message
-              : endpointError
-          );
+          // Silently fail for featured endpoint (it's often unavailable)
+          if (endpointType !== "featured") {
+            console.error(
+              `Failed to fetch ${endpointType}:`,
+              endpointError instanceof Error
+                ? endpointError.message
+                : endpointError
+            );
+          }
         }
       }
 
-      // If all endpoints failed, return empty array
-      console.error(`❌ All endpoints failed for ${endpointType}`, {
-        endpointsTried: endpointsToTry.length,
-        endpoints: endpointsToTry,
-      });
+      // If all endpoints failed, return empty array silently for featured
+      if (endpointType !== "featured") {
+        console.error(`❌ All endpoints failed for ${endpointType}`, {
+          endpointsTried: endpointsToTry.length,
+          endpoints: endpointsToTry,
+        });
+      }
       return [];
     } catch (error) {
       console.error(`❌ Failed to fetch ${endpointType}:`, error);
@@ -594,9 +667,10 @@ export class PumpFunService {
    * Endpoint: https://swap-api.pump.fun/v2/coins/{mintAddress}/candles
    *
    * NOTE: This endpoint may not work for all coins - some tokens may not have candle data
+   * Valid intervals: 1s, 15s, 30s, 1m, 5m, 15m, 30m, 1h, 4h, 6h, 12h, 24h
    *
    * @param mintAddress - Token mint address
-   * @param interval - Candle interval: '1m', '5m', '15m', '1h', '4h', '1d' (default: '1h')
+   * @param interval - Candle interval: '1m', '5m', '15m', '1h', '4h', '6h', '12h', '24h' (default: '1h')
    * @param limit - Number of candles to fetch (default: 1000, max: 1000)
    * @param currency - Currency for prices: 'USD' or 'SOL' (default: 'USD')
    * @param createdTs - Token creation timestamp (optional, helps with data accuracy)
@@ -604,7 +678,7 @@ export class PumpFunService {
    */
   async fetchTokenCandles(
     mintAddress: string,
-    interval: "1m" | "5m" | "15m" | "1h" | "4h" | "1d" = "1h",
+    interval: "1m" | "5m" | "15m" | "1h" | "4h" | "6h" | "12h" | "24h" = "1h",
     limit: number = 1000,
     currency: "USD" | "SOL" = "USD",
     createdTs?: number

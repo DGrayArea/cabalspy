@@ -74,6 +74,26 @@ const turnkeyConfig: TurnkeyProviderConfig = {
 
 const turnkeyCallbacks: TurnkeyCallbacks = {
   onError: (error) => {
+    // Check if it's a network/API error
+    const isNetworkError =
+      error.message?.includes("Failed to fetch") ||
+      error.message?.includes("CORS") ||
+      error.message?.includes("502") ||
+      error.message?.includes("Bad Gateway") ||
+      error.code === "FETCH_USERS_ERROR";
+
+    if (isNetworkError) {
+      console.warn(
+        "⚠️ Turnkey API temporarily unavailable. This may be a temporary issue.",
+        {
+          code: error.code,
+          message: error.message,
+        }
+      );
+      // Don't spam console with network errors - they're often temporary
+      return;
+    }
+
     console.error("❌ Turnkey error:", error.code, error.message);
 
     // Handle specific error codes

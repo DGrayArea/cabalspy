@@ -110,6 +110,12 @@ export default function AuthButton() {
               // According to Turnkey docs, createWallet takes address formats as array
               try {
                 console.log("Creating wallets for Turnkey user...");
+                // Note: @turnkey/react-wallet-kit's createWallet accepts address format strings
+                // The underlying account structure will be:
+                // - curve: CURVE_ED25519
+                // - pathFormat: PATH_FORMAT_SLIP10
+                // - path: m/44'/501'/0'/0' (Solana standard HD path)
+                // - addressFormat: ADDRESS_FORMAT_SOLANA
                 const solanaWallet = await createWallet({
                   walletName: `${userData.userName}'s Solana Wallet`,
                   accounts: ["ADDRESS_FORMAT_SOLANA"],
@@ -190,20 +196,22 @@ export default function AuthButton() {
       <Popover>
         <PopoverTrigger asChild>
           <button
-            className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 transition-all cursor-pointer shadow-lg hover:shadow-xl overflow-hidden"
+            className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-700 hover:border-gray-600 transition-all cursor-pointer shadow-lg hover:shadow-xl overflow-hidden"
             title={displayUser.name}
           >
-            {displayUser.avatar ? (
-              <img
-                src={displayUser.avatar}
-                alt={displayUser.name}
-                className="w-full h-full rounded-full object-cover"
-              />
-            ) : (
-              <span className="text-white text-sm font-bold">
-                {displayUser.name.charAt(0).toUpperCase()}
-              </span>
-            )}
+            {(() => {
+              // Generate Dicebear avatar URL using user ID or name (not email)
+              const seed = displayUser.id || displayUser.name || "user";
+              const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+              
+              return (
+                <img
+                  src={avatarUrl}
+                  alt={displayUser.name}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              );
+            })()}
           </button>
         </PopoverTrigger>
         <PopoverContent
@@ -218,23 +226,25 @@ export default function AuthButton() {
             <CardContent className="space-y-4">
               {/* User Info */}
               <div className="flex items-center gap-4">
-                {displayUser.avatar ? (
-                  <img
-                    src={displayUser.avatar}
-                    alt={displayUser.name}
-                    className="w-16 h-16 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold shrink-0">
-                    {displayUser.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
-                <div className="flex-1">
-                  <div className="text-lg font-semibold text-white">
+                {(() => {
+                  // Generate Dicebear avatar URL using user ID or name (not email)
+                  const seed = displayUser.id || displayUser.name || "user";
+                  const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+                  
+                  return (
+                    <img
+                      src={avatarUrl}
+                      alt={displayUser.name}
+                      className="w-16 h-16 rounded-full object-cover border-2 border-gray-700 shrink-0"
+                    />
+                  );
+                })()}
+                <div className="flex-1 min-w-0">
+                  <div className="text-lg font-semibold text-white truncate">
                     {displayUser.name}
                   </div>
                   {displayUser.email && (
-                    <div className="text-sm text-gray-400">
+                    <div className="text-sm text-gray-400 truncate">
                       {displayUser.email}
                     </div>
                   )}
