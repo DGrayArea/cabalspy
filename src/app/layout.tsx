@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { ViewportProvider } from "@/context/ViewportContext";
 import { TurnkeySolanaContextProvider } from "@/context/TurnkeySolanaContext";
+import { PortfolioProvider } from "@/context/PortfolioContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { validateEnv } from "@/lib/env";
 import { TurnKeyProvider } from "@/providers/TurnkeyProvider";
@@ -50,9 +51,11 @@ export default function RootLayout({
         <ViewportProvider>
           <TurnKeyProvider>
             <TurnkeySolanaContextProvider>
-              <ErrorBoundary>
-                <AuthProvider>{children}</AuthProvider>
-              </ErrorBoundary>
+              <PortfolioProvider>
+                <ErrorBoundary>
+                  <AuthProvider>{children}</AuthProvider>
+                </ErrorBoundary>
+              </PortfolioProvider>
             </TurnkeySolanaContextProvider>
           </TurnKeyProvider>
         </ViewportProvider>

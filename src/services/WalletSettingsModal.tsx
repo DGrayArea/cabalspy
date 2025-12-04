@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import {
   BarChart3,
   X,
@@ -8,11 +9,13 @@ import {
   CheckCircle2,
   Loader2,
   RefreshCw,
+  Wallet,
+  ExternalLink,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
-import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { usePortfolio } from "@/context/PortfolioContext";
+import { formatCurrency, formatNumber } from "@/utils/format";
 
 interface TurnkeyAccount {
   addressFormat?: string;
@@ -30,6 +33,12 @@ interface TurnkeyWallet {
   accounts?: TurnkeyAccount[];
 }
 
+interface TokenBalance {
+  mint: string;
+  amount: number;
+  decimals: number;
+}
+
 export function WalletSettingsModal({
   slippage,
   setSlippage,
@@ -44,128 +53,130 @@ export function WalletSettingsModal({
   onClose: () => void;
 }) {
   const { user } = useAuth();
-  const { user: turnkeyUser, wallets: turnkeyWallets } = useTurnkey();
   const {
-    address: solWallet,
-    publicKey,
-    connection,
-    walletId,
-    accountId,
-    error: solanaError,
-    isLoading: isLoadingSolana,
-  } = useTurnkeySolana();
+    user: turnkeyUser,
+    wallets: turnkeyWallets,
+    clientState,
+    authState,
+  } = useTurnkey();
+
+  // Derive the embedded Solana wallet directly from useTurnkey wallets
+  // Filter: source === "embedded" (or no source) AND has ADDRESS_FORMAT_SOLANA account
+  const embeddedSolanaWallet = useMemo(() => {
+    if (!turnkeyWallets || turnkeyWallets.length === 0) {
+      return null;
+    }
+
+    // Find wallet with source: "embedded" (or no source) that has a Solana account
+    const wallet = turnkeyWallets.find((w: TurnkeyWallet) => {
+      // Must be embedded (not connected/imported)
+      const isEmbedded = w.source === "embedded" || !w.source;
+      if (!isEmbedded) return false;
+
+      // Exclude explicitly imported wallets
+      if (w.imported || w.source === "imported") return false;
+
+      // Exclude connected wallets like Solflare
+      if (w.source === "connected") return false;
+      if (
+        w.walletId === "solflare" ||
+        w.walletName?.toLowerCase() === "solflare"
+      )
+        return false;
+
+      // Must have a Solana account with ADDRESS_FORMAT_SOLANA
+      return w.accounts?.some(
+        (acc: TurnkeyAccount) => acc.addressFormat === "ADDRESS_FORMAT_SOLANA"
+      );
+    }) as TurnkeyWallet | undefined;
+
+    if (!wallet) return null;
+
+    // Find the Solana account within the wallet
+    const solanaAccount = wallet.accounts?.find(
+      (acc: TurnkeyAccount) => acc.addressFormat === "ADDRESS_FORMAT_SOLANA"
+    );
+
+    if (!solanaAccount?.address) return null;
+
+    return {
+      wallet,
+      account: solanaAccount,
+      address: solanaAccount.address,
+      walletId: wallet.walletId,
+      walletName: wallet.walletName,
+    };
+  }, [turnkeyWallets]);
+
+  // Derived values
+  const solWallet = embeddedSolanaWallet?.address || null;
+  const walletId = embeddedSolanaWallet?.walletId || null;
+  const isLoadingSolana = clientState === "loading";
 
   // Debug logging for wallet state
-  useEffect(() => {
-    console.log("🔍 WalletSettingsModal - Wallet state:", {
-      solWallet,
-      walletId,
-      accountId,
-      isLoadingSolana,
-      solanaError: solanaError?.message,
-      turnkeyWalletsCount: turnkeyWallets?.length || 0,
-      turnkeyWallets: turnkeyWallets?.map((w: TurnkeyWallet) => ({
-        walletId: w.walletId,
-        walletName: w.walletName,
-        source: w.source,
-        accountsCount: w.accounts?.length || 0,
-        hasSolanaAccount: w.accounts?.some(
-          (acc: TurnkeyAccount) =>
-            acc.addressFormat === "ADDRESS_FORMAT_SOLANA" ||
-            (acc.path && acc.path.includes("501"))
-        ),
-      })),
-    });
+  // useEffect(() => {
+  //   console.log("🔍 WalletSettingsModal - Direct wallet detection:", {
+  //     solWallet,
+  //     walletId,
+  //     walletName: embeddedSolanaWallet?.walletName,
+  //     isLoadingSolana,
+  //     clientState,
+  //     authState,
+  //     turnkeyWalletsCount: turnkeyWallets?.length || 0,
+  //     allWallets: turnkeyWallets?.map((w: TurnkeyWallet) => ({
+  //       walletId: w.walletId,
+  //       walletName: w.walletName,
+  //       source: w.source,
+  //       imported: w.imported,
+  //       accountsCount: w.accounts?.length || 0,
+  //       solanaAccounts: w.accounts
+  //         ?.filter(
+  //           (acc: TurnkeyAccount) =>
+  //             acc.addressFormat === "ADDRESS_FORMAT_SOLANA"
+  //         )
+  //         .map((acc: TurnkeyAccount) => acc.address),
+  //     })),
+  //   });
+  // }, [
+  //   solWallet,
+  //   walletId,
+  //   embeddedSolanaWallet,
+  //   isLoadingSolana,
+  //   clientState,
+  //   authState,
+  //   turnkeyWallets,
+  // ]);
 
-    // If wallets exist but solWallet is null, log a warning
-    if (
-      turnkeyWallets &&
-      turnkeyWallets.length > 0 &&
-      !solWallet &&
-      !isLoadingSolana
-    ) {
-      console.warn(
-        "⚠️ Wallets exist but solWallet is null! Context may not have detected the wallet.",
-        {
-          wallets: turnkeyWallets.map((w: TurnkeyWallet) => ({
-            walletId: w.walletId,
-            walletName: w.walletName,
-            source: w.source,
-          })),
-        }
-      );
-    }
-  }, [
-    solWallet,
-    walletId,
-    accountId,
-    isLoadingSolana,
-    solanaError,
-    turnkeyWallets,
-  ]);
-  const [solBalance, setSolBalance] = useState<string>("0");
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const { createWallet } = useTurnkey();
+  const { createWallet, refreshWallets } = useTurnkey();
+  
+  // Use portfolio context for balance data
+  const {
+    solBalance,
+    solBalanceUsd,
+    totalValueUsd,
+    isLoading: isLoadingPortfolio,
+    refreshPortfolio,
+  } = usePortfolio();
 
   // Check if user is authenticated (either via custom auth or Turnkey)
   const isAuthenticated = user || turnkeyUser;
-
-  // Fetch SOL balance using the address from TurnkeySolanaContext
-  useEffect(() => {
-    if (!solWallet || !connection) {
-      setSolBalance("0");
-      return;
-    }
-
-    const fetchBalance = async () => {
-      setIsLoadingBalance(true);
-      try {
-        // Try multiple RPC endpoints
-        const rpcEndpoints = [
-          "https://api.mainnet-beta.solana.com",
-          "https://solana-api.projectserum.com",
-          "https://rpc.ankr.com/solana",
-        ];
-
-        let balance = null;
-
-        for (const endpoint of rpcEndpoints) {
-          try {
-            const conn = new Connection(endpoint, "confirmed");
-            const pubKey = new PublicKey(solWallet);
-            const lamports = await conn.getBalance(pubKey);
-            balance = lamports / 1e9; // Convert lamports to SOL
-            console.log(`✅ Balance fetched from ${endpoint}:`, balance);
-            break;
-          } catch (err) {
-            console.warn(`⚠️ Failed to fetch balance from ${endpoint}:`, err);
-            continue;
-          }
-        }
-
-        if (balance !== null) {
-          setSolBalance(balance.toFixed(4));
-        } else {
-          console.error("❌ All RPC endpoints failed");
-          setSolBalance("N/A");
-        }
-      } catch (error) {
-        console.error("Error fetching SOL balance:", error);
-        setSolBalance("N/A");
-      } finally {
-        setIsLoadingBalance(false);
-      }
-    };
-
-    fetchBalance();
-  }, [solWallet, connection]);
 
   const copyToClipboard = async (text: string, type: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleRefreshWallets = async () => {
+    try {
+      console.log("🔄 Refreshing wallets...");
+      await refreshWallets();
+      console.log("✅ Wallets refreshed");
+    } catch (error) {
+      console.error("❌ Failed to refresh wallets:", error);
+    }
   };
 
   const handleCreateWallet = async () => {
@@ -179,61 +190,19 @@ export function WalletSettingsModal({
       return;
     }
 
-    // Check if a Turnkey-managed Solana wallet already exists
-    // Turnkey-managed wallets have source: "embedded" or no source property
-    // Connected wallets (like Solflare) have source: "connected"
-    const existingSolanaWallet = turnkeyWallets?.find(
-      (wallet: TurnkeyWallet) => {
-        // Explicitly exclude connected wallets
-        if (wallet.source === "connected") {
-          return false;
-        }
-        // Explicitly exclude Solflare
-        if (
-          wallet.walletId === "solflare" ||
-          wallet.walletName?.toLowerCase() === "solflare"
-        ) {
-          return false;
-        }
-        // Exclude imported wallets
-        if (wallet.imported || wallet.source === "imported") {
-          return false;
-        }
-        // Accept wallets that are embedded OR have no source (default to embedded)
-        const isTurnkeyManaged = wallet.source === "embedded" || !wallet.source;
-
-        if (!isTurnkeyManaged) {
-          return false;
-        }
-
-        // Check if it has Solana accounts
-        return wallet.accounts?.some(
-          (account: TurnkeyAccount) =>
-            account.addressFormat === "ADDRESS_FORMAT_SOLANA" ||
-            account.pathFormat === "PATH_FORMAT_SOLANA" ||
-            (account.path && account.path.includes("501"))
-        );
-      }
-    );
-
-    if (existingSolanaWallet) {
-      console.log("✅ Existing Solana wallet detected:", {
-        walletId: existingSolanaWallet.walletId,
-        walletName: existingSolanaWallet.walletName,
-        source: existingSolanaWallet.source,
-        accountsCount: existingSolanaWallet.accounts?.length || 0,
-        accounts: existingSolanaWallet.accounts?.map((acc: TurnkeyAccount) => ({
-          addressFormat: acc.addressFormat,
-          pathFormat: acc.pathFormat,
-          path: acc.path,
-          address: acc.address,
-        })),
-      });
+    // Check if an embedded Solana wallet already exists
+    if (embeddedSolanaWallet) {
+      // console.log("✅ Existing embedded Solana wallet detected:", {
+      //   walletId: embeddedSolanaWallet.walletId,
+      //   walletName: embeddedSolanaWallet.walletName,
+      //   address: embeddedSolanaWallet.address,
+      // });
 
       alert(
         "You already have a Turnkey-managed Solana wallet!\n\n" +
-          `Wallet: ${existingSolanaWallet.walletName || "Unnamed"}\n\n` +
-          "The wallet should appear automatically. If it doesn't, check the console for details."
+          `Wallet: ${embeddedSolanaWallet.walletName || "Unnamed"}\n` +
+          `Address: ${embeddedSolanaWallet.address}\n\n` +
+          "The wallet is already displayed."
       );
       return;
     }
@@ -257,12 +226,11 @@ export function WalletSettingsModal({
         walletName: uniqueWalletName,
         accounts: ["ADDRESS_FORMAT_SOLANA"],
       });
-      console.log("✅ Turnkey Solana wallet created:", wallet);
-      // The context will automatically pick up the new wallet
-      // Force a refresh by waiting a bit
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
+      // console.log("✅ Turnkey Solana wallet created:", wallet);
+
+      // Refresh wallets to pick up the new wallet
+      await refreshWallets();
+      console.log("✅ Wallets refreshed after creation");
     } catch (error: unknown) {
       const errorMessage =
         (error as { message?: string; code?: number })?.message ||
@@ -285,6 +253,8 @@ export function WalletSettingsModal({
           "A wallet with a similar name already exists.\n\n" +
             "Please check your existing wallets or try again with a different name."
         );
+        // Try to refresh to show existing wallet
+        await refreshWallets();
       } else if (isNetworkError) {
         alert(
           "Turnkey API is temporarily unavailable (502 Bad Gateway).\n\n" +
@@ -336,22 +306,30 @@ export function WalletSettingsModal({
 
           {/* Total Value */}
           <div className="mb-4">
-            <div className="text-xs text-gray-400 mb-1">Total value</div>
+            <div className="text-xs text-gray-400 mb-1">Total Portfolio Value</div>
             {!isAuthenticated ? (
               <div className="text-sm text-gray-500">
                 Sign in to view balance
               </div>
-            ) : isLoadingSolana || isLoadingBalance ? (
+            ) : isLoadingPortfolio ? (
               <div className="flex items-center gap-2 text-gray-400">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 <span className="text-sm">Loading...</span>
               </div>
             ) : (
               <div className="text-xl font-bold">
-                {solBalance && solBalance !== "0" && solBalance !== "N/A"
-                  ? `${solBalance} SOL`
-                  : "$0"}
+                {formatCurrency(totalValueUsd)}
               </div>
+            )}
+            {isAuthenticated && !isLoadingPortfolio && (
+              <Link
+                href="/portfolio"
+                className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark mt-2 transition-colors"
+              >
+                <Wallet className="w-3 h-3" />
+                <span>View Full Portfolio</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
             )}
           </div>
 
@@ -461,16 +439,18 @@ export function WalletSettingsModal({
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  {!solWallet && isAuthenticated && (
+                  {isAuthenticated && (
                     <button
                       onClick={() => {
-                        console.log("🔄 Manual refresh triggered");
-                        window.location.reload();
+                        handleRefreshWallets();
+                        refreshPortfolio();
                       }}
                       className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0 cursor-pointer"
-                      title="Refresh wallet detection"
+                      title="Refresh portfolio"
                     >
-                      <RefreshCw className="w-4 h-4 text-gray-400 hover:text-primary cursor-pointer" />
+                      <RefreshCw
+                        className={`w-4 h-4 text-gray-400 hover:text-primary cursor-pointer ${isLoadingPortfolio ? "animate-spin" : ""}`}
+                      />
                     </button>
                   )}
                   {solWallet && (
@@ -489,15 +469,20 @@ export function WalletSettingsModal({
                 </div>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400">Balance:</span>
-                {isLoadingBalance ? (
+                <span className="text-gray-400">SOL Balance:</span>
+                {isLoadingPortfolio ? (
                   <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
                 ) : (
-                  <span className="font-medium">
-                    {solBalance && solBalance !== "N/A"
-                      ? `${solBalance} SOL`
-                      : "N/A"}
-                  </span>
+                  <div className="text-right">
+                    <div className="font-medium">
+                      {formatNumber(solBalance)} SOL
+                    </div>
+                    {solBalanceUsd > 0 && (
+                      <div className="text-gray-400 text-xs">
+                        {formatCurrency(solBalanceUsd)}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

@@ -33,6 +33,8 @@ import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
 import { useViewport } from "@/context/ViewportContext";
+import { usePortfolio } from "@/context/PortfolioContext";
+import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { WalletSettingsModal } from "@/services/WalletSettingsModal";
 import { pumpFunService } from "@/services/pumpfun";
 import { dexscreenerService } from "@/services/dexscreener";
@@ -164,6 +166,8 @@ function TokenDetailContent() {
   // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
   const isAuthenticated = user || turnkeyUser || turnkeySession;
   const { isDesktop, isMobile } = useViewport();
+  const { solBalance, getTokenBalance } = usePortfolio();
+  const { address: walletAddress } = useTurnkeySolana();
 
   const [tokenData, setTokenData] = useState<TokenDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -668,6 +672,38 @@ function TokenDetailContent() {
                       </span>
                     </div>
                   </div>
+                  {/* Wallet Balances */}
+                  {isAuthenticated && walletAddress && (
+                    <div className="mt-3 pt-3 border-t border-gray-800/50">
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-4 h-4 text-gray-400" />
+                          <span className="text-gray-400 text-sm">SOL Balance:</span>
+                          <span className="text-sm font-semibold">
+                            {formatNumber(solBalance)} SOL
+                          </span>
+                        </div>
+                        {/* Show token balance if user owns it */}
+                        {(chain === "sol" || chain === "solana") && (() => {
+                          const tokenBalance = getTokenBalance(tokenAddress);
+                          return tokenBalance ? (
+                            <div className="flex items-center gap-2">
+                              <Wallet className="w-4 h-4 text-primary" />
+                              <span className="text-gray-400 text-sm">You own:</span>
+                              <span className="text-sm font-semibold text-primary">
+                                {formatNumber(tokenBalance.amount)} {tokenSymbol}
+                              </span>
+                              {price > 0 && (
+                                <span className="text-xs text-gray-400">
+                                  ({formatCurrency(tokenBalance.amount * price)})
+                                </span>
+                              )}
+                            </div>
+                          ) : null;
+                        })()}
+                      </div>
+                    </div>
+                  )}
                   {/* Description */}
                   {description && (
                     <div className="mt-3">

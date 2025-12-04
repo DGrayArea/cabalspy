@@ -19,28 +19,21 @@ const ViewportContext = createContext<ViewportContextType | undefined>(
 );
 
 export function ViewportProvider({ children }: { children: ReactNode }) {
-  // Initialize with a check if we're on the client
-  const [isDesktop, setIsDesktop] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth >= 768;
-    }
-    return false;
-  });
-  const [width, setWidth] = useState(() => {
-    if (typeof window !== "undefined") {
-      return window.innerWidth;
-    }
-    return 0;
-  });
+  // Initialize with null to indicate "not yet determined" state
+  // This prevents hydration mismatch and flash of wrong content
+  const [isDesktop, setIsDesktop] = useState<boolean | null>(null);
+  const [width, setWidth] = useState<number>(0);
 
   useEffect(() => {
     const checkViewport = () => {
       const w = window.innerWidth;
       setWidth(w);
-      setIsDesktop(w >= 768); // md breakpoint
+      // Use 1024px (lg breakpoint) for better desktop detection
+      // 768px (md) is often tablet territory
+      setIsDesktop(w >= 1024);
     };
 
-    // Initial check (in case window size changed during SSR)
+    // Initial check
     checkViewport();
 
     // Listen for resize events
@@ -49,9 +42,12 @@ export function ViewportProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", checkViewport);
   }, []);
 
+  // During SSR or before hydration, default to desktop view to avoid flash
+  const resolvedIsDesktop = isDesktop === null ? true : isDesktop;
+
   const value = {
-    isDesktop,
-    isMobile: !isDesktop,
+    isDesktop: resolvedIsDesktop,
+    isMobile: !resolvedIsDesktop,
     width,
   };
 

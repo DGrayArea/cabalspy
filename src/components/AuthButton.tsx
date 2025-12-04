@@ -94,8 +94,8 @@ export default function AuthButton() {
         if (isReady && isAuthenticated) {
           const userData = await fetchUser();
           const sessionData = await getSession();
-          console.log("Turnkey user:", userData);
-          console.log("Turnkey session:", sessionData);
+          // console.log("Turnkey user:", userData);
+          // console.log("Turnkey session:", sessionData);
 
           // Store Turnkey user and session globally
           if (userData) {
@@ -104,7 +104,7 @@ export default function AuthButton() {
             // Create wallets automatically after Turnkey authentication
             // Check if wallets already exist
             if (wallets && wallets.length > 0) {
-              console.log("✅ Wallets already exist:", wallets);
+              // console.log("✅ Wallets already exist:", wallets);
             } else if (createWallet) {
               // Create Solana and BSC wallets for new users
               // According to Turnkey docs, createWallet takes address formats as array
@@ -126,7 +126,7 @@ export default function AuthButton() {
                   accounts: ["ADDRESS_FORMAT_ETHEREUM"], // BSC uses Ethereum format
                 });
 
-                console.log("✅ Wallets created:", { solanaWallet, bscWallet });
+                // console.log("✅ Wallets created:", { solanaWallet, bscWallet });
               } catch (error) {
                 console.error("Error creating wallets:", error);
               }
@@ -136,12 +136,12 @@ export default function AuthButton() {
             setTurnkeySession(sessionData);
           }
         } else {
-          console.log("Turnkey not ready:", {
-            authState,
-            clientState,
-            isReady,
-            isAuthenticated,
-          });
+          // console.log("Turnkey not ready:", {
+          //   authState,
+          //   clientState,
+          //   isReady,
+          //   isAuthenticated,
+          // });
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
@@ -203,7 +203,7 @@ export default function AuthButton() {
               // Generate Dicebear avatar URL using user ID or name (not email)
               const seed = displayUser.id || displayUser.name || "user";
               const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
-              
+
               return (
                 <img
                   src={avatarUrl}
@@ -230,7 +230,7 @@ export default function AuthButton() {
                   // Generate Dicebear avatar URL using user ID or name (not email)
                   const seed = displayUser.id || displayUser.name || "user";
                   const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
-                  
+
                   return (
                     <img
                       src={avatarUrl}
