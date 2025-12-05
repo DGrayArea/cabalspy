@@ -11,11 +11,24 @@ import {
   RefreshCw,
   Wallet,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { formatCurrency, formatNumber } from "@/utils/format";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogPortal,
+  DialogOverlay,
+} from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { cn } from "@/lib/utils";
 
 interface TurnkeyAccount {
   addressFormat?: string;
@@ -148,8 +161,9 @@ export function WalletSettingsModal({
   // ]);
 
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const { createWallet, refreshWallets } = useTurnkey();
+  const { createWallet, refreshWallets, handleExportWallet } = useTurnkey();
   
   // Use portfolio context for balance data
   const {
@@ -271,6 +285,82 @@ export function WalletSettingsModal({
     } finally {
       setIsCreatingWallet(false);
     }
+  };
+
+  const handleExportWalletClick = () => {
+    if (!embeddedSolanaWallet?.walletId) {
+      alert(
+        "Cannot export wallet: No wallet found. Please create a wallet first."
+      );
+      return;
+    }
+
+    if (!handleExportWallet) {
+      alert(
+        "Export function not available. Please ensure you are logged in with Turnkey."
+      );
+      return;
+    }
+
+    // Show export dialog first (it will appear above the wallet modal via portal)
+    setShowExportDialog(true);
+  };
+
+  const confirmExport = async () => {
+    if (!handleExportWallet || !embeddedSolanaWallet?.walletId) {
+      return;
+    }
+
+    // Close both dialogs
+    setShowExportDialog(false);
+    onClose();
+    
+    // Small delay to ensure dialogs close before opening export window
+    setTimeout(async () => {
+      const maxRetries = 2;
+      let lastError: unknown = null;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          console.log(`🔄 Exporting wallet (attempt ${attempt}/${maxRetries})...`, {
+            walletId: embeddedSolanaWallet.walletId,
+          });
+
+          // handleExportWallet opens a new window to export.turnkey.com
+          await handleExportWallet({
+            walletId: embeddedSolanaWallet.walletId,
+          });
+
+          console.log("✅ Wallet export initiated");
+          // Note: The CORS/origin mismatch warnings are expected and can be ignored
+          // The export will complete in the new window that opens
+          return; // Success, exit retry loop
+        } catch (error: unknown) {
+          lastError = error;
+          const errorMessage =
+            (error as { message?: string })?.message || String(error);
+          console.error(`❌ Error exporting wallet (attempt ${attempt}):`, error);
+
+          // If it's a CORS/origin issue, don't retry
+          if (errorMessage.includes("origin") || errorMessage.includes("CORS")) {
+            console.log("CORS error detected, not retrying");
+            return;
+          }
+
+          // If this is the last attempt, show error
+          if (attempt === maxRetries) {
+            alert(
+              `Failed to export wallet after ${maxRetries} attempts: ${errorMessage}\n\nPlease try again or contact support if the issue persists.`
+            );
+          } else {
+            // Wait before retrying (exponential backoff: 500ms, 1000ms)
+            const delay = 500 * attempt;
+            console.log(`⏳ Retrying in ${delay}ms...`);
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+      }
+    }, 300);
   };
 
   return (
@@ -403,8 +493,21 @@ export function WalletSettingsModal({
             {/* SOL Wallet */}
             <div className="bg-panel-elev/50 rounded-lg p-3 border border-gray-800/30">
               <div className="flex items-start gap-2 mb-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                  S
+                <div className="relative w-6 h-6 flex-shrink-0 mt-0.5">
+                  <img
+                    src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+                    alt="SOL"
+                    className="w-6 h-6 rounded-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = "none";
+                      const fallback = target.parentElement?.querySelector(".sol-fallback-modal") as HTMLElement;
+                      if (fallback) fallback.style.display = "flex";
+                    }}
+                  />
+                  <div className="sol-fallback-modal w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold absolute inset-0 hidden">
+                    S
+                  </div>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
@@ -510,12 +613,87 @@ export function WalletSettingsModal({
                 "Create"
               )}
             </button>
-            <button className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
-              Import
+            <button
+              onClick={handleExportWalletClick}
+              disabled={!embeddedSolanaWallet?.walletId}
+              className="px-4 py-2 bg-panel-elev hover:bg-panel disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 text-sm font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Export
             </button>
           </div>
         </div>
       </div>
+
+      {/* Export Wallet Confirmation Dialog - Higher z-index to appear above wallet modal */}
+      <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
+        <DialogPortal>
+          <DialogOverlay className="!z-[200]" />
+          <DialogPrimitive.Content
+            className={cn(
+              "fixed left-[50%] top-[50%] z-[201] grid w-full max-w-md translate-x-[-50%] translate-y-[-50%] gap-4 bg-panel border border-gray-800/50 rounded-lg p-6 text-white shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
+            )}
+          >
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-red-400">
+              ⚠️ Security Warning
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Exporting your wallet will reveal your private key or seed phrase. This allows anyone with access to control your wallet and funds.
+            </DialogDescription>
+            <div className="text-gray-300 pt-2 space-y-3">
+              <p className="font-semibold">
+                Exporting your wallet will reveal your private key or seed phrase.
+              </p>
+              
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-gray-200">
+                  Anyone with access to your exported credentials can:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-400 ml-2">
+                  <li>Control your wallet and funds</li>
+                  <li>Transfer all assets</li>
+                  <li>Access your transaction history</li>
+                </ul>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <p className="text-sm font-medium text-gray-200">
+                  Only export if you:
+                </p>
+                <ul className="list-disc list-inside space-y-1 text-sm text-gray-400 ml-2">
+                  <li>Understand the security risks</li>
+                  <li>Will store it securely</li>
+                  <li>Trust the device you're using</li>
+                </ul>
+              </div>
+
+              <p className="text-xs text-yellow-400 pt-2 border-t border-gray-700">
+                Note: The export will open in a new window. CORS warnings in the console are expected and can be ignored.
+              </p>
+            </div>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <button
+              onClick={() => setShowExportDialog(false)}
+              className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmExport}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              I Understand, Export Wallet
+            </button>
+          </DialogFooter>
+            <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
+          </DialogPrimitive.Content>
+        </DialogPortal>
+      </Dialog>
     </>
   );
 }

@@ -26,8 +26,16 @@ import {
   getPlatformName,
 } from "@/utils/platformLogos";
 import { aiPlatformDetector } from "@/services/ai-platform-detector";
+import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
+import { useAuth } from "@/context/AuthContext";
+import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
+import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+import { Loader2 } from "lucide-react";
 
 const TradingPanel = lazy(() => import("@/components/TradingPanel"));
+
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 interface CompactTokenCardProps {
   token: TokenData;
@@ -58,6 +66,10 @@ export function CompactTokenCard({
   const [chainLogoError, setChainLogoError] = useState(false);
   const [showTradingPanel, setShowTradingPanel] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isQuickBuying, setIsQuickBuying] = useState(false);
+  const { turnkeyUser } = useAuth();
+  const { toast } = useToast();
+  const { address, connection, signSolanaTransaction } = useTurnkeySolana();
 
   // Debug: Log platform detection
   // useEffect(() => {
@@ -71,6 +83,86 @@ export function CompactTokenCard({
   //     });
   //   }
   // }, [token.id, (token as any).source, token.chain]);
+  const handleQuickBuy = async () => {
+    if (
+      !turnkeyUser ||
+      !address ||
+      !connection ||
+      !signSolanaTransaction ||
+      isQuickBuying
+    ) {
+      return;
+    }
+
+    const amount = parseFloat(quickBuyAmount);
+    if (!amount || amount <= 0) {
+      toast({
+        variant: "error",
+        title: "Invalid quick buy amount",
+      });
+      return;
+    }
+
+    try {
+      setIsQuickBuying(true);
+      const loadingToast = toast({
+        variant: "info",
+        title: `Buying ${token.symbol}...`,
+        className: "loading",
+      });
+
+      const result = await executeJupiterSwap({
+        inputMint: SOL_MINT,
+        outputMint: token.id,
+        amount,
+        // Use decimals from token data if available
+        outputDecimals: token.decimals,
+        userPublicKey: address,
+        slippageBps: 150, // 1.5% default slippage
+        connection,
+        signTransaction: signSolanaTransaction,
+      });
+
+      toast.dismiss(loadingToast.id);
+
+      if (result.success && result.signature) {
+        toast({
+          variant: "success",
+          title: `Successfully bought ${token.symbol}!`,
+          description: `Transaction: ${result.signature.slice(0, 8)}...`,
+          action: (
+            <ToastAction
+              altText="View transaction"
+              onClick={() => {
+                window.open(
+                  `https://solscan.io/tx/${result.signature}`,
+                  "_blank"
+                );
+              }}
+            >
+              View
+            </ToastAction>
+          ),
+        });
+      } else {
+        toast({
+          variant: "error",
+          title: `Failed to buy ${token.symbol}`,
+          description: result.error || "Unknown error occurred",
+        });
+      }
+    } catch (error: any) {
+      console.error("Quick buy error:", error);
+      toast({
+        variant: "error",
+        title: `Failed to buy ${token.symbol}`,
+        description: error.message || "Please try again",
+      });
+    } finally {
+      setIsQuickBuying(false);
+    }
+  };
+
   const [currentTime, setCurrentTime] = useState(() => {
     // If token has creation timestamp, use it directly
     if (token.createdTimestamp) {
@@ -562,14 +654,32 @@ export function CompactTokenCard({
           {/* Right: Buy Button */}
           <div className="flex-shrink-0 flex flex-col items-end gap-1">
             <button
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setShowTradingPanel(true);
+                
+                // Only execute quick buy if authenticated and wallet is available
+                if (
+                  turnkeyUser &&
+                  address &&
+                  connection &&
+                  signSolanaTransaction &&
+                  (token.chain === "solana" || !token.chain)
+                ) {
+                  await handleQuickBuy();
+                } else {
+                  // Otherwise, open trading panel
+                  setShowTradingPanel(true);
+                }
               }}
-              className={`${displaySettings?.quickBuySize === "large" ? "px-3 py-2 text-xs" : displaySettings?.quickBuySize === "mega" ? "px-4 py-2.5 text-sm" : displaySettings?.quickBuySize === "ultra" ? "px-5 py-3 text-base" : "px-2.5 py-1.5 text-[10px]"} bg-primary-dark hover:bg-primary-darker text-white font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap`}
+              disabled={isQuickBuying}
+              className={`${displaySettings?.quickBuySize === "large" ? "px-3 py-2 text-xs" : displaySettings?.quickBuySize === "mega" ? "px-4 py-2.5 text-sm" : displaySettings?.quickBuySize === "ultra" ? "px-5 py-3 text-base" : "px-2.5 py-1.5 text-[10px]"} bg-primary-dark hover:bg-primary-darker disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition-colors flex items-center gap-1 cursor-pointer whitespace-nowrap`}
             >
-              <span>{quickBuyAmount}</span>
+              {isQuickBuying ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <span>{quickBuyAmount}</span>
+              )}
               {chainLogoUrl && !chainLogoError ? (
                 <img
                   src={chainLogoUrl}

@@ -315,6 +315,8 @@ export default function PulsePage() {
           holders: (info as any).holders,
           buyTransactions: (info as any).buyTransactions,
           sellTransactions: (info as any).sellTransactions,
+          // Include decimals from API response
+          decimals: info.decimals,
           dexscreener: info.socials
             ? {
                 logo: info.logo,

@@ -11,6 +11,7 @@ export interface TokenBalance {
   name?: string;
   priceUsd?: number;
   valueUsd?: number;
+  logoUrl?: string;
 }
 
 export interface PortfolioData {
@@ -31,7 +32,7 @@ type PortfolioContextType = PortfolioData & {
 const PortfolioContext = React.createContext<PortfolioContextType | null>(null);
 
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
-  // const { address: walletAddress } = useTurnkeySolana();
+  const { address: walletAddress } = useTurnkeySolana();
   const [portfolio, setPortfolio] = React.useState<PortfolioData>({
     solBalance: 0,
     solBalanceUsd: 0,
@@ -71,7 +72,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     return 0;
   }, []);
 
-  const walletAddress = "7gGTyuUDnAVSPFCxybjUHkvMC8QYWASivEFDrHNBcJod";
+  // const walletAddress = "7gGTyuUDnAVSPFCxybjUHkvMC8QYWASivEFDrHNBcJod";
 
   // Fetch portfolio data from Helius
   const fetchPortfolio = React.useCallback(async () => {
@@ -138,7 +139,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       // Extract SOL balance
       const solBalance =
-        result.nativeBalance?.lamports !== undefined
+        result?.nativeBalance?.lamports !== undefined
           ? result.nativeBalance.lamports / 1e9
           : 0;
 
@@ -151,57 +152,226 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       if (result.items && Array.isArray(result.items)) {
         for (const item of result.items) {
-          const tokenInfo = item.token_info;
+          const tokenInfo = item?.token_info;
           if (!tokenInfo || !tokenInfo.balance) continue;
 
-          const mint = item.id;
+          const mint = item?.id;
+          if (!mint) continue;
+
           const rawBalance = tokenInfo.balance;
-          const decimals = tokenInfo.decimals || 0;
+          const decimals = tokenInfo.decimals ?? 0;
           const amount = rawBalance / Math.pow(10, decimals);
 
           if (amount === 0) continue;
 
+          // Get symbol from token_info first, then fallback to metadata
+          const symbol = tokenInfo.symbol || item?.content?.metadata?.symbol;
+          // Get name from metadata
+          const name = item?.content?.metadata?.name;
+
+          // Get logo URL (prefer cdn_uri, then uri, then links.image)
+          const logoUrl =
+            item?.content?.files?.[0]?.cdn_uri ||
+            item?.content?.files?.[0]?.uri ||
+            item?.content?.links?.image ||
+            undefined;
+
+          // Get price from Helius price_info if available
+          const heliusPricePerToken = tokenInfo.price_info?.price_per_token;
+          const heliusTotalPrice = tokenInfo.price_info?.total_price;
+
           const existing = balancesMap[mint];
           const totalAmount = (existing?.amount || 0) + amount;
+
+          // If we have Helius price info, use it; otherwise we'll fetch from Jupiter later
+          const priceUsd =
+            heliusPricePerToken ?? existing?.priceUsd ?? undefined;
+          const valueUsd =
+            heliusTotalPrice ??
+            (priceUsd
+              ? priceUsd * totalAmount
+              : (existing?.valueUsd ?? undefined));
 
           balancesMap[mint] = {
             mint,
             amount: totalAmount,
             decimals,
-            symbol: item.content?.metadata?.symbol,
-            name: item.content?.metadata?.name,
+            symbol,
+            name,
+            priceUsd,
+            valueUsd,
+            logoUrl: logoUrl || existing?.logoUrl,
           };
         }
       }
 
       let tokenBalances = Object.values(balancesMap);
 
-      // Fetch token prices from Jupiter and compute USD values
-      try {
-        if (tokenBalances.length > 0) {
-          const ids = tokenBalances.map((t) => t.mint).join(",");
-          const priceResponse = await fetch(
-            `https://price.jup.ag/v4/price?ids=${encodeURIComponent(ids)}`
-          );
-          if (priceResponse.ok) {
-            const priceData = await priceResponse.json();
-            const priceMap: Record<string, { price: number | undefined }> =
-              priceData.data || {};
+      // Fetch token info (prices, logos) from Jupiter Tokens API V2
+      // Only for tokens that don't have Helius price_info
+      const tokensNeedingInfo = tokenBalances.filter(
+        (t) => t.priceUsd === undefined || !t.logoUrl
+      );
 
+      if (tokensNeedingInfo.length > 0) {
+        const jupiterApiKey = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
+
+        if (jupiterApiKey) {
+          try {
+            // Rate limiting: wait 1 second before making the request
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Batch tokens in groups of 100 (Jupiter's limit)
+            const batchSize = 100;
+            const batches: string[][] = [];
+            for (let i = 0; i < tokensNeedingInfo.length; i += batchSize) {
+              batches.push(
+                tokensNeedingInfo.slice(i, i + batchSize).map((t) => t.mint)
+              );
+            }
+
+            // Fetch all batches
+            const tokenInfoMap: Record<
+              string,
+              { usdPrice?: number; icon?: string }
+            > = {};
+
+            for (const batch of batches) {
+              try {
+                const query = batch.join(",");
+                const searchResponse = await fetch(
+                  `https://api.jup.ag/tokens/v2/search?query=${encodeURIComponent(query)}`,
+                  {
+                    headers: {
+                      "x-api-key": jupiterApiKey,
+                    },
+                  }
+                );
+
+                if (searchResponse.ok) {
+                  const searchData = await searchResponse.json();
+                  if (Array.isArray(searchData)) {
+                    for (const tokenInfo of searchData) {
+                      if (tokenInfo.id) {
+                        tokenInfoMap[tokenInfo.id] = {
+                          usdPrice: tokenInfo.usdPrice,
+                          icon: tokenInfo.icon,
+                        };
+                      }
+                    }
+                  }
+                }
+              } catch (batchErr) {
+                console.warn(
+                  "Failed to fetch token info from Jupiter for batch:",
+                  batchErr
+                );
+              }
+            }
+
+            // Update token balances with Jupiter data
             tokenBalances = tokenBalances.map((token) => {
-              const entry = priceMap[token.mint];
-              const priceUsd = entry?.price ?? 0;
-              const valueUsd = priceUsd * token.amount;
+              const jupiterInfo = tokenInfoMap[token.mint];
+
+              // Prefer Helius price if available, otherwise use Jupiter
+              const priceUsd =
+                token.priceUsd ?? jupiterInfo?.usdPrice ?? undefined;
+
+              // Prefer Helius logo if available, otherwise use Jupiter
+              const logoUrl = token.logoUrl ?? jupiterInfo?.icon ?? undefined;
+
+              const valueUsd = priceUsd ? priceUsd * token.amount : undefined;
+
               return {
                 ...token,
                 priceUsd,
                 valueUsd,
+                logoUrl,
               };
             });
+          } catch (err) {
+            console.warn("Failed to fetch token info from Jupiter:", err);
+            // Fallback to old Jupiter price API if Tokens API fails
+            try {
+              const tokensNeedingPrice = tokenBalances.filter(
+                (t) => t.priceUsd === undefined
+              );
+              if (tokensNeedingPrice.length > 0) {
+                const ids = tokensNeedingPrice.map((t) => t.mint).join(",");
+                const priceResponse = await fetch(
+                  `https://price.jup.ag/v4/price?ids=${encodeURIComponent(ids)}`
+                );
+                if (priceResponse.ok) {
+                  const priceData = await priceResponse.json();
+                  const priceMap: Record<
+                    string,
+                    { price: number | undefined }
+                  > = priceData.data || {};
+
+                  tokenBalances = tokenBalances.map((token) => {
+                    if (token.priceUsd !== undefined) {
+                      return token;
+                    }
+                    const entry = priceMap[token.mint];
+                    const priceUsd = entry?.price ?? undefined;
+                    const valueUsd = priceUsd
+                      ? priceUsd * token.amount
+                      : undefined;
+                    return {
+                      ...token,
+                      priceUsd,
+                      valueUsd,
+                    };
+                  });
+                }
+              }
+            } catch (fallbackErr) {
+              console.warn(
+                "Failed to fetch token prices from Jupiter fallback:",
+                fallbackErr
+              );
+            }
+          }
+        } else {
+          // No API key, try fallback to old Jupiter price API
+          try {
+            const tokensNeedingPrice = tokenBalances.filter(
+              (t) => t.priceUsd === undefined
+            );
+            if (tokensNeedingPrice.length > 0) {
+              const ids = tokensNeedingPrice.map((t) => t.mint).join(",");
+              const priceResponse = await fetch(
+                `https://price.jup.ag/v4/price?ids=${encodeURIComponent(ids)}`
+              );
+              if (priceResponse.ok) {
+                const priceData = await priceResponse.json();
+                const priceMap: Record<string, { price: number | undefined }> =
+                  priceData.data || {};
+
+                tokenBalances = tokenBalances.map((token) => {
+                  if (token.priceUsd !== undefined) {
+                    return token;
+                  }
+                  const entry = priceMap[token.mint];
+                  const priceUsd = entry?.price ?? undefined;
+                  const valueUsd = priceUsd
+                    ? priceUsd * token.amount
+                    : undefined;
+                  return {
+                    ...token,
+                    priceUsd,
+                    valueUsd,
+                  };
+                });
+              }
+            }
+          } catch (fallbackErr) {
+            console.warn(
+              "Failed to fetch token prices from Jupiter fallback:",
+              fallbackErr
+            );
           }
         }
-      } catch (err) {
-        console.warn("Failed to fetch token prices from Jupiter:", err);
       }
 
       // Calculate total USD value (SOL + tokens with known prices)
@@ -221,13 +391,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         lastUpdated: Date.now(),
       });
 
-      console.log("✅ Portfolio updated:", {
-        solBalance,
-        solBalanceUsd,
-        tokenCount: tokenBalances.length,
-        totalValueUsd,
-        address: walletAddress,
-      });
+      // console.log("✅ Portfolio updated:", result);
     } catch (error) {
       console.error("❌ Error fetching portfolio:", error);
       setPortfolio((prev) => ({

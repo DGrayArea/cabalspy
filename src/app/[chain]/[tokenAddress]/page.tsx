@@ -41,6 +41,7 @@ import { dexscreenerService } from "@/services/dexscreener";
 import { multiChainTokenService } from "@/services/multichain-tokens";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
+import TradingPanel from "@/components/TradingPanel";
 
 interface TokenDetailData {
   chain: string;
@@ -178,6 +179,7 @@ function TokenDetailContent() {
   );
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showTradingPanel, setShowTradingPanel] = useState(false);
   const [slippage, setSlippage] = useState<string>("1");
   const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
     if (typeof window !== "undefined") {
@@ -973,36 +975,19 @@ function TokenDetailContent() {
               <h3 className="text-lg font-bold mb-4">Trade</h3>
               <div className="space-y-4">
                 <div className="flex gap-2">
-                  <button className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 px-4 rounded-lg font-semibold transition-colors">
+                  <button
+                    onClick={() => setShowTradingPanel(true)}
+                    className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 px-4 rounded-lg font-semibold transition-colors cursor-pointer"
+                  >
                     Buy
                   </button>
-                  <button className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-4 rounded-lg font-semibold transition-colors">
+                  <button
+                    onClick={() => setShowTradingPanel(true)}
+                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-4 rounded-lg font-semibold transition-colors cursor-pointer"
+                  >
                     Sell
                   </button>
                 </div>
-                <div>
-                  <label className="text-xs text-gray-400 mb-1 block">
-                    Amount
-                  </label>
-                  <input
-                    type="number"
-                    placeholder="0.0"
-                    className="w-full bg-panel-elev border border-gray-800/50 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-primary"
-                  />
-                  <div className="flex gap-2 mt-2">
-                    {[0.01, 0.1, 1, 10].map((val) => (
-                      <button
-                        key={val}
-                        className="flex-1 bg-panel-elev hover:bg-panel border border-gray-800/50 rounded px-2 py-1 text-xs transition-colors"
-                      >
-                        {val}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <button className="w-full bg-primary-dark hover:bg-primary-dark/90 text-white py-3 rounded-lg font-semibold transition-colors">
-                  Buy {tokenSymbol}
-                </button>
                 <div className="pt-4 border-t border-gray-800/50 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-gray-400">Bought</span>
@@ -1509,6 +1494,37 @@ function TokenDetailContent() {
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
       />
+
+      {/* Trading Panel */}
+      {showTradingPanel && (chain === "sol" || chain === "solana") && (
+        <TradingPanel
+          token={{
+            id: tokenAddress,
+            name: tokenName,
+            symbol: tokenSymbol,
+            icon: tokenImage || "",
+            image: tokenImage,
+            time: timeDisplay || baseToken?.time || "Unknown",
+            createdTimestamp,
+            marketCap,
+            volume,
+            fee: baseToken?.fee || 0,
+            transactions,
+            percentages: [],
+            price,
+            activity: {
+              Q: bondingCurveProgress,
+              views: 0,
+              holders: numHolders,
+              trades: transactions,
+            },
+            chain: "solana",
+            source: pumpfunData ? "pumpfun" : baseToken?.source,
+            dexscreener: dexscreenerData,
+          }}
+          onClose={() => setShowTradingPanel(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,38 +1,57 @@
 "use client";
 
 import { useState } from "react";
-import { useWallet } from "@/hooks/useWallet";
 import { useAuth } from "@/context/AuthContext";
+import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { TokenData } from "@/types/token";
 import {
   TrendingUp,
   TrendingDown,
   DollarSign,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
-import { pumpApiService } from "@/services/pumpapi";
+import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
+import { useToast } from "@/components/ui/use-toast";
+import { ToastAction } from "@/components/ui/toast";
+
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 
 interface TradingPanelProps {
   token: TokenData;
   onClose: () => void;
+  initialAmount?: string; // Pre-fill amount when opening panel
+  initialTradeType?: "buy" | "sell"; // Pre-select trade type
 }
 
-export default function TradingPanel({ token, onClose }: TradingPanelProps) {
-  const { user } = useAuth();
-  const { wallet, sendTransaction, isLoading } = useWallet();
-  const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
-  const [amount, setAmount] = useState("");
+export default function TradingPanel({
+  token,
+  onClose,
+  initialAmount,
+  initialTradeType = "buy",
+}: TradingPanelProps) {
+  const { turnkeyUser } = useAuth();
+  const { toast } = useToast();
+  const { address, connection, signSolanaTransaction } = useTurnkeySolana();
+  const [tradeType, setTradeType] = useState<"buy" | "sell">(initialTradeType);
+  const [amount, setAmount] = useState(initialAmount || "");
   const [slippage, setSlippage] = useState("0.5");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleTrade = async () => {
-    if (!user || !wallet) {
-      alert("Please connect your wallet first");
+    if (!turnkeyUser || !address || !connection || !signSolanaTransaction) {
+      toast({
+        variant: "error",
+        title: "Please connect your Turnkey wallet first",
+      });
       return;
     }
 
     if (!amount || parseFloat(amount) <= 0) {
-      alert("Please enter a valid amount");
+      toast({
+        variant: "error",
+        title: "Please enter a valid amount",
+      });
       return;
     }
 
@@ -40,40 +59,74 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
       setIsSubmitting(true);
       const slippageBps = Math.round(parseFloat(slippage) * 100); // percent -> bps
 
-      // Minimal trade call to PumpApi
-      const requestBase = {
-        mint: token.id, // assuming id is the token mint/address
-        side: tradeType,
-        amount: amount.trim(),
+      // Determine input and output mints
+      const inputMint = tradeType === "buy" ? SOL_MINT : token.id;
+      const outputMint = tradeType === "buy" ? token.id : SOL_MINT;
+
+      // Show loading toast
+      const loadingToast = toast({
+        variant: "info",
+        title: `${tradeType === "buy" ? "Buying" : "Selling"} ${token.symbol}...`,
+        className: "loading",
+      });
+
+      // Execute swap - use decimals from token data if available
+      const result = await executeJupiterSwap({
+        inputMint,
+        outputMint,
+        amount: parseFloat(amount),
+        // Pass decimals from token data if available (for output token when buying, input token when selling)
+        inputDecimals: tradeType === "sell" ? token.decimals : undefined, // SOL has 9 decimals, handled in function
+        outputDecimals: tradeType === "buy" ? token.decimals : undefined, // SOL has 9 decimals, handled in function
+        userPublicKey: address,
         slippageBps,
-        walletAddress: wallet.address,
-      } as const;
+        connection,
+        signTransaction: signSolanaTransaction,
+      });
 
-      // Optionally request a quote first (could be shown in UI later)
-      // const quote = await pumpApiService.getQuote(requestBase);
+      // Dismiss loading toast
+      toast.dismiss(loadingToast.id);
 
-      const trade =
-        tradeType === "buy"
-          ? await pumpApiService.buyToken(requestBase)
-          : await pumpApiService.sellToken(requestBase);
-
-      if (trade.status === "failed") {
-        throw new Error(trade.message || "Trade failed");
+      if (result.success && result.signature) {
+        toast({
+          variant: "success",
+          title: `${tradeType === "buy" ? "Buy" : "Sell"} successful!`,
+          description: `Transaction: ${result.signature.slice(0, 8)}...`,
+          action: (
+            <ToastAction
+              altText="View transaction"
+              onClick={() => {
+                window.open(
+                  `https://solscan.io/tx/${result.signature}`,
+                  "_blank"
+                );
+              }}
+            >
+              View
+            </ToastAction>
+          ),
+        });
+        onClose();
+      } else {
+        toast({
+          variant: "error",
+          title: `${tradeType === "buy" ? "Buy" : "Sell"} failed`,
+          description: result.error || "Unknown error occurred",
+        });
       }
-
-      alert(
-        `${tradeType === "buy" ? "Buy" : "Sell"} submitted${trade.txId ? `: ${trade.txId}` : ""}`
-      );
-      onClose();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Trading error:", error);
-      alert("Failed to place trade. Please try again.");
+      toast({
+        variant: "error",
+        title: `Failed to ${tradeType === "buy" ? "buy" : "sell"} ${token.symbol}`,
+        description: error.message || "Please try again",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (!user) {
+  if (!turnkeyUser) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md sm:w-96">
@@ -97,7 +150,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
     );
   }
 
-  if (!wallet) {
+  if (!address || !connection || !signSolanaTransaction) {
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
         <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md sm:w-96">
@@ -105,7 +158,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
             <AlertCircle className="w-12 h-12 mx-auto text-yellow-400 mb-4 cursor-pointer" />
             <h3 className="text-lg font-semibold mb-2">Wallet Required</h3>
             <p className="text-gray-400 mb-4">
-              Please connect your wallet to start trading
+              Please create a Turnkey wallet to start trading
             </p>
             <button
               onClick={onClose}
@@ -184,10 +237,11 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
             <div className="relative">
               <input
                 type="number"
+                step="any"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.0"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
               />
               <div className="absolute right-3 top-2 text-gray-400 text-sm">
                 {tradeType === "buy" ? "SOL" : token.symbol}
@@ -216,16 +270,17 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
               ))}
               <input
                 type="number"
+                step="0.1"
                 value={slippage}
                 onChange={(e) => setSlippage(e.target.value)}
                 placeholder="Custom"
-                className="flex-1 px-3 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-3 py-1 bg-gray-700 border border-gray-600 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
               />
             </div>
           </div>
 
           {/* Trade Summary */}
-          {amount && (
+          {amount && parseFloat(amount) > 0 && (
             <div className="bg-gray-700 rounded-lg p-4">
               <h4 className="font-medium mb-2">Trade Summary</h4>
               <div className="space-y-1 text-sm">
@@ -245,7 +300,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
                     {amount} {tradeType === "buy" ? "SOL" : token.symbol}
                   </span>
                 </div>
-                {tradeType === "buy" && (
+                {tradeType === "buy" && token.price > 0 && (
                   <div className="flex justify-between">
                     <span>You&apos;ll receive:</span>
                     <span>
@@ -279,7 +334,7 @@ export default function TradingPanel({ token, onClose }: TradingPanelProps) {
             >
               {isSubmitting ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Processing...
                 </>
               ) : (

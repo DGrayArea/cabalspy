@@ -8,6 +8,7 @@ import { PortfolioProvider } from "@/context/PortfolioContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { validateEnv } from "@/lib/env";
 import { TurnKeyProvider } from "@/providers/TurnkeyProvider";
+import { Toaster } from "@/components/ui/toaster";
 import "@turnkey/react-wallet-kit/styles.css";
 
 // Validate environment on server startup
@@ -59,6 +60,7 @@ export default function RootLayout({
             </TurnkeySolanaContextProvider>
           </TurnKeyProvider>
         </ViewportProvider>
+        <Toaster />
       </body>
     </html>
   );

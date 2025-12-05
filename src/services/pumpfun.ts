@@ -48,6 +48,7 @@ export interface PumpFunTokenInfo {
   priceUsd?: number;
   marketCap?: number;
   volume?: number;
+  decimals?: number; // Token decimals (6, 9, etc.) - usually included in API responses
   isMigrated: boolean; // true if migrated to Raydium
   migrationTimestamp?: number;
   raydiumPool?: string;
@@ -408,6 +409,13 @@ export class PumpFunService {
           (tokenData as any).sellTransactions,
       buyTransactions: (tokenData as any).buyTransactions,
       sellTransactions: (tokenData as any).sellTransactions,
+      // Extract decimals from API response (check various possible field names)
+      decimals:
+        (tokenData as any).decimals ??
+        (tokenData as any).decimal ??
+        (tokenData as any).tokenDecimals ??
+        (tokenData as any).decimals_ ??
+        undefined,
     };
   }
 

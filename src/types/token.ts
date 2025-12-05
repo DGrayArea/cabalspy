@@ -12,6 +12,7 @@ export interface TokenData {
   transactions: number;
   percentages: number[];
   price: number;
+  decimals?: number; // Token decimals (6, 9, etc.) - usually included in API responses
   activity: {
     Q: number;
     views: number;

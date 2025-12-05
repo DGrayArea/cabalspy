@@ -12,6 +12,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { OnboardingModal } from "@/components/OnboardingModal";
 
 export default function AuthButton() {
   const {
@@ -30,11 +31,12 @@ export default function AuthButton() {
     handleLogin,
     fetchUser,
     getSession,
-    createWallet,
     wallets,
     authState,
     clientState,
   } = useTurnkey();
+
+  const [onboardingCompleted, setOnboardingCompleted] = useState(false);
 
   const handleGoogleLogin = async () => {
     try {
@@ -101,35 +103,26 @@ export default function AuthButton() {
           if (userData) {
             setTurnkeyUser(userData);
 
-            // Create wallets automatically after Turnkey authentication
-            // Check if wallets already exist
-            if (wallets && wallets.length > 0) {
-              // console.log("✅ Wallets already exist:", wallets);
-            } else if (createWallet) {
-              // Create Solana and BSC wallets for new users
-              // According to Turnkey docs, createWallet takes address formats as array
-              try {
-                console.log("Creating wallets for Turnkey user...");
-                // Note: @turnkey/react-wallet-kit's createWallet accepts address format strings
-                // The underlying account structure will be:
-                // - curve: CURVE_ED25519
-                // - pathFormat: PATH_FORMAT_SLIP10
-                // - path: m/44'/501'/0'/0' (Solana standard HD path)
-                // - addressFormat: ADDRESS_FORMAT_SOLANA
-                const solanaWallet = await createWallet({
-                  walletName: `${userData.userName}'s Solana Wallet`,
-                  accounts: ["ADDRESS_FORMAT_SOLANA"],
-                });
+            // Check if onboarding has been completed for this user
+            const onboardingKey = `onboarding_completed_${userData.userId}`;
+            const hasCompletedOnboarding = localStorage.getItem(onboardingKey) === "true";
+            
+            // Check if user has an embedded Solana wallet
+            const hasEmbeddedSolanaWallet = wallets?.some(
+              (wallet) =>
+                (wallet.source === "embedded" || !wallet.source) &&
+                wallet.accounts?.some(
+                  (acc) => acc.addressFormat === "ADDRESS_FORMAT_SOLANA"
+                )
+            );
 
-                const bscWallet = await createWallet({
-                  walletName: `${userData.userName}'s BSC Wallet`,
-                  accounts: ["ADDRESS_FORMAT_ETHEREUM"], // BSC uses Ethereum format
-                });
-
-                // console.log("✅ Wallets created:", { solanaWallet, bscWallet });
-              } catch (error) {
-                console.error("Error creating wallets:", error);
-              }
+            // If user has a wallet, mark onboarding as completed
+            if (hasEmbeddedSolanaWallet) {
+              setOnboardingCompleted(true);
+              localStorage.setItem(onboardingKey, "true");
+            } else {
+              // If no wallet and onboarding not completed, show onboarding
+              setOnboardingCompleted(hasCompletedOnboarding);
             }
           }
           if (sessionData) {
@@ -155,7 +148,6 @@ export default function AuthButton() {
     clientState,
     setTurnkeyUser,
     setTurnkeySession,
-    createWallet,
     wallets,
   ]);
 
@@ -191,9 +183,39 @@ export default function AuthButton() {
     );
   }
 
+  const handleOnboardingComplete = () => {
+    if (turnkeyUser) {
+      const onboardingKey = `onboarding_completed_${turnkeyUser.userId}`;
+      localStorage.setItem(onboardingKey, "true");
+      setOnboardingCompleted(true);
+    }
+  };
+
+  // Check if user has an embedded Solana wallet
+  const hasEmbeddedSolanaWallet = wallets?.some(
+    (wallet) =>
+      (wallet.source === "embedded" || !wallet.source) &&
+      wallet.accounts?.some(
+        (acc) => acc.addressFormat === "ADDRESS_FORMAT_SOLANA"
+      )
+  );
+
+  // Show onboarding if authenticated, has Turnkey user, but no wallet and onboarding not completed
+  const shouldShowOnboarding =
+    isAuthenticated &&
+    turnkeyUser &&
+    authState === AuthState.Authenticated &&
+    clientState === ClientState.Ready &&
+    !hasEmbeddedSolanaWallet &&
+    !onboardingCompleted;
+
   if (isAuthenticated && displayUser) {
     return (
-      <Popover>
+      <>
+        {shouldShowOnboarding && (
+          <OnboardingModal onComplete={handleOnboardingComplete} />
+        )}
+        <Popover>
         <PopoverTrigger asChild>
           <button
             className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-gray-700 hover:border-gray-600 transition-all cursor-pointer shadow-lg hover:shadow-xl overflow-hidden"
@@ -314,6 +336,7 @@ export default function AuthButton() {
           </Card>
         </PopoverContent>
       </Popover>
+      </>
     );
   }
 
