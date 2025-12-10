@@ -26,6 +26,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { lazy, Suspense } from "react";
+
+const WalletSettingsModal = lazy(() =>
+  import("@/services/WalletSettingsModal").then((mod) => ({
+    default: mod.WalletSettingsModal,
+  }))
+);
 
 export default function PortfolioPage() {
   const { user, turnkeyUser } = useAuth();
@@ -47,6 +54,7 @@ export default function PortfolioPage() {
   const [hideSmall, setHideSmall] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const [showWalletSettings, setShowWalletSettings] = useState(false);
 
   const copyAddress = async () => {
     if (!walletAddress) return;
@@ -76,7 +84,10 @@ export default function PortfolioPage() {
 
   return (
     <div className="min-h-screen bg-app text-white relative">
-      <Navbar />
+      <Navbar
+        showWalletSettings={true}
+        onWalletSettingsClick={() => setShowWalletSettings(!showWalletSettings)}
+      />
 
       {/* Centered Loading Spinner Overlay */}
       {isLoading && (
@@ -538,6 +549,17 @@ export default function PortfolioPage() {
           <WithdrawModal onClose={() => setShowWithdrawModal(false)} />
         )}
       </div>
+      {showWalletSettings && isAuthenticated && (
+        <Suspense fallback={null}>
+          <WalletSettingsModal
+            slippage="0.5"
+            setSlippage={() => {}}
+            quickBuyAmount="0.1"
+            setQuickBuyAmount={() => {}}
+            onClose={() => setShowWalletSettings(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

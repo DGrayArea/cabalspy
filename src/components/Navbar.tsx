@@ -3,14 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import {
-  Search,
-  RefreshCw,
-  Wallet,
-  Menu,
-  User,
-  ArrowLeft,
-} from "lucide-react";
+import { Search, RefreshCw, Wallet, Menu, User, ArrowLeft } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
 import { useViewport } from "@/context/ViewportContext";
@@ -47,7 +40,8 @@ export default function Navbar({
   onBackClick,
 }: NavbarProps) {
   const pathname = usePathname();
-  const { isAuthenticated } = useAuth();
+  const { user, turnkeyUser } = useAuth();
+  const isAuthenticated = user || turnkeyUser;
   const { isDesktop, isMobile } = useViewport();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
@@ -245,20 +239,22 @@ export default function Navbar({
                             </span>
                           </button>
                         )}
-                        {showWalletSettings && onWalletSettingsClick && isAuthenticated && (
-                          <button
-                            onClick={() => {
-                              onWalletSettingsClick();
-                              setShowMobileMenu(false);
-                            }}
-                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                          >
-                            <Wallet className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                            <span className="group-hover:translate-x-1 transition-transform">
-                              Wallet Settings
-                            </span>
-                          </button>
-                        )}
+                        {showWalletSettings &&
+                          onWalletSettingsClick &&
+                          isAuthenticated && (
+                            <button
+                              onClick={() => {
+                                onWalletSettingsClick();
+                                setShowMobileMenu(false);
+                              }}
+                              className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                            >
+                              <Wallet className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
+                              <span className="group-hover:translate-x-1 transition-transform">
+                                Wallet Settings
+                              </span>
+                            </button>
+                          )}
                       </div>
                     </div>
 
@@ -278,4 +274,3 @@ export default function Navbar({
     </header>
   );
 }
-
