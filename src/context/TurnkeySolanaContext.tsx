@@ -6,8 +6,11 @@ import {
   PublicKey,
   VersionedTransaction,
   Transaction,
+  TransactionMessage,
 } from "@solana/web3.js";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
+import { TurnkeySigner } from "@turnkey/solana";
+import { Buffer } from "buffer";
 
 // Types matching Turnkey's wallet structure
 interface TurnkeyAccount {
@@ -16,6 +19,7 @@ interface TurnkeyAccount {
   pathFormat?: string;
   path?: string;
   accountId?: string;
+  organizationId?: string; // Each wallet account has its own organizationId
 }
 
 interface TurnkeyWallet {
@@ -52,9 +56,13 @@ type TTurnkeySolanaContextValue = {
   signAndSendTransaction:
     | ((unsignedTransaction: string, rpcUrl?: string) => Promise<string>)
     | null;
-  // Helper to serialize and sign a Solana transaction
+  // TurnkeySigner for signing Solana transactions
+  signer: TurnkeySigner | null;
+  // Helper to sign a Solana Transaction or VersionedTransaction
   signSolanaTransaction:
-    | ((transaction: Transaction | VersionedTransaction) => Promise<string>)
+    | ((
+        transaction: Transaction | VersionedTransaction
+      ) => Promise<VersionedTransaction>)
     | null;
 } | null;
 
@@ -71,21 +79,22 @@ export function TurnkeySolanaContextProvider(props: {
     user: turnkeyUser,
     signTransaction: turnkeySignTransaction,
     signAndSendTransaction: turnkeySignAndSendTransaction,
+    httpClient,
   } = useTurnkey();
 
   // Initialize Solana connection with a reliable RPC endpoint
   const connection = React.useMemo(() => {
     const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL;
     if (!rpcUrl) {
-      console.warn(
-        "NEXT_PUBLIC_SOLANA_RPC_URL is not set. Solana connection will be unavailable in TurnkeySolanaContext."
-      );
+      // console.warn(
+      //   "NEXT_PUBLIC_SOLANA_RPC_URL is not set. Solana connection will be unavailable in TurnkeySolanaContext."
+      // );
       return null;
     }
     try {
       return new Connection(rpcUrl, "confirmed");
     } catch (e) {
-      console.error("Failed to create Solana connection:", e);
+      // console.error("Failed to create Solana connection:", e);
       return null;
     }
   }, []);
@@ -123,8 +132,8 @@ export function TurnkeySolanaContextProvider(props: {
       // Exclude connected wallets like Solflare
       if (wallet.source === "connected") continue;
       if (
-              wallet.walletId === "solflare" ||
-              wallet.walletName?.toLowerCase() === "solflare"
+        wallet.walletId === "solflare" ||
+        wallet.walletName?.toLowerCase() === "solflare"
       )
         continue;
 
@@ -147,14 +156,16 @@ export function TurnkeySolanaContextProvider(props: {
           address: solanaAccount.address,
           walletId: wallet.walletId,
           walletName: wallet.walletName,
-          accountId: solanaAccount.accountId,
+          accountId:
+            (solanaAccount as any).walletAccountId || solanaAccount.accountId, // Use walletAccountId if available
+          organizationId: solanaAccount.organizationId, // Get org ID from wallet account
         };
       }
     }
 
-    console.log(
-      "📭 No embedded Solana wallet found with ADDRESS_FORMAT_SOLANA"
-    );
+    // console.log(
+    //   "📭 No embedded Solana wallet found with ADDRESS_FORMAT_SOLANA"
+    // );
     return null;
   }, [wallets]);
 
@@ -165,13 +176,28 @@ export function TurnkeySolanaContextProvider(props: {
   const isLoading = clientState === "loading";
   const isAuthenticated = authState === "authenticated" && turnkeyUser;
 
+  // Get organizationId from the wallet account
+  // Each wallet account has its own organizationId (sub-organization for each user)
+  const organizationId = React.useMemo(() => {
+    const walletOrgId = embeddedSolanaWallet?.organizationId || null;
+
+    // console.log("🔍 OrganizationId from wallet account:", {
+    //   hasWallet: !!embeddedSolanaWallet,
+    //   hasOrgId: !!walletOrgId,
+    //   orgId: walletOrgId,
+    //   walletAddress: embeddedSolanaWallet?.address,
+    // });
+
+    return walletOrgId;
+  }, [embeddedSolanaWallet]);
+
   // Create PublicKey from address
   const publicKey = React.useMemo(() => {
     if (!address) return null;
     try {
       return new PublicKey(address);
     } catch (e) {
-      console.error("Failed to create PublicKey:", e);
+      // console.error("Failed to create PublicKey:", e);
       return null;
     }
   }, [address]);
@@ -179,14 +205,65 @@ export function TurnkeySolanaContextProvider(props: {
   // Build wallet account object for signing
   const walletAccount: SolanaWalletAccount | null = React.useMemo(() => {
     if (!embeddedSolanaWallet) return null;
+
+    // The accountId might be called walletAccountId in the account object
+    const accountId =
+      embeddedSolanaWallet.accountId ||
+      (embeddedSolanaWallet.account as any)?.walletAccountId;
+
+    // console.log("🔍 Building wallet account for signing:", {
+    //   hasEmbeddedWallet: !!embeddedSolanaWallet,
+    //   accountId: accountId,
+    //   address: embeddedSolanaWallet.address,
+    //   walletId: embeddedSolanaWallet.walletId,
+    //   account: embeddedSolanaWallet.account,
+    //   walletAccountId: (embeddedSolanaWallet.account as any)?.walletAccountId,
+    // });
+
+    if (!accountId) {
+      // console.warn(
+      //   "⚠️ AccountId is missing from embeddedSolanaWallet. This may cause signing to fail.",
+      //   {
+      //     account: embeddedSolanaWallet.account,
+      //     embeddedSolanaWallet,
+      //   }
+      // );
+    }
+
     return {
       address: embeddedSolanaWallet.address,
       walletId: embeddedSolanaWallet.walletId,
       walletName: embeddedSolanaWallet.walletName,
-      accountId: embeddedSolanaWallet.accountId,
+      accountId: accountId,
       addressFormat: "ADDRESS_FORMAT_SOLANA",
     };
   }, [embeddedSolanaWallet]);
+
+  // Create TurnkeySigner for Solana transactions
+  const signer = React.useMemo(() => {
+    if (!httpClient || !organizationId || !walletAccount) {
+      // console.log("⚠️ TurnkeySigner not created - missing:", {
+      //   hasHttpClient: !!httpClient,
+      //   hasOrganizationId: !!organizationId,
+      //   hasWalletAccount: !!walletAccount,
+      // });
+      return null;
+    }
+    try {
+      // TurnkeySigner constructor might accept accountId, but based on docs it only needs organizationId and client
+      // The accountId (signWith) is passed when signing, not when creating the signer
+      const signerInstance = new TurnkeySigner({
+        organizationId,
+        client: httpClient as any, // Type assertion to handle version mismatch between @turnkey packages
+        // Note: accountId is passed when calling signTransaction, not in constructor
+      });
+      // console.log("✅ TurnkeySigner created successfully");
+      return signerInstance;
+    } catch (e) {
+      // console.error("Failed to create TurnkeySigner:", e);
+      return null;
+    }
+  }, [httpClient, organizationId, walletAccount]);
 
   // Error state
   const [error, setError] = React.useState<Error | null>(null);
@@ -228,10 +305,10 @@ export function TurnkeySolanaContextProvider(props: {
         throw new Error("No wallet account available for signing");
       }
 
-      console.log("🔏 Signing transaction with Turnkey...", {
-        walletAddress: walletAccount.address,
-        transactionLength: unsignedTransaction.length,
-      });
+      // console.log("🔏 Signing transaction with Turnkey...", {
+      //   walletAddress: walletAccount.address,
+      //   transactionLength: unsignedTransaction.length,
+      // });
 
       // Use the Turnkey SDK's signTransaction method
       // The walletAccount needs to match what Turnkey expects
@@ -241,7 +318,7 @@ export function TurnkeySolanaContextProvider(props: {
         transactionType: "TRANSACTION_TYPE_SOLANA",
       });
 
-      console.log("✅ Transaction signed successfully");
+      // console.log("✅ Transaction signed successfully");
       return signedTx;
     },
     [walletAccount, turnkeySignTransaction]
@@ -258,10 +335,10 @@ export function TurnkeySolanaContextProvider(props: {
         connection?.rpcEndpoint ||
         "https://api.mainnet-beta.solana.com";
 
-      console.log("🔏 Signing and sending transaction with Turnkey...", {
-        walletAddress: walletAccount.address,
-        rpcUrl: solanaRpcUrl,
-      });
+      // console.log("🔏 Signing and sending transaction with Turnkey...", {
+      //   walletAddress: walletAccount.address,
+      //   rpcUrl: solanaRpcUrl,
+      // });
 
       // Use the Turnkey SDK's signAndSendTransaction method
       const txSignature = await turnkeySignAndSendTransaction({
@@ -271,42 +348,76 @@ export function TurnkeySolanaContextProvider(props: {
         rpcUrl: solanaRpcUrl,
       });
 
-      console.log("✅ Transaction signed and sent:", txSignature);
+      // console.log("✅ Transaction signed and sent:", txSignature);
       return txSignature;
     },
     [walletAccount, turnkeySignAndSendTransaction, connection]
   );
 
-  // Helper to serialize and sign a Solana Transaction or VersionedTransaction
+  // Helper to sign a Solana Transaction or VersionedTransaction
+  // Use turnkeySignTransaction from useTurnkey
+  // Note: turnkeySignTransaction expects hex input and returns hex output
   const signSolanaTransaction = React.useCallback(
     async (
       transaction: Transaction | VersionedTransaction
-    ): Promise<string> => {
-      if (!walletAccount) {
-        throw new Error("No wallet account available for signing");
+    ): Promise<VersionedTransaction> => {
+      if (!walletAccount || !turnkeySignTransaction) {
+        throw new Error("Wallet account or signing not available");
       }
 
-      // Serialize the transaction to base64
-      let serialized: string;
+      // Convert Transaction to VersionedTransaction if needed
+      let versionedTx: VersionedTransaction;
       if (transaction instanceof VersionedTransaction) {
-        serialized = Buffer.from(transaction.serialize()).toString("base64");
+        versionedTx = transaction;
       } else {
-        serialized = Buffer.from(
-          transaction.serialize({ requireAllSignatures: false })
-        ).toString("base64");
+        // Convert legacy Transaction to VersionedTransaction
+        const message = transaction.compileMessage();
+        versionedTx = new VersionedTransaction(message);
       }
 
-      console.log("🔏 Signing Solana transaction...", {
-        transactionType:
-          transaction instanceof VersionedTransaction
-            ? "VersionedTransaction"
-            : "Transaction",
-        serializedLength: serialized.length,
+      // console.log("🔏 Signing Solana transaction with Turnkey...", {
+      //   transactionType: "VersionedTransaction",
+      //   walletAddress: walletAccount.address,
+      // });
+
+      // Serialize transaction to hex for Turnkey
+      // Turnkey API expects hex-encoded transaction strings
+      const unsignedTxHex = Buffer.from(versionedTx.serialize()).toString(
+        "hex"
+      );
+
+      // console.log("📤 Sending transaction to Turnkey (hex format):", {
+      //   hexLength: unsignedTxHex.length,
+      //   firstChars: unsignedTxHex.substring(0, 20),
+      // });
+
+      // Use turnkeySignTransaction which expects hex and returns hex
+      const signedTxHex = await turnkeySignTransaction({
+        walletAccount: walletAccount as any,
+        unsignedTransaction: unsignedTxHex,
+        transactionType: "TRANSACTION_TYPE_SOLANA",
       });
 
-      return signTransaction(serialized);
+      // console.log("📥 Received signed transaction from Turnkey (hex format):", {
+      //   hexLength: signedTxHex.length,
+      //   firstChars: signedTxHex.substring(0, 20),
+      // });
+
+      // Deserialize the signed transaction from hex
+      const signedTransaction = VersionedTransaction.deserialize(
+        Buffer.from(signedTxHex, "hex")
+      );
+
+      // console.log("✅ Transaction signed successfully", {
+      //   signaturesCount: signedTransaction.signatures.length,
+      //   payerSignaturePresent: !signedTransaction.signatures[0]?.every(
+      //     (b) => b === 0
+      //   ),
+      // });
+
+      return signedTransaction;
     },
-    [walletAccount, signTransaction]
+    [walletAccount, turnkeySignTransaction]
   );
 
   const value = React.useMemo(
@@ -319,9 +430,10 @@ export function TurnkeySolanaContextProvider(props: {
       walletAccount,
       error,
       isLoading,
+      signer,
       signTransaction: walletAccount ? signTransaction : null,
       signAndSendTransaction: walletAccount ? signAndSendTransaction : null,
-      signSolanaTransaction: walletAccount ? signSolanaTransaction : null,
+      signSolanaTransaction: signer ? signSolanaTransaction : null,
     }),
     [
       address,
@@ -332,6 +444,7 @@ export function TurnkeySolanaContextProvider(props: {
       walletAccount,
       error,
       isLoading,
+      signer,
       signTransaction,
       signAndSendTransaction,
       signSolanaTransaction,

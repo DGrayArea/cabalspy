@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   ArrowLeft,
   Wallet,
@@ -11,12 +12,20 @@ import {
   ExternalLink,
   ArrowDownLeft,
   ArrowUpRight,
+  ArrowDownToLine,
+  ArrowUpFromLine,
 } from "lucide-react";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { formatCurrency, formatNumber } from "@/utils/format";
-import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
+import AuthButton from "@/components/AuthButton";
+import DepositModal from "@/components/DepositModal";
+import WithdrawModal from "@/components/WithdrawModal";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export default function PortfolioPage() {
   const { user, turnkeyUser } = useAuth();
@@ -36,6 +45,8 @@ export default function PortfolioPage() {
   const [activeTab, setActiveTab] = useState<"assets" | "history">("assets");
   const [assetSearch, setAssetSearch] = useState("");
   const [hideSmall, setHideSmall] = useState(false);
+  const [showDepositModal, setShowDepositModal] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
 
   const copyAddress = async () => {
     if (!walletAddress) return;
@@ -47,22 +58,38 @@ export default function PortfolioPage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-app text-white">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-md mx-auto text-center mt-20">
+        <Navbar />
+        <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+          <div className="max-w-md mx-auto text-center px-4">
             <Wallet className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <h1 className="text-2xl font-bold mb-4">Portfolio</h1>
             <p className="text-gray-400 mb-6">Sign in to view your portfolio</p>
-            <AuthButton />
+            <div className="flex justify-center">
+              <AuthButton />
+            </div>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-app text-white">
+    <div className="min-h-screen bg-app text-white relative">
+      <Navbar />
+
+      {/* Centered Loading Spinner Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-app/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <Spinner className="w-12 h-12 text-primary" />
+            <p className="text-gray-400 text-sm">Refreshing portfolio...</p>
+          </div>
+        </div>
+      )}
+
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
+        {/* Page Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Link
@@ -96,12 +123,10 @@ export default function PortfolioPage() {
           <button
             onClick={refreshPortfolio}
             disabled={isLoading}
-            className="p-2 hover:bg-panel-elev rounded-lg transition-colors disabled:opacity-50"
+            className="p-2 hover:bg-panel-elev rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh portfolio"
           >
-            <RefreshCw
-              className={`w-5 h-5 ${isLoading ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className="w-5 h-5" />
           </button>
         </div>
 
@@ -117,23 +142,32 @@ export default function PortfolioPage() {
             <div className="text-xs font-medium text-gray-400 mb-1">
               Total Portfolio Value
             </div>
-            <div className="text-4xl md:text-5xl font-bold">
-              {isLoading ? (
-                <span className="text-gray-400">Loading...</span>
-              ) : (
-                formatCurrency(totalValueUsd)
-              )}
-            </div>
+            {isLoading ? (
+              <Skeleton className="h-12 md:h-16 w-48 bg-gray-700/50" />
+            ) : (
+              <div className="text-4xl md:text-5xl font-bold">
+                {formatCurrency(totalValueUsd)}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-6 pt-4 border-t border-gray-800/50">
             <div>
               <div className="text-xs text-gray-400 mb-1">SOL Balance</div>
-              <div className="text-lg font-semibold">
-                {isLoading ? "..." : `${formatNumber(solBalance)} SOL`}
-              </div>
-              <div className="text-sm text-gray-500">
-                {isLoading ? "..." : formatCurrency(solBalanceUsd)}
-              </div>
+              {isLoading ? (
+                <>
+                  <Skeleton className="h-6 w-24 mb-1 bg-gray-700/50" />
+                  <Skeleton className="h-4 w-20 bg-gray-700/50" />
+                </>
+              ) : (
+                <>
+                  <div className="text-lg font-semibold">
+                    {formatNumber(solBalance)} SOL
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {formatCurrency(solBalanceUsd)}
+                  </div>
+                </>
+              )}
             </div>
             {walletAddress && (
               <div className="hidden md:block">
@@ -144,6 +178,24 @@ export default function PortfolioPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Deposit and Withdraw Buttons */}
+        <div className="flex gap-3 mb-6 justify-center">
+          <button
+            onClick={() => setShowDepositModal(true)}
+            className="max-w-xs flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg"
+          >
+            <ArrowDownToLine className="w-5 h-5" />
+            Deposit
+          </button>
+          <button
+            onClick={() => setShowWithdrawModal(true)}
+            className="max-w-xs flex-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 shadow-lg"
+          >
+            <ArrowUpFromLine className="w-5 h-5" />
+            Withdraw
+          </button>
         </div>
 
         {/* Tabs: Assets / History */}
@@ -198,40 +250,56 @@ export default function PortfolioPage() {
 
             {/* SOL Balance Card */}
             <div className="bg-panel border border-primary/20 rounded-xl p-4 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="relative w-9 h-9 flex-shrink-0">
-                    <img
-                      src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
-                      alt="SOL"
-                      className="w-9 h-9 rounded-full object-cover"
-                      onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.style.display = "none";
-                        const fallback = target.parentElement?.querySelector(
-                          ".sol-fallback"
-                        ) as HTMLElement;
-                        if (fallback) fallback.style.display = "flex";
-                      }}
-                    />
-                    <div className="sol-fallback w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-sm absolute inset-0 hidden">
-                      SOL
+              {isLoading ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-9 h-9 rounded-full bg-gray-700/50" />
+                    <div>
+                      <Skeleton className="h-4 w-20 mb-2 bg-gray-700/50" />
+                      <Skeleton className="h-3 w-16 bg-gray-700/50" />
                     </div>
                   </div>
-                  <div>
-                    <div className="font-semibold text-sm">Solana</div>
-                    <div className="text-xs text-gray-400">Native token</div>
+                  <div className="text-right">
+                    <Skeleton className="h-4 w-24 mb-2 bg-gray-700/50" />
+                    <Skeleton className="h-3 w-20 bg-gray-700/50" />
                   </div>
                 </div>
-                <div className="text-right text-sm">
-                  <div className="font-semibold">
-                    {isLoading ? "..." : `${formatNumber(solBalance)} SOL`}
+              ) : (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-9 h-9 flex-shrink-0">
+                      <img
+                        src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+                        alt="SOL"
+                        className="w-9 h-9 rounded-full object-cover"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          const fallback = target.parentElement?.querySelector(
+                            ".sol-fallback"
+                          ) as HTMLElement;
+                          if (fallback) fallback.style.display = "flex";
+                        }}
+                      />
+                      <div className="sol-fallback w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center font-bold text-sm absolute inset-0 hidden">
+                        SOL
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-semibold text-sm">Solana</div>
+                      <div className="text-xs text-gray-400">Native token</div>
+                    </div>
                   </div>
-                  <div className="text-gray-400">
-                    {isLoading ? "..." : formatCurrency(solBalanceUsd)}
+                  <div className="text-right text-sm">
+                    <div className="font-semibold">
+                      {formatNumber(solBalance)} SOL
+                    </div>
+                    <div className="text-gray-400">
+                      {formatCurrency(solBalanceUsd)}
+                    </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Token Balances Table-style list */}
@@ -264,8 +332,26 @@ export default function PortfolioPage() {
               </div>
 
               {isLoading ? (
-                <div className="text-center py-8 text-gray-400">
-                  Loading tokens...
+                <div className="space-y-3 py-4">
+                  {[...Array(3)].map((_, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-3 py-3"
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <Skeleton className="w-8 h-8 rounded-full bg-gray-700/50" />
+                        <div className="flex-1">
+                          <Skeleton className="h-4 w-32 mb-2 bg-gray-700/50" />
+                          <Skeleton className="h-3 w-24 bg-gray-700/50" />
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Skeleton className="h-4 w-20 bg-gray-700/50" />
+                        <Skeleton className="h-4 w-24 bg-gray-700/50" />
+                        <Skeleton className="h-4 w-28 bg-gray-700/50" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : tokenBalances.length === 0 ? (
                 <div className="text-center py-8 text-gray-400">
@@ -442,6 +528,14 @@ export default function PortfolioPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Modals */}
+        {showDepositModal && (
+          <DepositModal onClose={() => setShowDepositModal(false)} />
+        )}
+        {showWithdrawModal && (
+          <WithdrawModal onClose={() => setShowWithdrawModal(false)} />
         )}
       </div>
     </div>

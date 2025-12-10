@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -42,6 +42,8 @@ import { multiChainTokenService } from "@/services/multichain-tokens";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
 import TradingPanel from "@/components/TradingPanel";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 interface TokenDetailData {
   chain: string;
@@ -161,6 +163,7 @@ export default function TokenDetailPage() {
 function TokenDetailContent() {
   const params = useParams();
   const router = useRouter();
+  const pathname = usePathname();
   const chain = params.chain as string;
   const tokenAddress = params.tokenAddress as string;
   const { user, turnkeyUser, turnkeySession } = useAuth();
@@ -494,9 +497,23 @@ function TokenDetailContent() {
               <nav className="hidden md:flex items-center gap-4">
                 <Link
                   href="/"
-                  className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
+                  className={`text-sm transition-colors cursor-pointer ${
+                    pathname === "/"
+                      ? "text-white font-medium"
+                      : "text-gray-400 hover:text-white"
+                  }`}
                 >
                   Home
+                </Link>
+                <Link
+                  href="/portfolio"
+                  className={`text-sm transition-colors cursor-pointer ${
+                    pathname === "/portfolio"
+                      ? "text-white font-medium"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  Portfolio
                 </Link>
                 {/* <Link
                   href="/pulse"
@@ -1538,6 +1555,7 @@ function TokenDetailPageSkeleton() {
           <div className="h-4 bg-gray-800/50 rounded w-1/2"></div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

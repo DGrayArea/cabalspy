@@ -23,7 +23,7 @@ export interface JupiterSwapParams {
   userPublicKey: string; // User's wallet public key
   slippageBps?: number; // Slippage in basis points (default: 150 = 1.5%)
   connection: Connection; // Solana connection
-  signTransaction: (transaction: VersionedTransaction) => Promise<string>; // Turnkey signing function
+  signTransaction: (transaction: VersionedTransaction) => Promise<VersionedTransaction>; // Turnkey signing function (returns signed VersionedTransaction)
 }
 
 export interface JupiterSwapResult {
@@ -305,13 +305,8 @@ export async function executeJupiterSwap({
     // Create versioned transaction
     const transaction = new VersionedTransaction(messageV0);
 
-    // Sign transaction using Turnkey
-    const signedTransactionBase64 = await signTransaction(transaction);
-
-    // Deserialize signed transaction
-    const signedTransaction = VersionedTransaction.deserialize(
-      Buffer.from(signedTransactionBase64, "base64")
-    );
+    // Sign transaction using Turnkey (returns signed VersionedTransaction directly)
+    const signedTransaction = await signTransaction(transaction);
 
     // Send transaction
     const signature = await connection.sendRawTransaction(
