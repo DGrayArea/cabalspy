@@ -106,12 +106,12 @@ export const useWebSocket = () => {
 
         // Debug: Log token counts
         if (process.env.NODE_ENV === "development") {
-          console.log("🔌 WebSocket connected:", {
-            solana: solana.length,
-            bsc: bsc.length,
-            migrated: initialMigrated.length,
-            total: solana.length + bsc.length,
-          });
+          // console.log("🔌 WebSocket connected:", {
+          //   solana: solana.length,
+          //   bsc: bsc.length,
+          //   migrated: initialMigrated.length,
+          //   total: solana.length + bsc.length,
+          // });
         }
       } catch (err) {
         const message =
@@ -132,7 +132,7 @@ export const useWebSocket = () => {
   }, [handleTokenUpdate, handleMigrationUpdate]);
 
   const sendMessage = useCallback((message: Record<string, unknown>) => {
-    console.log("Sending message:", message);
+    // console.log("Sending message:", message);
   }, []);
 
   return {

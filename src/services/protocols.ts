@@ -1327,7 +1327,8 @@ export class ProtocolService {
             bondingProgress = Math.min(Math.max(solReserves / SOL_TARGET, 0), 1.0);
           } else {
             // Fallback to market cap calculation (less accurate)
-            const bondingCurveTargetUSD = 69000; // Approximate at ~$1000 SOL
+            // 69 SOL at current price (~$137) = ~$9,453
+            const bondingCurveTargetUSD = 69 * 137; // ~$9,453
             bondingProgress = t.marketCap
               ? Math.min((t.marketCap || 0) / bondingCurveTargetUSD, 1.0)
               : 0;

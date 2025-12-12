@@ -59,7 +59,7 @@ export function CompactTokenCard({
   formatNumber,
   displaySettings,
   connectedGrid = false,
-  quickBuyAmount = "0.1",
+  quickBuyAmount = "0.01",
 }: CompactTokenCardProps) {
   const [imageError, setImageError] = useState(false);
   const [platformLogoError, setPlatformLogoError] = useState(false);
@@ -68,7 +68,7 @@ export function CompactTokenCard({
   const [copied, setCopied] = useState(false);
   const [isQuickBuying, setIsQuickBuying] = useState(false);
   const { turnkeyUser } = useAuth();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const { address, connection, signSolanaTransaction } = useTurnkeySolana();
 
   // Debug: Log platform detection
@@ -123,7 +123,7 @@ export function CompactTokenCard({
         signTransaction: signSolanaTransaction,
       });
 
-      toast.dismiss(loadingToast.id);
+      dismiss(loadingToast.id);
 
       if (result.success && result.signature) {
         toast({
@@ -249,11 +249,13 @@ export function CompactTokenCard({
             return Math.min(Math.max(solReserves / SOL_TARGET, 0), 1);
           }
 
-          // Fallback: Calculate from market cap using approximate SOL price
-          // This is less accurate but works when SOL reserves aren't available
-          // Using current SOL price approximation (~$150-200 range, but varies)
-          // Better to use marketCap / (69 * currentSOLPrice), but for now use fallback
-          const bondingCurveTargetUSD = 69000; // Approximate USD equivalent at ~$1000 SOL
+          // Fallback: Calculate from market cap using current SOL price
+          // Pump.fun bonding curve completes at 69 SOL
+          // At current SOL price (~$137), that's approximately $9,453
+          // Using a more accurate approximation based on current market conditions
+          const SOL_PRICE_APPROX = 137; // Current approximate SOL price in USD
+          const SOL_TARGET = 69; // Pump.fun bonding curve target
+          const bondingCurveTargetUSD = SOL_TARGET * SOL_PRICE_APPROX; // ~$9,453
           return Math.min(
             Math.max(token.marketCap / bondingCurveTargetUSD, 0),
             1
@@ -657,7 +659,7 @@ export function CompactTokenCard({
               onClick={async (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                
+
                 // Only execute quick buy if authenticated and wallet is available
                 if (
                   turnkeyUser &&

@@ -4,7 +4,7 @@
 
 /**
  * Format a small number to show the last valid decimal place
- * Examples: 0.0053 -> 0.005, 0.0000027 -> 0.000002
+ * Examples: 0.0053 -> 0.005, 0.0000027 -> 0.000002, 0.00000001 -> 0.00000001
  * @param value Number to format
  * @returns Formatted string with appropriate decimal places
  */
@@ -15,6 +15,15 @@ function formatSmallNumber(value: number): string {
   
   if (absValue >= 1) {
     return value.toFixed(2);
+  }
+  
+  // For very small numbers, show more precision
+  if (absValue < 0.000001) {
+    // Use scientific notation for extremely small numbers or show up to 10 decimals
+    const str = absValue.toFixed(10);
+    // Remove trailing zeros
+    const trimmed = str.replace(/\.?0+$/, '');
+    return value < 0 ? `-${trimmed}` : trimmed;
   }
   
   // Convert to string with high precision to avoid scientific notation
@@ -41,10 +50,10 @@ function formatSmallNumber(value: number): string {
   // Count zeros before first non-zero digit
   const zerosBeforeFirstNonZero = firstNonZero - decimalIndex - 1;
   
-  // Show the first non-zero digit and 1 more digit after it, then truncate
-  // Examples: 0.0053 -> 0.005 (3 decimals), 0.0000027 -> 0.000002 (6 decimals)
-  // Total decimal places = zeros before + 2 digits (first non-zero + 1 more)
-  const totalDecimalPlaces = zerosBeforeFirstNonZero + 2;
+  // Show the first non-zero digit and 2 more digits after it for better precision
+  // Examples: 0.0053 -> 0.0053 (4 decimals), 0.0000027 -> 0.0000027 (7 decimals)
+  // Total decimal places = zeros before + 3 digits (first non-zero + 2 more)
+  const totalDecimalPlaces = Math.min(zerosBeforeFirstNonZero + 3, 10);
   
   // Truncate (not round) to the desired decimal places
   const multiplier = Math.pow(10, totalDecimalPlaces);

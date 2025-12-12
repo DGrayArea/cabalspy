@@ -12,7 +12,8 @@ import {
   AddressLookupTableAccount,
 } from "@solana/web3.js";
 
-const JUPITER_LITE_API = "https://quote-api.jup.ag/v6";
+const JUPITER_LITE_API = "https://api.jup.ag";
+const JUPITER_API_KEY = process.env.NEXT_PUBLIC_JUPITER_API_KEY || "";
 
 export interface JupiterSwapParams {
   inputMint: string; // Token mint address (use "So11111111111111111111111111111111111111112" for SOL)
@@ -23,7 +24,9 @@ export interface JupiterSwapParams {
   userPublicKey: string; // User's wallet public key
   slippageBps?: number; // Slippage in basis points (default: 150 = 1.5%)
   connection: Connection; // Solana connection
-  signTransaction: (transaction: VersionedTransaction) => Promise<VersionedTransaction>; // Turnkey signing function (returns signed VersionedTransaction)
+  signTransaction: (
+    transaction: VersionedTransaction
+  ) => Promise<VersionedTransaction>; // Turnkey signing function (returns signed VersionedTransaction)
 }
 
 export interface JupiterSwapResult {
@@ -48,9 +51,20 @@ async function getJupiterQuote({
   amount: string; // Amount in raw units (lamports/token smallest unit)
   slippageBps?: number;
 }) {
-  const quoteUrl = `${JUPITER_LITE_API}/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}&restrictIntermediateTokens=true`;
+  const quoteUrl = `${JUPITER_LITE_API}/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}&restrictIntermediateTokens=true&onlyDirectRoutes=false&asLegacyTransaction=false`;
 
-  const response = await fetch(quoteUrl);
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (JUPITER_API_KEY) {
+    headers["x-api-key"] = JUPITER_API_KEY;
+  }
+
+  const response = await fetch(quoteUrl, {
+    method: "GET",
+    headers,
+  });
   const quote = await response.json();
 
   if (!response.ok || quote.error) {
@@ -88,7 +102,10 @@ async function getTokenDecimals(
       }
     }
   } catch (error) {
-    console.warn(`Failed to fetch decimals from blockchain for ${mintAddress}:`, error);
+    console.warn(
+      `Failed to fetch decimals from blockchain for ${mintAddress}:`,
+      error
+    );
   }
 
   // Method 2: Try fetching from Jupiter token list API
@@ -103,7 +120,10 @@ async function getTokenDecimals(
       }
     }
   } catch (error) {
-    console.warn(`Failed to fetch decimals from Jupiter token list for ${mintAddress}:`, error);
+    console.warn(
+      `Failed to fetch decimals from Jupiter token list for ${mintAddress}:`,
+      error
+    );
   }
 
   // Method 3: Try Jupiter tokens API v2 (if API key available)
@@ -127,7 +147,10 @@ async function getTokenDecimals(
       }
     }
   } catch (error) {
-    console.warn(`Failed to fetch decimals from Jupiter API v2 for ${mintAddress}:`, error);
+    console.warn(
+      `Failed to fetch decimals from Jupiter API v2 for ${mintAddress}:`,
+      error
+    );
   }
 
   // Last resort: Default to 6 (most common for SPL tokens)
@@ -148,16 +171,25 @@ async function getJupiterSwapInstructions({
   quoteResponse: any;
   userPublicKey: string;
 }) {
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+  };
+
+  if (JUPITER_API_KEY) {
+    headers["x-api-key"] = JUPITER_API_KEY;
+  }
+
   const instructionsResponse = await fetch(
-    `${JUPITER_LITE_API}/swap-instructions`,
+    `${JUPITER_LITE_API}/swap/v1/swap-instructions`,
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({
         quoteResponse,
         userPublicKey,
+        // Additional parameters to improve transaction success rate
+        dynamicComputeUnitLimit: true, // Optimize compute units to prevent exceeding block limits
+        prioritizationFeeLamports: "auto", // Auto-calculate priority fee for faster processing
       }),
     }
   );
@@ -266,16 +298,27 @@ export async function executeJupiterSwap({
     });
 
     const {
+      tokenLedgerInstruction,
+      computeBudgetInstructions,
       setupInstructions,
       swapInstruction: swapInstructionPayload,
       cleanupInstruction,
       addressLookupTableAddresses,
     } = instructionsResponse;
 
-    // Deserialize instructions
+    // Deserialize instructions in the correct order
     const instructions: TransactionInstruction[] = [
+      // Compute budget instructions must come first
+      ...(computeBudgetInstructions?.map(deserializeInstruction) || []),
+      // Token ledger instruction if needed
+      ...(tokenLedgerInstruction
+        ? [deserializeInstruction(tokenLedgerInstruction)]
+        : []),
+      // Setup instructions (create missing ATAs, etc.)
       ...(setupInstructions?.map(deserializeInstruction) || []),
+      // The actual swap instruction
       deserializeInstruction(swapInstructionPayload),
+      // Cleanup instruction (unwrap SOL if needed)
       ...(cleanupInstruction
         ? [deserializeInstruction(cleanupInstruction)]
         : []),
@@ -292,8 +335,8 @@ export async function executeJupiterSwap({
       );
     }
 
-    // Get latest blockhash
-    const blockhash = (await connection.getLatestBlockhash()).blockhash;
+    // Get latest blockhash with finalized commitment for longer validity
+    const { blockhash } = await connection.getLatestBlockhash("finalized");
 
     // Build transaction message
     const messageV0 = new TransactionMessage({

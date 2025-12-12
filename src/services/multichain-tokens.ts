@@ -85,9 +85,9 @@ export class MultiChainTokenService {
         ? `${this.solanaWebSocketUrl}?api-key=${this.pumpPortalApiKey}`
         : this.solanaWebSocketUrl;
 
-      console.log(
-        `🔌 Attempting to connect to PumpPortal WebSocket (attempt ${this.solanaReconnectAttempts + 1}/${this.maxReconnectAttempts})...`
-      );
+      // console.log(
+      //   `🔌 Attempting to connect to PumpPortal WebSocket (attempt ${this.solanaReconnectAttempts + 1}/${this.maxReconnectAttempts})...`
+      // );
 
       this.solanaWs = new WebSocket(wsUrl);
 
@@ -96,13 +96,13 @@ export class MultiChainTokenService {
         this.solanaReconnectAttempts = 0; // Reset on successful connection
 
         if (this.pumpPortalApiKey) {
-          console.log(
-            "✅ Connected to PumpPortal WebSocket (PumpSwap data enabled)"
-          );
+          // console.log(
+          //   "✅ Connected to PumpPortal WebSocket (PumpSwap data enabled)"
+          // );
         } else {
-          console.log(
-            "✅ Connected to PumpPortal WebSocket (pump.fun data only)"
-          );
+          // console.log(
+          //   "✅ Connected to PumpPortal WebSocket (pump.fun data only)"
+          // );
         }
 
         // Subscribe to new token creation events (pump.fun - free)
@@ -168,18 +168,18 @@ export class MultiChainTokenService {
         const reason = event.reason || "Unknown reason";
 
         if (wasClean) {
-          console.log("🔌 PumpPortal WebSocket closed cleanly");
+          // console.log("🔌 PumpPortal WebSocket closed cleanly");
           this.solanaReconnectAttempts = 0;
           return;
         }
 
         this.solanaReconnectAttempts++;
 
-        console.warn(
-          `⚠️ PumpPortal WebSocket disconnected (code: ${code}, reason: ${reason}). ` +
-            `Reconnecting in ${Math.min(3000 * this.solanaReconnectAttempts, 30000)}ms... ` +
-            `(attempt ${this.solanaReconnectAttempts}/${this.maxReconnectAttempts})`
-        );
+        // console.warn(
+        //   `⚠️ PumpPortal WebSocket disconnected (code: ${code}, reason: ${reason}). ` +
+        //   `Reconnecting in ${Math.min(3000 * this.solanaReconnectAttempts, 30000)}ms... ` +
+        //   `(attempt ${this.solanaReconnectAttempts}/${this.maxReconnectAttempts})`
+        // );
 
         // Exponential backoff with max delay of 30 seconds
         const delay = Math.min(3000 * this.solanaReconnectAttempts, 30000);
@@ -214,9 +214,9 @@ export class MultiChainTokenService {
    */
   connectBSC(): void {
     if (!this.bscWebSocketUrl) {
-      console.warn(
-        "⚠️ BSC WebSocket URL not configured. Skipping BSC token feed."
-      );
+      // console.warn(
+      //   "⚠️ BSC WebSocket URL not configured. Skipping BSC token feed."
+      // );
       return;
     }
 
@@ -224,7 +224,7 @@ export class MultiChainTokenService {
       this.bscWs = new WebSocket(this.bscWebSocketUrl);
 
       this.bscWs.onopen = () => {
-        console.log("✅ Connected to BSC token feed");
+        // console.log("✅ Connected to BSC token feed");
         // Subscribe to new tokens (adjust based on actual API)
         this.bscWs?.send(
           JSON.stringify({
@@ -745,7 +745,7 @@ export class MultiChainTokenService {
 
   async fetchBSCTokens(): Promise<ChainTokenData[]> {
     if (!this.bscApiUrl) {
-      console.warn("⚠️ BSC API URL not configured. Skipping BSC token fetch.");
+      // console.warn("⚠️ BSC API URL not configured. Skipping BSC token fetch.");
       return [];
     }
 

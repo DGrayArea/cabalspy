@@ -392,73 +392,88 @@ export default function PortfolioPage() {
                       hideSmall ? (token.valueUsd ?? 0) >= 1 : true
                     )
                     .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0))
-                    .map((token) => (
-                      <Link
-                        key={token.mint}
-                        href={`/sol/${token.mint}`}
-                        className="block rounded-lg hover:bg-panel-elev/70 py-2 transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className="relative w-8 h-8 flex-shrink-0">
-                              {token.logoUrl ? (
-                                <img
-                                  src={token.logoUrl}
-                                  alt={token.symbol || token.name || "Token"}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = "none";
-                                    const fallback =
-                                      target.parentElement?.querySelector(
-                                        ".token-fallback"
-                                      ) as HTMLElement;
-                                    if (fallback)
-                                      fallback.style.display = "flex";
-                                  }}
-                                />
-                              ) : null}
-                              <div
-                                className={`token-fallback w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center font-bold text-[10px] ${
-                                  token.logoUrl ? "absolute inset-0 hidden" : ""
-                                }`}
-                              >
-                                {token.symbol?.slice(0, 3).toUpperCase() ||
-                                  "TOK"}
+                    .map((token) => {
+                      // Build URL with token data as search params
+                      const tokenParams = new URLSearchParams({
+                        name: token.name || token.symbol || "",
+                        symbol: token.symbol || "",
+                        logo: token.logoUrl || "",
+                        decimals: token.decimals?.toString() || "6",
+                      });
+                      return (
+                        <Link
+                          key={token.mint}
+                          href={`/sol/${token.mint}?${tokenParams.toString()}`}
+                          className="block rounded-lg hover:bg-panel-elev/70 py-2 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <div className="relative w-8 h-8 flex-shrink-0">
+                                {token.logoUrl ? (
+                                  <img
+                                    src={token.logoUrl}
+                                    alt={token.symbol || token.name || "Token"}
+                                    className="w-8 h-8 rounded-full object-cover"
+                                    onError={(e) => {
+                                      const target =
+                                        e.target as HTMLImageElement;
+                                      target.style.display = "none";
+                                      const fallback =
+                                        target.parentElement?.querySelector(
+                                          ".token-fallback"
+                                        ) as HTMLElement;
+                                      if (fallback)
+                                        fallback.style.display = "flex";
+                                    }}
+                                  />
+                                ) : null}
+                                <div
+                                  className={`token-fallback w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center font-bold text-[10px] ${
+                                    token.logoUrl
+                                      ? "absolute inset-0 hidden"
+                                      : ""
+                                  }`}
+                                >
+                                  {token.symbol?.slice(0, 3).toUpperCase() ||
+                                    "TOK"}
+                                </div>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate text-sm">
+                                  {token.name ||
+                                    token.symbol ||
+                                    "Unknown Token"}
+                                </div>
+                                <div className="text-xs text-gray-500 truncate">
+                                  {token.symbol || token.mint.slice(0, 8)}...
+                                </div>
                               </div>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="font-medium truncate text-sm">
-                                {token.name || token.symbol || "Unknown Token"}
+                            <div className="flex items-center gap-4 flex-shrink-0 text-xs md:text-sm">
+                              {/* Price column */}
+                              <div className="w-20 md:w-28 text-left">
+                                {token.priceUsd !== undefined ? (
+                                  formatCurrency(token.priceUsd)
+                                ) : (
+                                  <span className="text-gray-500">--</span>
+                                )}
                               </div>
-                              <div className="text-xs text-gray-500 truncate">
-                                {token.symbol || token.mint.slice(0, 8)}...
+                              {/* Balance column */}
+                              <div className="w-24 md:w-28 text-left">
+                                {formatNumber(token.amount)}
                               </div>
+                              {/* Value column */}
+                              <div className="w-24 md:w-32 font-semibold pr-6 text-left">
+                                {token.valueUsd !== undefined
+                                  ? formatCurrency(token.valueUsd)
+                                  : "-"}
+                              </div>
+                              <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0 hidden md:inline-block" />
                             </div>
                           </div>
-                          <div className="flex items-center gap-4 flex-shrink-0 text-xs md:text-sm">
-                            {/* Price column */}
-                            <div className="w-20 md:w-28 text-left">
-                              {token.priceUsd !== undefined &&
-                              token.priceUsd > 0
-                                ? formatCurrency(token.priceUsd)
-                                : "--"}
-                            </div>
-                            {/* Balance column */}
-                            <div className="w-24 md:w-28 text-left">
-                              {formatNumber(token.amount)}
-                            </div>
-                            {/* Value column */}
-                            <div className="w-24 md:w-32 font-semibold pr-6 text-left">
-                              {token.valueUsd !== undefined
-                                ? formatCurrency(token.valueUsd)
-                                : "-"}
-                            </div>
-                            <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0 hidden md:inline-block" />
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
+                        </Link>
+                      );
+                    })}
                 </div>
               )}
             </div>

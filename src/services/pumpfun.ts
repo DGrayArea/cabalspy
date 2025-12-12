@@ -433,7 +433,7 @@ export class PumpFunService {
     // Check cache first
     const cached = this.requestCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      console.log(`📦 Using cached data for ${cacheKey}`);
+      // console.log(`📦 Using cached data for ${cacheKey}`);
       return cached.data;
     }
     

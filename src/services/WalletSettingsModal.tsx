@@ -483,7 +483,7 @@ export function WalletSettingsModal({
                 step="0.1"
                 min="0"
                 max="100"
-                className="min-w-0 flex-1 px-2 py-1.5 bg-panel-elev border border-gray-800/50 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary text-white placeholder-gray-500"
+                className="w-16 px-2 py-1.5 bg-panel-elev border border-gray-800/50 rounded text-xs focus:outline-none focus:ring-1 focus:ring-primary text-white placeholder-gray-500"
               />
             </div>
           </div>

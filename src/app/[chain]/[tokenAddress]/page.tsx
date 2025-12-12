@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useParams, useRouter, usePathname } from "next/navigation";
+import {
+  useParams,
+  useRouter,
+  usePathname,
+  useSearchParams,
+} from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -41,8 +46,13 @@ import { dexscreenerService } from "@/services/dexscreener";
 import { multiChainTokenService } from "@/services/multichain-tokens";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
-import TradingPanel from "@/components/TradingPanel";
+import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
+import { ToastAction } from "@/components/ui/toast";
+import { Loader2 } from "lucide-react";
 import Navbar from "@/components/Navbar";
+import { useToast } from "@/components/ui/use-toast";
+
+const SOL_MINT = "So11111111111111111111111111111111111111112";
 import Footer from "@/components/Footer";
 
 interface TokenDetailData {
@@ -170,8 +180,22 @@ function TokenDetailContent() {
   // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
   const isAuthenticated = user || turnkeyUser || turnkeySession;
   const { isDesktop, isMobile } = useViewport();
-  const { solBalance, getTokenBalance } = usePortfolio();
-  const { address: walletAddress } = useTurnkeySolana();
+  const { solBalance, solBalanceUsd, getTokenBalance } = usePortfolio();
+  const {
+    address: walletAddress,
+    connection,
+    signSolanaTransaction,
+  } = useTurnkeySolana();
+  const searchParams = useSearchParams();
+
+  // Get token data from URL params (passed from portfolio)
+  const tokenNameFromParams = searchParams.get("name");
+  const tokenSymbolFromParams = searchParams.get("symbol");
+  const tokenLogoFromParams = searchParams.get("logo");
+  const tokenDecimalsFromParams = searchParams.get("decimals");
+
+  // Get token balance for this token
+  const tokenBalance = getTokenBalance ? getTokenBalance(tokenAddress) : null;
 
   const [tokenData, setTokenData] = useState<TokenDetailData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -182,7 +206,14 @@ function TokenDetailContent() {
   );
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showTradingPanel, setShowTradingPanel] = useState(false);
+  const { toast, dismiss } = useToast();
+
+  // Trading state for inline buy/sell
+  const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
+  const [tradeAmount, setTradeAmount] = useState("");
+  const [tradeSlippage, setTradeSlippage] = useState("0.5");
+  const [isTrading, setIsTrading] = useState(false);
+
   const [slippage, setSlippage] = useState<string>("1");
   const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
     if (typeof window !== "undefined") {
@@ -381,14 +412,26 @@ function TokenDetailContent() {
   const pumpfunData = tokenData?.data?.pumpfun;
   const dexscreenerData = tokenData?.data?.dexscreener;
 
-  // Merge data from all sources
-  const tokenName = pumpfunData?.name || baseToken?.name || "Unknown Token";
-  const tokenSymbol = pumpfunData?.symbol || baseToken?.symbol || "UNKNOWN";
+  // Merge data from all sources, prioritizing URL params (from portfolio)
+  const tokenName =
+    tokenNameFromParams ||
+    pumpfunData?.name ||
+    baseToken?.name ||
+    "Unknown Token";
+  const tokenSymbol =
+    tokenSymbolFromParams ||
+    pumpfunData?.symbol ||
+    baseToken?.symbol ||
+    "UNKNOWN";
   const tokenImage =
+    tokenLogoFromParams ||
     dexscreenerData?.logo ||
     pumpfunData?.logo ||
     baseToken?.image ||
     baseToken?.icon;
+  const tokenDecimals = tokenDecimalsFromParams
+    ? parseInt(tokenDecimalsFromParams)
+    : baseToken?.decimals || 6;
   const description = pumpfunData?.description;
   const price =
     dexscreenerData?.priceUsd ||
@@ -697,29 +740,39 @@ function TokenDetailContent() {
                       <div className="flex items-center gap-4 flex-wrap">
                         <div className="flex items-center gap-2">
                           <Wallet className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-400 text-sm">SOL Balance:</span>
+                          <span className="text-gray-400 text-sm">
+                            SOL Balance:
+                          </span>
                           <span className="text-sm font-semibold">
                             {formatNumber(solBalance)} SOL
                           </span>
                         </div>
                         {/* Show token balance if user owns it */}
-                        {(chain === "sol" || chain === "solana") && (() => {
-                          const tokenBalance = getTokenBalance(tokenAddress);
-                          return tokenBalance ? (
-                            <div className="flex items-center gap-2">
-                              <Wallet className="w-4 h-4 text-primary" />
-                              <span className="text-gray-400 text-sm">You own:</span>
-                              <span className="text-sm font-semibold text-primary">
-                                {formatNumber(tokenBalance.amount)} {tokenSymbol}
-                              </span>
-                              {price > 0 && (
-                                <span className="text-xs text-gray-400">
-                                  ({formatCurrency(tokenBalance.amount * price)})
+                        {(chain === "sol" || chain === "solana") &&
+                          (() => {
+                            const tokenBalance = getTokenBalance(tokenAddress);
+                            return tokenBalance ? (
+                              <div className="flex items-center gap-2">
+                                <Wallet className="w-4 h-4 text-primary" />
+                                <span className="text-gray-400 text-sm">
+                                  You own:
                                 </span>
-                              )}
-                            </div>
-                          ) : null;
-                        })()}
+                                <span className="text-sm font-semibold text-primary">
+                                  {formatNumber(tokenBalance.amount)}{" "}
+                                  {tokenSymbol}
+                                </span>
+                                {price > 0 && (
+                                  <span className="text-xs text-gray-400">
+                                    (
+                                    {formatCurrency(
+                                      tokenBalance.amount * price
+                                    )}
+                                    )
+                                  </span>
+                                )}
+                              </div>
+                            ) : null;
+                          })()}
                       </div>
                     </div>
                   )}
@@ -987,44 +1040,269 @@ function TokenDetailContent() {
               </div>
             </div>
 
-            {/* Trading Panel - 1/3 width on desktop */}
-            <div className="bg-panel border border-gray-800/50 rounded-xl p-4 md:p-6">
-              <h3 className="text-lg font-bold mb-4">Trade</h3>
-              <div className="space-y-4">
-                <div className="flex gap-2">
+            {/* Inline Trading Panel - 1/3 width on desktop */}
+            {(chain === "sol" || chain === "solana") && (
+              <div className="bg-panel border border-gray-800/50 rounded-xl p-4 md:p-6">
+                <h3 className="text-lg font-bold mb-4">Trade</h3>
+
+                {/* Balances Display */}
+                {isAuthenticated && walletAddress && (
+                  <div className="mb-4 p-3 bg-panel-elev rounded-lg space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">SOL Balance:</span>
+                      <span className="font-semibold">
+                        {formatNumber(solBalance)} SOL
+                        {solBalanceUsd && (
+                          <span className="text-gray-500 ml-1">
+                            ({formatCurrency(solBalanceUsd)})
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {tokenBalance && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">
+                          {tokenSymbol} Balance:
+                        </span>
+                        <span className="font-semibold">
+                          {formatNumber(tokenBalance.amount)} {tokenSymbol}
+                          {tokenBalance.valueUsd && (
+                            <span className="text-gray-500 ml-1">
+                              ({formatCurrency(tokenBalance.valueUsd)})
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  {/* Trade Type Toggle */}
+                  <div className="flex bg-panel-elev rounded-lg p-1">
+                    <button
+                      onClick={() => {
+                        setTradeType("buy");
+                        setTradeAmount("");
+                      }}
+                      className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                        tradeType === "buy"
+                          ? "bg-green-600 text-white"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      <TrendingUp className="w-4 h-4" />
+                      Buy
+                    </button>
+                    <button
+                      onClick={() => {
+                        setTradeType("sell");
+                        setTradeAmount("");
+                      }}
+                      className={`flex-1 py-2 px-4 rounded-md transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                        tradeType === "sell"
+                          ? "bg-red-600 text-white"
+                          : "text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      <TrendingDown className="w-4 h-4" />
+                      Sell
+                    </button>
+                  </div>
+
+                  {/* Amount Input */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">
+                      Amount ({tradeType === "buy" ? "SOL" : tokenSymbol})
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="number"
+                        step="any"
+                        value={tradeAmount}
+                        onChange={(e) => setTradeAmount(e.target.value)}
+                        placeholder="0.0"
+                        className="w-full px-3 py-2 pr-14 bg-panel-elev border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-white"
+                      />
+                      {tradeType === "buy" && solBalance > 0 && (
+                        <button
+                          onClick={() => {
+                            // Reserve ~0.01 SOL for transaction fees
+                            const maxAmount = Math.max(0, solBalance - 0.01);
+                            setTradeAmount(maxAmount.toFixed(9));
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-primary hover:text-primary/80 bg-primary/10 rounded cursor-pointer"
+                        >
+                          Max
+                        </button>
+                      )}
+                      {tradeType === "sell" && tokenBalance && (
+                        <button
+                          onClick={() => {
+                            // Use the full token balance with proper decimals
+                            setTradeAmount(tokenBalance.amount.toString());
+                          }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-primary hover:text-primary/80 bg-primary/10 rounded cursor-pointer"
+                        >
+                          Max
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Slippage */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2 text-gray-300">
+                      Slippage Tolerance (%)
+                    </label>
+                    <div className="flex gap-2">
+                      {["0.1", "0.5", "1.0"].map((value) => (
+                        <button
+                          key={value}
+                          onClick={() => setTradeSlippage(value)}
+                          className={`px-3 py-1 rounded text-sm transition-colors cursor-pointer ${
+                            tradeSlippage === value
+                              ? "bg-primary text-white"
+                              : "bg-panel-elev text-gray-400 hover:text-white"
+                          }`}
+                        >
+                          {value}%
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={tradeSlippage}
+                        onChange={(e) => setTradeSlippage(e.target.value)}
+                        placeholder="Custom"
+                        className="w-20 px-2 py-1 bg-panel-elev border border-gray-700 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary text-white"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Trade Button */}
                   <button
-                    onClick={() => setShowTradingPanel(true)}
-                    className="flex-1 bg-green-500/20 hover:bg-green-500/30 text-green-400 py-2 px-4 rounded-lg font-semibold transition-colors cursor-pointer"
+                    onClick={async () => {
+                      if (
+                        !isAuthenticated ||
+                        !walletAddress ||
+                        !connection ||
+                        !signSolanaTransaction
+                      ) {
+                        toast({
+                          variant: "error",
+                          title: "Please connect your wallet first",
+                        });
+                        return;
+                      }
+
+                      if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
+                        toast({
+                          variant: "error",
+                          title: "Please enter a valid amount",
+                        });
+                        return;
+                      }
+
+                      try {
+                        setIsTrading(true);
+                        const slippageBps = Math.round(
+                          parseFloat(tradeSlippage) * 100
+                        );
+                        const inputMint =
+                          tradeType === "buy" ? SOL_MINT : tokenAddress;
+                        const outputMint =
+                          tradeType === "buy" ? tokenAddress : SOL_MINT;
+
+                        const loadingToast = toast({
+                          variant: "info",
+                          title: `${tradeType === "buy" ? "Buying" : "Selling"} ${tokenSymbol}...`,
+                          className: "loading",
+                        });
+
+                        const result = await executeJupiterSwap({
+                          inputMint,
+                          outputMint,
+                          amount: parseFloat(tradeAmount),
+                          // Always pass decimals explicitly:
+                          // When selling: input is token (tokenDecimals), output is SOL (9 decimals)
+                          // When buying: input is SOL (9 decimals), output is token (tokenDecimals)
+                          inputDecimals:
+                            tradeType === "sell" ? tokenDecimals : 9, // SOL has 9 decimals
+                          outputDecimals:
+                            tradeType === "buy" ? tokenDecimals : 9, // SOL has 9 decimals
+                          userPublicKey: walletAddress,
+                          slippageBps,
+                          connection,
+                          signTransaction: signSolanaTransaction,
+                        });
+
+                        dismiss(loadingToast.id);
+
+                        if (result.success && result.signature) {
+                          toast({
+                            variant: "success",
+                            title: `${tradeType === "buy" ? "Buy" : "Sell"} successful!`,
+                            description: `Transaction: ${result.signature.slice(0, 8)}...`,
+                            action: (
+                              <ToastAction
+                                altText="View transaction in explorer"
+                                onClick={() => {
+                                  window.open(
+                                    `https://solscan.io/tx/${result.signature}`,
+                                    "_blank"
+                                  );
+                                }}
+                              >
+                                View in Explorer
+                              </ToastAction>
+                            ),
+                          });
+                          setTradeAmount("");
+                          // Portfolio will refresh automatically via context
+                        } else {
+                          toast({
+                            variant: "error",
+                            title: `${tradeType === "buy" ? "Buy" : "Sell"} failed`,
+                            description:
+                              result.error || "Unknown error occurred",
+                          });
+                        }
+                      } catch (error: any) {
+                        console.error("Trading error:", error);
+                        toast({
+                          variant: "error",
+                          title: `Failed to ${tradeType === "buy" ? "buy" : "sell"} ${tokenSymbol}`,
+                          description: error.message || "Please try again",
+                        });
+                      } finally {
+                        setIsTrading(false);
+                      }
+                    }}
+                    disabled={
+                      isTrading ||
+                      !tradeAmount ||
+                      parseFloat(tradeAmount) <= 0 ||
+                      !isAuthenticated
+                    }
+                    className={`w-full py-3 px-4 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                      tradeType === "buy"
+                        ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-600"
+                        : "bg-red-600 hover:bg-red-700 disabled:bg-gray-600"
+                    } text-white disabled:cursor-not-allowed disabled:opacity-50`}
                   >
-                    Buy
+                    {isTrading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      `${tradeType === "buy" ? "Buy" : "Sell"} ${tokenSymbol}`
+                    )}
                   </button>
-                  <button
-                    onClick={() => setShowTradingPanel(true)}
-                    className="flex-1 bg-red-500/20 hover:bg-red-500/30 text-red-400 py-2 px-4 rounded-lg font-semibold transition-colors cursor-pointer"
-                  >
-                    Sell
-                  </button>
-                </div>
-                <div className="pt-4 border-t border-gray-800/50 space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Bought</span>
-                    <span>Ξ0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Sold</span>
-                    <span>Ξ0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Holding</span>
-                    <span>0</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">PnL</span>
-                    <span className="text-green-400">+0 (+0%)</span>
-                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -1511,37 +1789,6 @@ function TokenDetailContent() {
         isOpen={showSearchModal}
         onClose={() => setShowSearchModal(false)}
       />
-
-      {/* Trading Panel */}
-      {showTradingPanel && (chain === "sol" || chain === "solana") && (
-        <TradingPanel
-          token={{
-            id: tokenAddress,
-            name: tokenName,
-            symbol: tokenSymbol,
-            icon: tokenImage || "",
-            image: tokenImage,
-            time: timeDisplay || baseToken?.time || "Unknown",
-            createdTimestamp,
-            marketCap,
-            volume,
-            fee: baseToken?.fee || 0,
-            transactions,
-            percentages: [],
-            price,
-            activity: {
-              Q: bondingCurveProgress,
-              views: 0,
-              holders: numHolders,
-              trades: transactions,
-            },
-            chain: "solana",
-            source: pumpfunData ? "pumpfun" : baseToken?.source,
-            dexscreener: dexscreenerData,
-          }}
-          onClose={() => setShowTradingPanel(false)}
-        />
-      )}
     </div>
   );
 }

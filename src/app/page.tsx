@@ -364,8 +364,6 @@ export default function PulsePage() {
                 return await pumpFunService.fetchGraduated(100);
               case "marketCap":
                 return await pumpFunService.fetchByMarketCap(100);
-              case "graduated":
-                return await pumpFunService.fetchMigratedTokens(100);
               default:
                 return [];
             }
@@ -378,15 +376,18 @@ export default function PulsePage() {
           }
         };
 
-        // Fetch all types with longer delays to avoid rate limiting
-        // Only fetch latest initially, skip other endpoints to reduce API load
+        // Fetch all types with delays to avoid rate limiting
         const latest = await fetchTokens("latest");
 
-        // Skip other endpoints on initial load to avoid rate limiting
-        // The websocket will provide real-time data
-        const featured: PumpFunTokenInfo[] = [];
-        const graduated: PumpFunTokenInfo[] = [];
-        const marketCap: PumpFunTokenInfo[] = [];
+        // Wait 500ms between requests to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const featured = await fetchTokens("featured");
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const graduated = await fetchTokens("graduated");
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const marketCap = await fetchTokens("marketCap");
 
         // console.log("✅ Pump.fun API results:", {
         //   latest: latest.length,
@@ -579,8 +580,10 @@ export default function PulsePage() {
                   }
 
                   // Fallback: Calculate from market cap (less accurate, varies with SOL price)
-                  // This is approximate since SOL price changes affect USD equivalent
-                  const bondingCurveTargetUSD = 69000; // Approximate at ~$1000 SOL
+                  // Pump.fun bonding curve completes at 69 SOL
+                  // At current SOL price (~$137), that's approximately $9,453
+                  const SOL_PRICE_APPROX = 137; // Current approximate SOL price
+                  const bondingCurveTargetUSD = 69 * SOL_PRICE_APPROX; // ~$9,453
                   return token.marketCap
                     ? Math.min(
                         (token.marketCap || 0) / bondingCurveTargetUSD,
@@ -648,7 +651,7 @@ export default function PulsePage() {
             if (!isNotMigrated) return false;
             const bondingProgress =
               token.bondingProgress ||
-              Math.min((token.marketCap || 0) / 69000, 1.0);
+              Math.min((token.marketCap || 0) / (69 * 137), 1.0); // 69 SOL * ~$137
             return bondingProgress >= 0.9 && bondingProgress < 1.0;
           });
         } else if (filter === "graduated") {
@@ -732,9 +735,9 @@ export default function PulsePage() {
   const [slippage, setSlippage] = useState("0.5");
   const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("quickBuyAmount") || "0.1";
+      return localStorage.getItem("quickBuyAmount") || "0.01";
     }
-    return "0.1";
+    return "0.01";
   });
   const [displaySettings, setDisplaySettings] = useState({
     metricsSize: "small" as "small" | "large",
@@ -881,7 +884,7 @@ export default function PulsePage() {
                 ? token.bondingProgress
                 : solReserves && solReserves > 0
                   ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-                  : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
+                  : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
             return bondingProgress >= 0.9 && bondingProgress < 1.0;
           });
         } else if (filterType === "graduated") {
@@ -958,7 +961,7 @@ export default function PulsePage() {
             const bondingProgress =
               solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (more accurate)
-                : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD (less accurate)
+                : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
             return bondingProgress >= 0.9 && bondingProgress < 1.0;
           });
           // console.log(
@@ -1134,7 +1137,7 @@ export default function PulsePage() {
               ? token.bondingProgress
               : solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-                : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
+                : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
           return bondingProgress >= 0.9 && bondingProgress < 1.0;
         }
       );
@@ -1155,7 +1158,7 @@ export default function PulsePage() {
         const bondingProgress =
           solReserves && solReserves > 0
             ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-            : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
+            : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
         return bondingProgress >= 0.9 && bondingProgress < 1.0;
       }).length;
     }
