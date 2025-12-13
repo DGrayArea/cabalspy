@@ -44,6 +44,13 @@ const optionalEnvVars = {
   TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
   NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
   NEXTAUTH_URL: process.env.NEXTAUTH_URL || "http://localhost:3000",
+
+  // Mobula API (optional - for enhanced token data with price changes)
+  NEXT_PUBLIC_MOBULA_API_KEY:
+    process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
+    "7b7ba456-f454-4a42-a80e-897319cb0ac1",
+  NEXT_PUBLIC_USE_MOBULA:
+    process.env.NEXT_PUBLIC_USE_MOBULA === "true" || false, // Set to "true" to enable Mobula
 } as const;
 
 export function validateEnv() {

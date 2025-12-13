@@ -499,6 +499,12 @@ export function CompactTokenCard({
             {/* Token Name and Time */}
             <div className="flex items-center gap-1.5 mb-1">
               <h3 className="font-semibold text-xs truncate">{token.name}</h3>
+              {/* Mobula Badge */}
+              {(token as any)._mobula && (
+                <span className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/40 rounded text-[8px] font-medium text-blue-400 flex-shrink-0">
+                  MOBULA
+                </span>
+              )}
               <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
                 <Clock className="w-2.5 h-2.5 cursor-pointer" />
                 {typeof currentTime === "object"

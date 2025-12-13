@@ -12,7 +12,9 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useMobulaTokensWithFallback } from "@/hooks/useMobulaTokensWithFallback";
 import { TokenData } from "@/types/token";
+import { env } from "@/lib/env";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
 import { useViewport } from "@/context/ViewportContext";
@@ -153,14 +155,190 @@ export default function PulsePage() {
   // - BSC: forr.meme
   const { isDesktop, isMobile } = useViewport();
   const {
-    tokens,
+    tokens: wsTokens,
     solanaTokens,
     bscTokens,
     migrated: wsMigratedTokens,
-    isLoading,
-    error,
+    isLoading: wsLoading,
+    error: wsError,
     isConnected,
   } = useWebSocket();
+
+  // Filter state - must be declared before mobulaTokens useMemo
+  const [filter, setFilter] = useState<
+    | "trending"
+    | "new"
+    | "finalStretch"
+    | "latest"
+    | "featured"
+    | "graduated"
+    | "marketCap"
+  >("trending");
+
+  // Try Mobula first for price changes, fallback to WebSocket if it fails
+  // TEMPORARILY DISABLED - Commented out while debugging 500 errors
+  const mobulaEnabled = false; // env.NEXT_PUBLIC_USE_MOBULA;
+  // console.log("🔧 Mobula Config:", {
+  //   enabled: mobulaEnabled,
+  //   envVar: process.env.NEXT_PUBLIC_USE_MOBULA,
+  //   wsTokensCount: wsTokens.length,
+  // });
+
+  // Fetch Mobula tokens for all views
+  // TEMPORARILY DISABLED - Commented out while debugging 500 errors
+  // const { tokens: mobulaTrending, mobulaAvailable: trendingAvailable } =
+  //   useMobulaTokensWithFallback({
+  //     view: "trending",
+  //     limit: 100,
+  //     fallbackTokens: wsTokens,
+  //     fallbackLoading: wsLoading,
+  //     fallbackError: wsError,
+  //     enabled: mobulaEnabled,
+  //   });
+
+  // const { tokens: mobulaNew, mobulaAvailable: newAvailable } =
+  //   useMobulaTokensWithFallback({
+  //     view: "new",
+  //     limit: 100,
+  //     fallbackTokens: wsTokens,
+  //     fallbackLoading: wsLoading,
+  //     fallbackError: wsError,
+  //     enabled: mobulaEnabled,
+  //   });
+
+  // const { tokens: mobulaBonding, mobulaAvailable: bondingAvailable } =
+  //   useMobulaTokensWithFallback({
+  //     view: "bonding",
+  //     limit: 100,
+  //     fallbackTokens: wsTokens,
+  //     fallbackLoading: wsLoading,
+  //     fallbackError: wsError,
+  //     enabled: mobulaEnabled,
+  //   });
+
+  // const { tokens: mobulaBonded, mobulaAvailable: bondedAvailable } =
+  //   useMobulaTokensWithFallback({
+  //     view: "bonded",
+  //     limit: 100,
+  //     fallbackTokens: wsTokens,
+  //     fallbackLoading: wsLoading,
+  //     fallbackError: wsError,
+  //     enabled: mobulaEnabled,
+  //   });
+
+  // const { tokens: mobulaSafe, mobulaAvailable: safeAvailable } =
+  //   useMobulaTokensWithFallback({
+  //     view: "safe",
+  //     limit: 100,
+  //     fallbackTokens: wsTokens,
+  //     fallbackLoading: wsLoading,
+  //     fallbackError: wsError,
+  //     enabled: mobulaEnabled,
+  //   });
+
+  // Temporary fallback values while Mobula is disabled
+  const mobulaTrending: TokenData[] = [];
+  const trendingAvailable = false;
+  const mobulaNew: TokenData[] = [];
+  const newAvailable = false;
+  const mobulaBonding: TokenData[] = [];
+  const bondingAvailable = false;
+  const mobulaBonded: TokenData[] = [];
+  const bondedAvailable = false;
+  const mobulaSafe: TokenData[] = [];
+  const safeAvailable = false;
+
+  // Use appropriate Mobula tokens based on current filter
+  const mobulaTokens = useMemo(() => {
+    switch (filter) {
+      case "trending":
+        return trendingAvailable
+          ? mobulaTrending.filter((t: any) => t._mobula)
+          : [];
+      case "new":
+        return newAvailable ? mobulaNew.filter((t: any) => t._mobula) : [];
+      case "finalStretch":
+        return bondingAvailable
+          ? mobulaBonding.filter((t: any) => t._mobula)
+          : [];
+      case "graduated":
+        return bondedAvailable
+          ? mobulaBonded.filter((t: any) => t._mobula)
+          : [];
+      case "marketCap":
+        return trendingAvailable
+          ? mobulaTrending.filter((t: any) => t._mobula)
+          : [];
+      case "featured":
+        return safeAvailable ? mobulaSafe.filter((t: any) => t._mobula) : [];
+      case "latest":
+        return newAvailable ? mobulaNew.filter((t: any) => t._mobula) : [];
+      default:
+        return [];
+    }
+  }, [
+    filter,
+    trendingAvailable,
+    newAvailable,
+    bondingAvailable,
+    bondedAvailable,
+    safeAvailable,
+    mobulaTrending,
+    mobulaNew,
+    mobulaBonding,
+    mobulaBonded,
+    mobulaSafe,
+  ]);
+
+  const mobulaAvailable =
+    trendingAvailable ||
+    newAvailable ||
+    bondingAvailable ||
+    bondedAvailable ||
+    safeAvailable;
+
+  // For backward compatibility, use trending as default
+  // TEMPORARILY DISABLED - Commented out while debugging 500 errors
+  // const { tokens, isLoading, error, source } = useMobulaTokensWithFallback({
+  //   view: "trending",
+  //   limit: 100,
+  //   fallbackTokens: wsTokens,
+  //   fallbackLoading: wsLoading,
+  //   fallbackError: wsError,
+  //   enabled: mobulaEnabled,
+  // });
+
+  // Temporary fallback values while Mobula is disabled
+  const tokens = wsTokens;
+  const isLoading = wsLoading;
+  const error = wsError;
+  const source = "fallback";
+
+  // useEffect(() => {
+  //   console.log("📊 Final Token Status:", {
+  //     source,
+  //     mobulaAvailable,
+  //     tokenCount: tokens.length,
+  //     isLoading,
+  //     error,
+  //     mobulaTokensCount: tokens.filter((t: any) => t._mobula).length,
+  //     nonMobulaTokensCount: tokens.filter((t: any) => !t._mobula).length,
+  //   });
+
+  //   // Log sample of tokens being displayed
+  //   if (tokens.length > 0) {
+  //     console.log(
+  //       "🎯 Tokens to Display Sample:",
+  //       tokens.slice(0, 3).map((t: any) => ({
+  //         symbol: t.symbol,
+  //         name: t.name,
+  //         isMobula: t._mobula,
+  //         hasPriceChanges: t.percentages?.length > 0,
+  //         priceChanges: t.percentages,
+  //       }))
+  //     );
+  //   }
+  // }, [source, mobulaAvailable, tokens.length, isLoading, error, tokens]);
 
   // Get user from auth context
   const { user, turnkeyUser, turnkeySession } = useAuth();
@@ -180,9 +358,6 @@ export default function PulsePage() {
     "marketCap" | "volume" | "transactions" | "time"
   >("marketCap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [filter, setFilter] = useState<
-    "new" | "finalStretch" | "latest" | "featured" | "graduated" | "marketCap"
-  >("new");
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([
     "pump",
     "raydium",
@@ -722,12 +897,31 @@ export default function PulsePage() {
     }
   }, [filter, selectedProtocols, formatTimeFromTimestamp]);
 
-  // Filter tokens by selected chain (using chain-specific lists from useWebSocket)
-  // This is used for "new" and "graduated" filters - always use WebSocket tokens
+  // Filter tokens by selected chain
+  // Use Mobula tokens if WebSocket tokens are empty, otherwise use WebSocket tokens
   const chainFilteredTokens = useMemo(() => {
     if (chain === "all") return tokens;
-    if (chain === "sol") return solanaTokens;
-    if (chain === "bsc") return bscTokens;
+
+    // If WebSocket tokens are empty, filter Mobula tokens by chain
+    if (solanaTokens.length === 0 && bscTokens.length === 0) {
+      if (chain === "sol") {
+        return tokens.filter((t) => t.chain === "solana" || t.chain === "sol");
+      }
+      if (chain === "bsc") {
+        return tokens.filter((t) => t.chain === "bsc");
+      }
+      return tokens;
+    }
+
+    // Use WebSocket tokens if available
+    if (chain === "sol")
+      return solanaTokens.length > 0
+        ? solanaTokens
+        : tokens.filter((t) => t.chain === "solana" || t.chain === "sol");
+    if (chain === "bsc")
+      return bscTokens.length > 0
+        ? bscTokens
+        : tokens.filter((t) => t.chain === "bsc");
     return tokens;
   }, [tokens, solanaTokens, bscTokens, chain]);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
@@ -824,17 +1018,36 @@ export default function PulsePage() {
   // Helper to get tokens for a specific filter
   const getTokensForFilter = useCallback(
     (filterType: typeof filter) => {
-      // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
-      // NOTE: "graduated" is handled separately below (same as "migrated")
+      // TRENDING filter - Use Mobula trending tokens first
+      if (filterType === "trending") {
+        if (mobulaTokens.length > 0) {
+          console.log(
+            `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
+          );
+          return mobulaTokens;
+        }
+        // Fallback to filteredAndSortedTokens
+        return filteredAndSortedTokens;
+      }
+
+      // For pump.fun filters (latest, featured, marketCap) - prefer Mobula, then pump.fun
       if (
         filterType === "latest" ||
         filterType === "featured" ||
         filterType === "marketCap"
       ) {
+        // Try Mobula tokens first for all these filters
+        if (mobulaTokens.length > 0) {
+          // console.log(
+          //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
+          // );
+          return mobulaTokens;
+        }
+
         // Return the specific type from pumpFunTokensByType
-        const tokens = pumpFunTokensByType[filterType] || [];
-        // console.log(`🔍 Filter ${filterType}: Found ${tokens.length} tokens`);
-        return tokens;
+        const pumpFunTokens = pumpFunTokensByType[filterType] || [];
+        // console.log(`🔍 Filter ${filterType}: Found ${pumpFunTokens.length} tokens`);
+        return pumpFunTokens;
       }
 
       // Use protocol tokens for the three main tabs (new, finalStretch, graduated)
@@ -843,6 +1056,14 @@ export default function PulsePage() {
         filterType === "finalStretch" ||
         filterType === "graduated"
       ) {
+        // Try Mobula tokens first for all these filters
+        if (mobulaTokens.length > 0) {
+          // console.log(
+          //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
+          // );
+          return mobulaTokens;
+        }
+
         // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter
         // This prevents tokens from one filter leaking into another when switching filters
         const storedProtocolTokens =
@@ -1021,6 +1242,7 @@ export default function PulsePage() {
       pumpFunTokensByType,
       pumpFunMigratedTokens,
       wsMigratedTokens,
+      mobulaTokens,
     ]
   );
 
@@ -1184,7 +1406,13 @@ export default function PulsePage() {
       }).length;
     }
 
+    // Trending count - use Mobula trending tokens
+    const trendingCount = trendingAvailable
+      ? mobulaTrending.filter((t: any) => t._mobula).length
+      : filteredAndSortedTokens.length;
+
     return {
+      trending: trendingCount,
       new: newCount,
       finalStretch: finalStretchCount,
       latest: latestCount,
@@ -1198,6 +1426,8 @@ export default function PulsePage() {
     protocolTokensByFilter,
     pumpFunMigratedTokens,
     wsMigratedTokens,
+    trendingAvailable,
+    mobulaTrending,
   ]);
 
   const formatCurrency = (value: number) => {
@@ -1329,6 +1559,13 @@ export default function PulsePage() {
                 {/* Filter Tabs */}
                 <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
                   {[
+                    {
+                      id: "trending",
+                      label: "Trending",
+                      count: filterCounts.trending || 0,
+                      icon: TrendingUpIcon,
+                      live: true,
+                    },
                     {
                       id: "new",
                       label: "New Pairs",
