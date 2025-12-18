@@ -183,7 +183,18 @@ import axios from "axios";
  */
 
 const API_URL = "https://pulse-v2-api.mobula.io/api/2/pulse";
-const AUTHORIZATION = "7b7ba456-f454-4a42-a80e-897319cb0ac1";
+// API key is required for all endpoints
+const AUTHORIZATION =
+  process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
+  "7b7ba456-f454-4a42-a80e-897319cb0ac1";
+
+// Helper to build headers with required API key
+function buildHeaders(): Record<string, string> {
+  return {
+    "Content-Type": "application/json",
+    Authorization: AUTHORIZATION,
+  };
+}
 
 // Axiom coin prices (only public endpoint that works)
 const AXIOM_PRICES_URL = "https://axiom.trade/api/coin-prices";
@@ -235,19 +246,16 @@ async function testMobulaPulse() {
     console.log("Payload:", JSON.stringify(payload, null, 2));
     console.log("\nSending request...\n");
 
-    const response = await axios.post(API_URL, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: AUTHORIZATION,
-        Accept: "*/*",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
-        Origin: "https://www.xfractal.fun",
-        Referer: "https://www.xfractal.fun/",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
-      },
-    });
+    const headers = buildHeaders();
+    headers.Accept = "*/*";
+    headers["Accept-Encoding"] = "gzip, deflate, br, zstd";
+    headers["Accept-Language"] = "en-GB,en-US;q=0.9,en;q=0.8";
+    headers.Origin = "https://www.xfractal.fun";
+    headers.Referer = "https://www.xfractal.fun/";
+    headers["User-Agent"] =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+
+    const response = await axios.post(API_URL, payload, { headers });
 
     console.log("✅ Request successful!\n");
     console.log("Status Code:", response.status);
@@ -303,19 +311,16 @@ async function testMobulaPulseBonded() {
     console.log("Payload:", JSON.stringify(payload, null, 2));
     console.log("\nSending request...\n");
 
-    const response = await axios.post(API_URL, payload, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: AUTHORIZATION,
-        Accept: "*/*",
-        "Accept-Encoding": "gzip, deflate, br, zstd",
-        "Accept-Language": "en-GB,en-US;q=0.9,en;q=0.8",
-        Origin: "https://www.xfractal.fun",
-        Referer: "https://www.xfractal.fun/",
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
-      },
-    });
+    const headers = buildHeaders();
+    headers.Accept = "*/*";
+    headers["Accept-Encoding"] = "gzip, deflate, br, zstd";
+    headers["Accept-Language"] = "en-GB,en-US;q=0.9,en;q=0.8";
+    headers.Origin = "https://www.xfractal.fun";
+    headers.Referer = "https://www.xfractal.fun/";
+    headers["User-Agent"] =
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+
+    const response = await axios.post(API_URL, payload, { headers });
 
     console.log("✅ Request successful!\n");
     console.log("Status Code:", response.status);
@@ -635,6 +640,507 @@ async function testUniqueFilters() {
 
   console.log("\n\nThese filters make you UNIQUE vs competitors!");
 }
+
+/*
+ * ============================================================================
+ * COMPREHENSIVE MOBULA API ENDPOINT REFERENCE
+ * ============================================================================
+ *
+ * This section contains all available GET and POST endpoint examples
+ * for the Mobula Pulse API. Use these examples in your application.
+ */
+
+const MOBULA_API_BASE = "https://api.mobula.io/api/2/pulse";
+const MOBULA_PULSE_V2_API = "https://pulse-v2-api.mobula.io/api/2/pulse";
+const MOBULA_PAGINATION_API = "https://api.mobula.io/api/2/pulse/pagination";
+
+/**
+ * ============================================================================
+ * GET METHOD EXAMPLES - SOLANA ONLY
+ * ============================================================================
+ * Use GET for simple queries with basic parameters
+ * All examples below are configured for Solana only
+ */
+
+// Example 1: Basic GET - Pool Data (SOLANA ONLY)
+async function getBasicPoolData() {
+  const url = `${MOBULA_API_BASE}?chainId=solana:solana&poolTypes=pumpfun&limit=10`;
+  return axios.get(url, {
+    headers: buildHeaders(),
+  });
+}
+
+// Example 2: Asset Mode - Token-based data (SOLANA ONLY) ⭐ RECOMMENDED
+async function getAssetModeData() {
+  const url = `${MOBULA_API_BASE}?assetMode=true&chainId=solana:solana&poolTypes=pumpfun&limit=50`;
+  return axios.get(url, {
+    headers: buildHeaders(),
+  });
+}
+
+// Example 3: With Pagination (SOLANA ONLY)
+async function getWithPagination() {
+  const url = `${MOBULA_API_BASE}?assetMode=true&chainId=solana:solana&poolTypes=pumpfun&limit=20&offset=20`;
+  return axios.get(url, {
+    headers: buildHeaders(),
+  });
+}
+
+// Example 4: Max Limit (SOLANA ONLY)
+async function getMaxLimit() {
+  const url = `${MOBULA_API_BASE}?assetMode=true&chainId=solana:solana&poolTypes=pumpfun&limit=100`;
+  return axios.get(url, {
+    headers: buildHeaders(),
+  });
+}
+
+/**
+ * ============================================================================
+ * GET METHOD EXAMPLES - MULTI-CHAIN (NOT SOLANA)
+ * ============================================================================
+ * ⚠️ These endpoints are NOT Solana - Filter these out if you only need Solana
+ */
+
+// Example: Base Chain (NOT SOLANA - Base chain only)
+async function getBaseChainData() {
+  const url = `${MOBULA_API_BASE}?assetMode=true&chainId=evm:8453&poolTypes=moonshot-evm&limit=30`;
+  return axios.get(url, {
+    headers: buildHeaders(),
+  });
+}
+
+/**
+ * ============================================================================
+ * POST METHOD EXAMPLES - SOLANA ONLY
+ * ============================================================================
+ * Use POST for advanced filtering, custom views, and complex configurations
+ * All examples below are configured for Solana only
+ */
+
+// Example 1: Simple Configuration (SOLANA ONLY)
+async function postSimpleConfig() {
+  const payload = {
+    chainId: ["solana:solana"],
+    poolTypes: ["pumpfun"],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 2: Default Model - Pool-Based (SOLANA ONLY)
+async function postDefaultModelPool() {
+  const payload = {
+    model: "default",
+    chainId: ["solana:solana"],
+    poolTypes: ["pumpfun"],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 3: Default Model - Asset Mode (SOLANA ONLY) ⭐ RECOMMENDED
+async function postDefaultModelAsset() {
+  const payload = {
+    model: "default",
+    assetMode: true,
+    chainId: ["solana:solana"],
+    poolTypes: ["pumpfun"],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 4: Custom View - New Tokens (SOLANA ONLY)
+async function postCustomViewNew() {
+  const payload = {
+    views: [
+      {
+        name: "new-tokens",
+        model: "new",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        limit: 20,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 5: Custom View - Bonding Tokens (SOLANA ONLY)
+async function postCustomViewBonding() {
+  const payload = {
+    views: [
+      {
+        name: "bonding-tokens",
+        model: "bonding",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "bonding_percentage",
+        sortOrder: "desc",
+        limit: 30,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 6: Custom View - Bonded Tokens (SOLANA ONLY)
+async function postCustomViewBonded() {
+  const payload = {
+    views: [
+      {
+        name: "bonded-tokens",
+        model: "bonded",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "volume_24h",
+        sortOrder: "desc",
+        limit: 30,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 7: Asset Mode with Custom View (SOLANA ONLY)
+async function postAssetModeCustom() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "quality-tokens",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "volume_1h",
+        sortOrder: "desc",
+        limit: 25,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 8: High Volume Tokens with Filters (SOLANA ONLY)
+async function postHighVolumeFiltered() {
+  const payload = {
+    views: [
+      {
+        name: "high-volume",
+        model: "bonding",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "volume_1h",
+        sortOrder: "desc",
+        limit: 20,
+        filters: {
+          volume_1h: { gte: 1000 },
+          market_cap: { gte: 5000, lte: 50000 },
+          trades_1h: { gte: 10 },
+        },
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 9: Asset Mode with Advanced Filters (Holdings & Organic Volume)
+async function postAdvancedFilters() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "quality-tokens",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "holders_count",
+        sortOrder: "desc",
+        limit: 25,
+        filters: {
+          volume_24h: { gte: 10000 },
+          holders_count: { gte: 100 },
+          dev_holdings_percentage: { lte: 5 },
+          snipers_holdings_percentage: { lte: 3 },
+          organic_volume_1h: { gte: 1000 },
+          bonded: false,
+          dexscreenerListed: true,
+        },
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 10: Sorting by Price Change (SOLANA ONLY)
+async function postPriceChangeSort() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "price-movers",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "price_change_1h",
+        sortOrder: "desc",
+        limit: 30,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 11: Pagination with Offset (SOLANA ONLY)
+async function postWithPagination() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "paginated",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        limit: 20,
+        offset: 20,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 12: Multiple Custom Views in One Request (SOLANA ONLY) ⭐ RECOMMENDED
+async function postMultipleViews() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "trending",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "volume_1h",
+        sortOrder: "desc",
+        limit: 30,
+      },
+      {
+        name: "newest",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "created_at",
+        sortOrder: "desc",
+        limit: 30,
+      },
+      {
+        name: "price-gainers",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        sortBy: "price_change_24h",
+        sortOrder: "desc",
+        limit: 30,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example 13: Max Limit (100) (SOLANA ONLY)
+async function postMaxLimit() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "max-limit",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        limit: 100,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+/**
+ * ============================================================================
+ * POST METHOD EXAMPLES - MULTI-CHAIN (NOT SOLANA)
+ * ============================================================================
+ * ⚠️ These endpoints combine Solana with other chains or are NOT Solana
+ * Filter these out if you only need Solana
+ */
+
+// Example: Multi-Chain with Address Exclusion (NOT SOLANA ONLY - Multi-chain)
+async function postMultiChainExclusion() {
+  const payload = {
+    views: [
+      {
+        name: "multi-chain",
+        chainId: ["evm:8453", "evm:999"], // ⚠️ NOT Solana - Base + Zora
+        poolTypes: ["moonshot-evm", "liquidlaunch"],
+        limit: 50,
+        addressToExclude: [
+          "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb",
+          "0x5748ae796AE46A4F1348a1693de4b50560485562",
+        ],
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+// Example: Base Chain (NOT SOLANA - Base chain only)
+async function postBaseChain() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "base-tokens",
+        chainId: ["evm:8453"], // ⚠️ NOT Solana - Base chain only
+        poolTypes: ["moonshot-evm"],
+        limit: 20,
+      },
+    ],
+  };
+  return axios.post(MOBULA_PULSE_V2_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+/**
+ * ============================================================================
+ * PAGINATION ENDPOINT
+ * ============================================================================
+ */
+
+// Get total count without fetching data
+async function getPaginationCount() {
+  const payload = {
+    assetMode: true,
+    views: [
+      {
+        name: "high-volume",
+        chainId: ["solana:solana"],
+        poolTypes: ["pumpfun"],
+        filters: {
+          volume_1h: { gte: 1000 },
+          market_cap: { gte: 10000 },
+        },
+      },
+    ],
+  };
+  return axios.post(MOBULA_PAGINATION_API, payload, {
+    headers: {
+      ...buildHeaders(),
+    },
+  });
+}
+
+/**
+ * ============================================================================
+ * EXPORTS FOR USE IN YOUR APPLICATION
+ * ============================================================================
+ *
+ * All functions are exported so you can import and use them in your Mobula service.
+ *
+ * Usage example:
+ *
+ * import {
+ *   getBasicPoolData,
+ *   getAssetModeData,
+ *   postCustomViewNew,
+ *   postAdvancedFilters,
+ *   getPaginationCount,
+ * } from './scripts/test-mobula-pulse';
+ *
+ * Then use them like:
+ *
+ * const response = await getAssetModeData();
+ * const tokens = response.data.new?.data || [];
+ *
+ * Or for POST:
+ *
+ * const response = await postAdvancedFilters();
+ * const qualityTokens = response.data['quality-tokens']?.data || [];
+ */
+
+// Export SOLANA-ONLY GET methods (recommended)
+export { getBasicPoolData, getAssetModeData, getWithPagination, getMaxLimit };
+
+// Export SOLANA-ONLY POST methods (recommended)
+export {
+  postSimpleConfig,
+  postDefaultModelPool,
+  postDefaultModelAsset,
+  postCustomViewNew,
+  postCustomViewBonding,
+  postCustomViewBonded,
+  postAssetModeCustom,
+  postHighVolumeFiltered,
+  postAdvancedFilters,
+  postPriceChangeSort,
+  postWithPagination,
+  postMultipleViews,
+  postMaxLimit,
+};
+
+// Export MULTI-CHAIN methods (NOT Solana only - use with caution)
+export {
+  getBaseChainData, // Base chain only
+  postMultiChainExclusion, // Multi-chain
+  postBaseChain, // Base chain only
+};
+
+// Export pagination
+export { getPaginationCount };
 
 // Run all tests
 (async () => {

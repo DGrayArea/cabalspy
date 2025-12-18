@@ -91,6 +91,7 @@ import {
 import { getChainLogo } from "@/utils/platformLogos";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import axios from "axios";
 
 // Lazy load TradingPanel
 const TradingPanel = lazy(() => import("@/components/TradingPanel"));
@@ -163,6 +164,95 @@ export default function PulsePage() {
     error: wsError,
     isConnected,
   } = useWebSocket();
+
+  // useEffect(() => {
+  //   const testEndpoint = async () => {
+  //     const response = await axios.get(
+  //       "https://api.mobula.io/api/2/pulse?chainId=solana:solana&poolTypes=pumpfun&poolTypes=meteora&poolTypes=moonshot&poolTypes=jupiter&poolTypes=raydium&poolTypes=moonit&poolTypes=letsbonk&limit=100"
+  //     );
+
+  //     const postResponse = await axios.post(
+  //       "https://api.mobula.io/api/2/pulse",
+  //       {
+  //         assetMode: true,
+  //         views: [
+  //           {
+  //             name: "trending",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "volume_1h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //           },
+  //           {
+  //             name: "price-gainers",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "price_change_24h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //           },
+  //           {
+  //             name: "quality-tokens",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "volume_1h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //           },
+  //           {
+  //             name: "high-volume",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "volume_1h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //             filters: {
+  //               volume_1h: { gte: 1000 },
+  //               market_cap: { gte: 5000, lte: 50000 },
+  //               trades_1h: { gte: 10 },
+  //             },
+  //           },
+  //         ],
+  //       }
+  //     );
+
+  //   };
+
+  //   testEndpoint();
+  // }, []);
 
   // Filter state - must be declared before mobulaTokens useMemo
   const [filter, setFilter] = useState<
