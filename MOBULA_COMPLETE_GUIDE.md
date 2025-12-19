@@ -943,6 +943,109 @@ function TokenCard({ token }: { token: TokenData }) {
 }
 ```
 
+### Token Card with Tooltips (Recommended)
+
+```typescript
+import { MobulaDataBadges } from "@/components/MobulaDataBadges";
+import { MobulaDataTooltips } from "@/components/MobulaDataTooltips";
+
+function TokenCard({ token }: { token: TokenData }) {
+  return (
+    <div className="p-4 bg-panel-elev rounded-lg border border-gray-700">
+      {/* Header with badges */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <img src={token.icon} className="w-10 h-10 rounded-full" />
+          <div>
+            <h3 className="font-bold text-white">{token.symbol}</h3>
+            <p className="text-sm text-gray-400">{token.name}</p>
+          </div>
+        </div>
+
+        {/* Key indicators as badges with tooltips */}
+        {token._mobula && (
+          <MobulaDataBadges token={token} maxBadges={4} />
+        )}
+      </div>
+
+      {/* Price */}
+      <div className="mb-3">
+        <div className="text-2xl font-bold text-white">
+          ${token.price.toFixed(8)}
+        </div>
+        {token._mobulaData && (
+          <div className={`text-sm font-medium ${
+            token._mobulaData.priceChange24h > 0 ? "text-green-500" : "text-red-500"
+          }`}>
+            {token._mobulaData.priceChange24h > 0 ? "+" : ""}
+            {token._mobulaData.priceChange24h.toFixed(2)}% (24h)
+          </div>
+        )}
+      </div>
+
+      {/* All indicators with tooltips */}
+      {token._mobula && (
+        <div className="mb-3 pt-3 border-t border-gray-700">
+          <MobulaDataTooltips
+            token={token}
+            size="sm"
+            showLabels={false}
+          />
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-2 text-sm">
+        <div>
+          <span className="text-gray-400">Market Cap:</span>
+          <span className="text-white ml-2">
+            ${(token.marketCap / 1000).toFixed(1)}K
+          </span>
+        </div>
+        {token._mobulaData && (
+          <>
+            <div>
+              <span className="text-gray-400">Holders:</span>
+              <span className="text-white ml-2">
+                {token._mobulaData.holdersCount}
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">Volume (1h):</span>
+              <span className="text-white ml-2">
+                ${(token._mobulaData.volume1h / 1000).toFixed(1)}K
+              </span>
+            </div>
+            <div>
+              <span className="text-gray-400">Trades (1h):</span>
+              <span className="text-white ml-2">
+                {token._mobulaData.trades1h}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+```
+
+**Tooltip Components:**
+
+1. **`MobulaDataBadges`** - Compact badge display (shows 2-4 key indicators)
+
+   - Red flags (bundlers, whales)
+   - Security status (mint revoked, risks)
+   - Smart money indicators
+   - Market signals (buy/sell pressure, trending)
+
+2. **`MobulaDataTooltips`** - Full icon list (shows all available data)
+   - All indicators with hover tooltips
+   - Customizable size (sm/md/lg)
+   - Optional labels
+
+**See `MOBULA_TOOLTIPS_USAGE.md` for complete tooltip documentation.**
+
 ---
 
 ## API Reference

@@ -12,7 +12,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { useMobulaTokensWithFallback } from "@/hooks/useMobulaTokensWithFallback";
+import { useMobulaPulse } from "@/hooks/useMobulaPulse";
 import { TokenData } from "@/types/token";
 import { env } from "@/lib/env";
 import AuthButton from "@/components/AuthButton";
@@ -265,127 +265,39 @@ export default function PulsePage() {
     | "marketCap"
   >("trending");
 
-  // Try Mobula first for price changes, fallback to WebSocket if it fails
-  // TEMPORARILY DISABLED - Commented out while debugging 500 errors
-  const mobulaEnabled = false; // env.NEXT_PUBLIC_USE_MOBULA;
-  // console.log("🔧 Mobula Config:", {
-  //   enabled: mobulaEnabled,
-  //   envVar: process.env.NEXT_PUBLIC_USE_MOBULA,
-  //   wsTokensCount: wsTokens.length,
-  // });
+  // Mobula Pulse integration - NEW implementation
+  const mobulaEnabled = env.NEXT_PUBLIC_USE_MOBULA;
+  const {
+    tokens: mobulaTokensByFilter,
+    isLoading: mobulaLoading,
+    error: mobulaError,
+  } = useMobulaPulse(mobulaEnabled);
 
-  // Fetch Mobula tokens for all views
-  // TEMPORARILY DISABLED - Commented out while debugging 500 errors
-  // const { tokens: mobulaTrending, mobulaAvailable: trendingAvailable } =
-  //   useMobulaTokensWithFallback({
-  //     view: "trending",
-  //     limit: 100,
-  //     fallbackTokens: wsTokens,
-  //     fallbackLoading: wsLoading,
-  //     fallbackError: wsError,
-  //     enabled: mobulaEnabled,
-  //   });
-
-  // const { tokens: mobulaNew, mobulaAvailable: newAvailable } =
-  //   useMobulaTokensWithFallback({
-  //     view: "new",
-  //     limit: 100,
-  //     fallbackTokens: wsTokens,
-  //     fallbackLoading: wsLoading,
-  //     fallbackError: wsError,
-  //     enabled: mobulaEnabled,
-  //   });
-
-  // const { tokens: mobulaBonding, mobulaAvailable: bondingAvailable } =
-  //   useMobulaTokensWithFallback({
-  //     view: "bonding",
-  //     limit: 100,
-  //     fallbackTokens: wsTokens,
-  //     fallbackLoading: wsLoading,
-  //     fallbackError: wsError,
-  //     enabled: mobulaEnabled,
-  //   });
-
-  // const { tokens: mobulaBonded, mobulaAvailable: bondedAvailable } =
-  //   useMobulaTokensWithFallback({
-  //     view: "bonded",
-  //     limit: 100,
-  //     fallbackTokens: wsTokens,
-  //     fallbackLoading: wsLoading,
-  //     fallbackError: wsError,
-  //     enabled: mobulaEnabled,
-  //   });
-
-  // const { tokens: mobulaSafe, mobulaAvailable: safeAvailable } =
-  //   useMobulaTokensWithFallback({
-  //     view: "safe",
-  //     limit: 100,
-  //     fallbackTokens: wsTokens,
-  //     fallbackLoading: wsLoading,
-  //     fallbackError: wsError,
-  //     enabled: mobulaEnabled,
-  //   });
-
-  // Temporary fallback values while Mobula is disabled
-  const mobulaTrending: TokenData[] = [];
-  const trendingAvailable = false;
-  const mobulaNew: TokenData[] = [];
-  const newAvailable = false;
-  const mobulaBonding: TokenData[] = [];
-  const bondingAvailable = false;
-  const mobulaBonded: TokenData[] = [];
-  const bondedAvailable = false;
-  const mobulaSafe: TokenData[] = [];
-  const safeAvailable = false;
-
-  // Use appropriate Mobula tokens based on current filter
+  // Get tokens for current filter
   const mobulaTokens = useMemo(() => {
+    if (!mobulaEnabled) return [];
+
     switch (filter) {
       case "trending":
-        return trendingAvailable
-          ? mobulaTrending.filter((t: any) => t._mobula)
-          : [];
+        return mobulaTokensByFilter.trending || [];
       case "new":
-        return newAvailable ? mobulaNew.filter((t: any) => t._mobula) : [];
+        return mobulaTokensByFilter.new || [];
       case "finalStretch":
-        return bondingAvailable
-          ? mobulaBonding.filter((t: any) => t._mobula)
-          : [];
+        return mobulaTokensByFilter.finalStretch || [];
       case "graduated":
-        return bondedAvailable
-          ? mobulaBonded.filter((t: any) => t._mobula)
-          : [];
+        return mobulaTokensByFilter.graduated || [];
       case "marketCap":
-        return trendingAvailable
-          ? mobulaTrending.filter((t: any) => t._mobula)
-          : [];
+        return mobulaTokensByFilter.marketCap || [];
       case "featured":
-        return safeAvailable ? mobulaSafe.filter((t: any) => t._mobula) : [];
+        return mobulaTokensByFilter.featured || [];
       case "latest":
-        return newAvailable ? mobulaNew.filter((t: any) => t._mobula) : [];
+        return mobulaTokensByFilter.latest || [];
       default:
         return [];
     }
-  }, [
-    filter,
-    trendingAvailable,
-    newAvailable,
-    bondingAvailable,
-    bondedAvailable,
-    safeAvailable,
-    mobulaTrending,
-    mobulaNew,
-    mobulaBonding,
-    mobulaBonded,
-    mobulaSafe,
-  ]);
+  }, [filter, mobulaTokensByFilter, mobulaEnabled]);
 
-  const mobulaAvailable =
-    trendingAvailable ||
-    newAvailable ||
-    bondingAvailable ||
-    bondedAvailable ||
-    safeAvailable;
+  const mobulaAvailable = mobulaEnabled && mobulaTokens.length > 0;
 
   // For backward compatibility, use trending as default
   // TEMPORARILY DISABLED - Commented out while debugging 500 errors
@@ -1497,8 +1409,8 @@ export default function PulsePage() {
     }
 
     // Trending count - use Mobula trending tokens
-    const trendingCount = trendingAvailable
-      ? mobulaTrending.filter((t: any) => t._mobula).length
+    const trendingCount = mobulaAvailable
+      ? mobulaTokensByFilter.trending?.length || 0
       : filteredAndSortedTokens.length;
 
     return {
@@ -1516,8 +1428,8 @@ export default function PulsePage() {
     protocolTokensByFilter,
     pumpFunMigratedTokens,
     wsMigratedTokens,
-    trendingAvailable,
-    mobulaTrending,
+    mobulaAvailable,
+    mobulaTokensByFilter,
   ]);
 
   const formatCurrency = (value: number) => {
