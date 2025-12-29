@@ -685,7 +685,16 @@ export class MobulaService {
       id: `${chain}:${token.address}`,
       name: token.name || "Unknown",
       symbol: token.symbol || "UNKNOWN",
-      icon: token.logo || "",
+      // Generate fallback icon from symbol (never use URL for icon)
+      icon: (() => {
+        const symbol = token.symbol || "UNKNOWN";
+        const firstChar = symbol.trim().charAt(0).toUpperCase();
+        // If it's already an emoji or special character, use it
+        if (/[\u{1F300}-\u{1F9FF}]/u.test(firstChar) || firstChar.length > 1) {
+          return firstChar;
+        }
+        return firstChar || "🪙";
+      })(),
       image: token.logo || undefined,
       time:
         mobulaToken.created_at ||

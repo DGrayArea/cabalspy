@@ -247,12 +247,36 @@ function transformToken(mobulaToken: MobulaToken): TokenData {
   const holdersCount =
     mobulaToken.holdersCount || mobulaToken.holders_count || 0;
 
+  // Validate and clean image URL - filter out invalid URLs like "metadata.mobula.webp"
+  const logoUrl = mobulaToken.logo;
+  const isValidImageUrl = logoUrl && 
+    (logoUrl.startsWith('http://') || 
+     logoUrl.startsWith('https://') || 
+     logoUrl.startsWith('data:') ||
+     logoUrl.startsWith('/'));
+
+  // Generate fallback icon from symbol (first character or emoji)
+  const getFallbackIcon = (symbol: string | null): string => {
+    if (!symbol) return "🪙";
+    // Use first character of symbol, or emoji if it's a single emoji
+    const firstChar = symbol.trim().charAt(0).toUpperCase();
+    // If it's already an emoji or special character, use it
+    if (/[\u{1F300}-\u{1F9FF}]/u.test(firstChar) || firstChar.length > 1) {
+      return firstChar;
+    }
+    // Otherwise use first letter
+    return firstChar || "🪙";
+  };
+
+  const symbol = mobulaToken.symbol || "UNKNOWN";
+  const fallbackIcon = getFallbackIcon(symbol);
+
   return {
     id: `${chain}:${mobulaToken.address}`,
     name: mobulaToken.name || "Unknown",
-    symbol: mobulaToken.symbol || "UNKNOWN",
-    icon: mobulaToken.logo || "",
-    image: mobulaToken.logo || undefined,
+    symbol: symbol,
+    icon: fallbackIcon, // Always use fallback icon, never URL
+    image: isValidImageUrl ? logoUrl : undefined,
     time: createdAt || new Date().toISOString(),
     createdTimestamp,
     marketCap,
@@ -439,7 +463,7 @@ export async function fetchBasicViews(
         Authorization: API_KEY,
         "Content-Type": "application/json",
       },
-      timeout: 15000,
+      timeout: 30000, // Increased to 30 seconds
     });
 
     return {
@@ -529,7 +553,7 @@ export async function fetchCustomViews(
           Authorization: API_KEY,
           "Content-Type": "application/json",
         },
-        timeout: 15000,
+        timeout: 30000, // Increased to 30 seconds
       }
     );
 
@@ -625,7 +649,7 @@ export async function fetchSingleView(
           Authorization: API_KEY,
           "Content-Type": "application/json",
         },
-        timeout: 15000,
+        timeout: 30000, // Increased to 30 seconds
       }
     );
 
@@ -715,8 +739,8 @@ export class MobulaPulseManager {
    * Refresh all views (both GET and POST)
    */
   private async refreshAll(): Promise<void> {
+    // Fetch GET endpoint (basic views) - handle errors independently
     try {
-      // Fetch GET endpoint (basic views)
       const basicViews = await fetchBasicViews(100, 0);
 
       // Smart merge - add new tokens, keep existing ones
@@ -732,8 +756,13 @@ export class MobulaPulseManager {
         this.basicViewsCache.bonded,
         basicViews.bonded
       );
+    } catch (error) {
+      logger.error("Error fetching basic views from Mobula:", error);
+      // Continue even if basic views fail
+    }
 
-      // Fetch POST endpoint (custom views)
+    // Fetch POST endpoint (custom views) - handle errors independently
+    try {
       const customViews = await fetchCustomViews(100, 0);
 
       // Smart merge - add new tokens, keep existing ones
@@ -753,19 +782,20 @@ export class MobulaPulseManager {
         this.customViewsCache["price-gainers"],
         customViews["price-gainers"]
       );
-
-      console.log("🔄 Mobula: Auto-refresh completed", {
-        new: this.basicViewsCache.new.length,
-        bonding: this.basicViewsCache.bonding.length,
-        bonded: this.basicViewsCache.bonded.length,
-        trending: this.customViewsCache.trending.length,
-        quality: this.customViewsCache["quality-tokens"].length,
-        highVolume: this.customViewsCache["high-volume"].length,
-        priceGainers: this.customViewsCache["price-gainers"].length,
-      });
     } catch (error) {
-      logger.error("Error in auto-refresh:", error);
+      logger.error("Error fetching custom views from Mobula:", error);
+      // Continue even if custom views fail
     }
+
+    console.log("🔄 Mobula: Auto-refresh completed", {
+      new: this.basicViewsCache.new.length,
+      bonding: this.basicViewsCache.bonding.length,
+      bonded: this.basicViewsCache.bonded.length,
+      trending: this.customViewsCache.trending.length,
+      quality: this.customViewsCache["quality-tokens"].length,
+      highVolume: this.customViewsCache["high-volume"].length,
+      priceGainers: this.customViewsCache["price-gainers"].length,
+    });
   }
 
   /**
@@ -1095,7 +1125,7 @@ export async function fetchCustomFilter(
           Authorization: API_KEY,
           "Content-Type": "application/json",
         },
-        timeout: 15000,
+        timeout: 30000, // Increased to 30 seconds
       }
     );
 

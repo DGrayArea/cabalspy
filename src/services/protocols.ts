@@ -1036,7 +1036,7 @@ export class ProtocolService {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds
 
       const response = await fetch(
         `https://datapi.jup.ag/v1/assets/toptrending/24h?limit=${limit}`,
@@ -1094,7 +1094,7 @@ export class ProtocolService {
       return tokens;
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.error('❌ Jupiter Top Trending API request timeout (15s)');
+        console.error('❌ Jupiter Top Trending API request timeout (30s)');
       } else {
         console.error('❌ Failed to fetch Jupiter top trending:', error.message || error);
       }

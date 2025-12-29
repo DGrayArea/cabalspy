@@ -1058,12 +1058,39 @@ export default function PulsePage() {
         filterType === "finalStretch" ||
         filterType === "graduated"
       ) {
-        // Try Mobula tokens first for all these filters
+        // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
         if (mobulaTokens.length > 0) {
-          // console.log(
-          //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
-          // );
-          return mobulaTokens;
+          let filteredMobulaTokens = mobulaTokens;
+          
+          if (filterType === "new") {
+            // NEW: Exclude bonded tokens (bondingPercentage < 100% and not bonded)
+            filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+              const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+              const isBonded = token._mobulaData?.bonded || false;
+              return !isBonded && bondingPercentage < 100;
+            });
+          } else if (filterType === "finalStretch") {
+            // FINAL STRETCH: Bonding percentage 90-100% but not fully bonded
+            filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+              const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+              const isBonded = token._mobulaData?.bonded || false;
+              return !isBonded && bondingPercentage >= 90 && bondingPercentage < 100;
+            });
+          } else if (filterType === "graduated") {
+            // GRADUATED: Fully bonded tokens (bondingPercentage === 100% or bonded === true)
+            filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+              const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+              const isBonded = token._mobulaData?.bonded || false;
+              return isBonded || bondingPercentage >= 100;
+            });
+          }
+          
+          if (filteredMobulaTokens.length > 0) {
+            // console.log(
+            //   `🔍 Filter ${filterType}: Using ${filteredMobulaTokens.length} filtered Mobula tokens (from ${mobulaTokens.length} total)`
+            // );
+            return filteredMobulaTokens;
+          }
         }
 
         // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter

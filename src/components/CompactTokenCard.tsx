@@ -18,7 +18,26 @@ import {
   Activity,
   Copy,
   Check,
+  Shield,
+  AlertTriangle,
+  Brain,
+  Star,
+  ArrowUpRight,
+  ArrowDownRight,
+  Lock,
+  Percent,
+  TrendingUp,
+  TrendingDown,
+  Zap,
+  Target,
+  Eye,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   getPlatformLogo,
   getPlatformIcon,
@@ -206,6 +225,18 @@ export function CompactTokenCard({
   const buyCount = Math.floor(token.transactions * 0.55);
   const sellCount = token.transactions - buyCount;
 
+  // Extract Mobula data if available
+  const mobulaData = (token as any)._mobulaData;
+  const hasMobulaData = !!mobulaData;
+
+  // Calculate buy/sell ratio from Mobula data
+  const buySellRatio = mobulaData?.volumeBuy1h && mobulaData?.volumeSell1h
+    ? mobulaData.volumeBuy1h / mobulaData.volumeSell1h
+    : null;
+  const buySellPressure = buySellRatio
+    ? buySellRatio > 1.2 ? "bullish" : buySellRatio < 0.8 ? "bearish" : "neutral"
+    : null;
+
   // CRITICAL: Check migration status FIRST using explicit API indicators
   // NEVER infer from market cap or bonding progress - tokens can drop below threshold after migrating
   // API fields: graduationDate (timestamp), poolAddress (Raydium pool), complete (boolean)
@@ -324,11 +355,65 @@ export function CompactTokenCard({
   } = platformInfo;
   const chainLogoUrl = getChainLogo(token.chain || "solana");
 
+  // Extract address from token.id (remove chain prefix like "solana:" or "bsc:")
+  const tokenAddress = token.id.includes(':') ? token.id.split(':')[1] : token.id;
+
+  // Get platform-specific bonding curve color
+  const getPlatformBondingColor = (platform: string | undefined): string => {
+    if (!platform) return "#3b82f6"; // Default blue
+    
+    const normalized = platform.toLowerCase().replace(/[_-]/g, '');
+    
+    // Platform-specific colors for bonding curve progress
+    const platformColors: Record<string, string> = {
+      // Pump.fun - green
+      pump: "#54D592",
+      pumpfun: "#54D592",
+      pumpportal: "#54D592",
+      'pump.fun': "#54D592",
+      
+      // Meteora - orange
+      meteora: "#FF6B35",
+      'met-dbc': "#FF6B35",
+      metdbc: "#FF6B35",
+      'dynamic-bc': "#FF6B35",
+      dynamicbc: "#FF6B35",
+      
+      // Moonshot - pink
+      moonshot: "#FF69B4",
+      
+      // Moonit - lemon yellow
+      moonit: "#FFE44D",
+      
+      // Lets Bonk - brown
+      bonk: "#8B4513",
+      'letsbonk.fun': "#8B4513",
+      letsbonkfun: "#8B4513",
+      letsbonk: "#8B4513",
+      
+      // Jupiter - lime green
+      jupiter: "#00FF88",
+      jupiterstudio: "#00FF88",
+      'jupiter-studio': "#00FF88",
+      'jup-studio': "#00FF88",
+      jupstudio: "#00FF88",
+      
+      // Raydium - blue
+      raydium: "#0074D9",
+      'raydium-launchlab': "#0074D9",
+      raydiumlaunchlab: "#0074D9",
+    };
+    
+    return platformColors[normalized] || "#3b82f6"; // Default blue gradient
+  };
+
+  const bondingColor = getPlatformBondingColor(platform);
+
   const copyAddress = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     try {
-      await navigator.clipboard.writeText(token.id);
+      await navigator.clipboard.writeText(tokenAddress);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
@@ -410,7 +495,7 @@ export function CompactTokenCard({
   return (
     <>
       <Link
-        href={`/${chainRoute}/${token.id}`}
+        href={`/${chainRoute}/${tokenAddress}`}
         className={`block bg-panel ${
           connectedGrid
             ? "border-b border-r border-gray-700/50 rounded-none p-3"
@@ -419,11 +504,49 @@ export function CompactTokenCard({
         style={{ visibility: "visible", opacity: 1 }}
       >
         <div className="flex items-start gap-2.5">
-          {/* Left: Token Icon */}
-          <div className="flex-shrink-0 relative">
+          {/* Left: Token Icon with Circular Bonding Progress */}
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex-shrink-0 relative cursor-help">
+                  {/* Circular Progress Ring for Bonding Curve - positioned around logo */}
+                  {!isTokenMigrated && bondingProgress < 1 && (
+                    <svg
+                      className="absolute inset-0 w-10 h-10 transform -rotate-90 pointer-events-none z-0"
+                      viewBox="0 0 40 40"
+                      style={{ overflow: 'visible' }}
+                    >
+                      {/* Background circle - darker track */}
+                      <circle
+                        cx="20"
+                        cy="20"
+                        r="16.5"
+                        fill="none"
+                        stroke="rgba(55, 65, 81, 0.5)"
+                        strokeWidth="2.5"
+                      />
+                      {/* Progress circle with platform-specific color - more visible */}
+                      <circle
+                        cx="20"
+                        cy="20"
+                        r="16.5"
+                        fill="none"
+                        stroke={bondingColor}
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 16.5}`}
+                        strokeDashoffset={`${2 * Math.PI * 16.5 * (1 - bondingProgress)}`}
+                        className="transition-all duration-500 ease-out"
+                        style={{ 
+                          opacity: 1,
+                          filter: `drop-shadow(0 0 3px ${bondingColor}60)`
+                        }}
+                      />
+                    </svg>
+                  )}
             {token.image && !imageError ? (
               <div
-                className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden ring-2 ring-gray-800/50 relative group/token bg-panel-elev`}
+                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden ring-2 ring-gray-800/50 relative group/token bg-panel-elev z-10`}
               >
                 <img
                   src={token.image}
@@ -438,7 +561,7 @@ export function CompactTokenCard({
                 </div>
                 {/* Platform logo overlay - bottom right */}
                 {platformLogo && !platformLogoError ? (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden z-10">
                     <img
                       src={platformLogo}
                       alt={platformName}
@@ -456,19 +579,22 @@ export function CompactTokenCard({
                     />
                   </div>
                 ) : (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px]">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px] z-10">
                     {platformIcon}
                   </div>
                 )}
               </div>
             ) : (
               <div
-                className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg shadow-lg shadow-[var(--primary)]/10 relative`}
+                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg shadow-lg shadow-[var(--primary)]/10 relative z-10`}
               >
-                {token.icon}
+                      {/* Safeguard: if icon is a URL, use symbol fallback instead */}
+                      {token.icon && !token.icon.startsWith('http') && !token.icon.startsWith('data:') && !token.icon.startsWith('/')
+                        ? token.icon
+                        : token.symbol?.charAt(0).toUpperCase() || "🪙"}
                 {/* Platform logo overlay - bottom right */}
                 {platformLogo && !platformLogoError ? (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden z-10">
                     <img
                       src={platformLogo}
                       alt={platformName}
@@ -486,13 +612,82 @@ export function CompactTokenCard({
                     />
                   </div>
                 ) : (
-                  <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px]">
+                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px] z-10">
                     {platformIcon}
                   </div>
                 )}
               </div>
             )}
           </div>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+              >
+                <div className="space-y-1.5">
+                  <div className="font-semibold text-sm flex items-center gap-1.5">
+                    <img
+                      src={token.image || undefined}
+                      alt={token.symbol}
+                      className="w-5 h-5 rounded"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                    {token.name}
+                  </div>
+                  <div className="text-xs text-gray-300 space-y-1">
+                    <div>Symbol: {token.symbol}</div>
+                    <div>Price: {formatCurrency(token.price)}</div>
+                    {hasMobulaData && (
+                      <>
+                        {mobulaData.priceChange1h !== undefined && (
+                          <div className="pt-1 border-t border-gray-700">
+                            Price Change (1h):{" "}
+                            <span
+                              className={
+                                mobulaData.priceChange1h >= 0
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }
+                            >
+                              {mobulaData.priceChange1h >= 0 ? "+" : ""}
+                              {mobulaData.priceChange1h.toFixed(2)}%
+                            </span>
+                          </div>
+                        )}
+                        {mobulaData.trendingScore1h > 0 && (
+                          <div className="flex items-center gap-1.5">
+                            <Flame className="w-3 h-3 text-orange-400" />
+                            Trending Score: {mobulaData.trendingScore1h.toLocaleString()}
+                          </div>
+                        )}
+                        {!isTokenMigrated && bondingProgress < 1 && (
+                          <div className="pt-1 border-t border-gray-700">
+                            <div className="flex items-center gap-1.5">
+                              <Target className="w-3 h-3 text-orange-400" />
+                              Bonding: {Math.round(bondingProgress * 100)}%
+                            </div>
+                            <div className="text-gray-400 text-[10px] mt-0.5">
+                              {Math.round((1 - bondingProgress) * 100)}% remaining
+                            </div>
+                          </div>
+                        )}
+                        {isTokenMigrated && (
+                          <div className="pt-1 border-t border-gray-700">
+                            <div className="flex items-center gap-1.5">
+                              <Zap className="w-3 h-3 text-green-400" />
+                              Graduated
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Middle: Token Info */}
           <div className="flex-1 min-w-0">
@@ -514,52 +709,216 @@ export function CompactTokenCard({
               {isTrending && (
                 <Flame className="w-3 h-3 text-orange-400 cursor-pointer flex-shrink-0" />
               )}
-              <Info className="w-3 h-3 text-gray-500 hover:text-[var(--primary-text)] cursor-pointer flex-shrink-0" />
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-3 h-3 text-gray-500 hover:text-[var(--primary-text)] cursor-help flex-shrink-0" />
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm">Token Info</div>
+                      <div className="text-xs text-gray-300 space-y-1">
+                        <div>Symbol: {token.symbol}</div>
+                        <div>Price: {formatCurrency(token.price)}</div>
+                        {hasMobulaData && (
+                          <>
+                            {mobulaData.priceChange1h !== undefined && (
+                              <div className="pt-1 border-t border-gray-700">
+                                Price Change (1h):{" "}
+                                <span
+                                  className={
+                                    mobulaData.priceChange1h >= 0
+                                      ? "text-green-400"
+                                      : "text-red-400"
+                                  }
+                                >
+                                  {mobulaData.priceChange1h >= 0 ? "+" : ""}
+                                  {mobulaData.priceChange1h.toFixed(2)}%
+                                </span>
+                              </div>
+                            )}
+                            {mobulaData.trendingScore1h > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <Flame className="w-3 h-3 text-orange-400" />
+                                Trending Score: {mobulaData.trendingScore1h.toLocaleString()}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
 
-            {/* Activity Icons Row - With Text Labels */}
+            {/* Activity Icons Row - With Text Labels and Tooltips */}
+            <TooltipProvider delayDuration={200}>
             <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-              {/* Views Icon with Label */}
-              <div className="flex items-center gap-0.5 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20">
+                {/* Views Icon with Label and Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-0.5 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 cursor-help">
                 <User className="w-2.5 h-2.5 text-cyan-400" />
                 <span className="text-[9px] text-cyan-400 font-medium">
                   {formatNumber(token.activity.views)}
                 </span>
               </div>
-              {/* Holders Icon with Label */}
-              <div className="flex items-center gap-0.5 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20">
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <User className="w-4 h-4 text-cyan-400" />
+                        Views
+                      </div>
+                      <div className="text-xs text-gray-300">
+                        {formatNumber(token.activity.views)} total views
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Holders Icon with Label and Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-0.5 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 cursor-help">
                 <Users className="w-2.5 h-2.5 text-indigo-400" />
                 <span className="text-[9px] text-indigo-400 font-medium">
                   {formatNumber(token.activity.holders)}
                 </span>
               </div>
-              {/* Trades Icon with Label */}
-              <div className="flex items-center gap-0.5 bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/20">
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-indigo-400" />
+                        Holders
+                      </div>
+                      <div className="text-xs text-gray-300 space-y-1">
+                        <div>{formatNumber(token.activity.holders)} total holders</div>
+                        {mobulaData?.top10Holdings > 0 && (
+                          <div className="pt-1 border-t border-gray-700">
+                            Top 10 Holdings: {mobulaData.top10Holdings.toFixed(1)}%
+                            {mobulaData.top10Holdings > 50 && (
+                              <span className="text-yellow-400 ml-1">⚠️ High concentration</span>
+                            )}
+                          </div>
+                        )}
+                        {mobulaData?.devHoldings > 0 && (
+                          <div>
+                            Dev Holdings: {mobulaData.devHoldings.toFixed(1)}%
+                            {mobulaData.devHoldings > 20 && (
+                              <span className="text-red-400 ml-1">⚠️ High risk</span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Trades Icon with Label and Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-0.5 bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/20 cursor-help">
                 <Activity className="w-2.5 h-2.5 text-pink-400" />
                 <span className="text-[9px] text-pink-400 font-medium">
                   {formatNumber(token.activity.trades)}
                 </span>
               </div>
-              {/* Quality Score - Better Label */}
-              <div className="flex items-center gap-0.5 bg-yellow-500/10 px-1.5 py-0.5 rounded border border-yellow-500/20">
-                <span className="text-[8px] text-yellow-400/70 font-medium">
-                  Quality
-                </span>
-                <span className="text-[10px] text-yellow-400 font-bold">
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <Activity className="w-4 h-4 text-pink-400" />
+                        Trades
+                      </div>
+                      <div className="text-xs text-gray-300 space-y-1">
+                        <div>{formatNumber(token.activity.trades)} total trades</div>
+                        {mobulaData?.trades1h > 0 && (
+                          <div className="pt-1 border-t border-gray-700">
+                            Trades (1h): {formatNumber(mobulaData.trades1h)}
+                          </div>
+                        )}
+                        {mobulaData?.traders1h > 0 && (
+                          <div>
+                            Unique Traders (1h): {formatNumber(mobulaData.traders1h)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Quality Score - Smaller badge */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-0.5 bg-yellow-500/10 px-1 py-0.5 rounded border border-yellow-500/20 cursor-help">
+                      <Star className="w-2 h-2 text-yellow-400" />
+                      <span className="text-[9px] text-yellow-400 font-bold">
                   {token.activity.Q}
                 </span>
               </div>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <Star className="w-4 h-4 text-yellow-400" />
+                        Quality Score
             </div>
+                      <div className="text-xs text-gray-300">
+                        Quality score: {token.activity.Q}
+                        {hasMobulaData && (
+                          <div className="mt-1 pt-1 border-t border-gray-700 space-y-0.5">
+                            {mobulaData.smartTradersCount > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <Brain className="w-3 h-3 text-blue-400" />
+                                Smart Traders: {mobulaData.smartTradersCount}
+                              </div>
+                            )}
+                            {mobulaData.proTradersCount > 0 && (
+                              <div className="flex items-center gap-1.5">
+                                <Star className="w-3 h-3 text-purple-400" />
+                                Pro Traders: {mobulaData.proTradersCount}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            </TooltipProvider>
 
             {/* Price change + Bonding curve / Migrated tag */}
-            <div className="mb-1.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <span className="text-[9px] text-gray-500 font-medium">
-                    Price Change (24h)
+            <TooltipProvider delayDuration={200}>
+              <div className="mb-1.5 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex flex-col gap-0.5 cursor-help min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-gray-500 font-medium whitespace-nowrap">
+                            24h Change
                   </span>
                   <span
-                    className={`text-[10px] font-semibold ${
+                            className={`text-[11px] font-semibold whitespace-nowrap ${
                       isPositive ? "text-green-400" : "text-red-400"
                     }`}
                   >
@@ -567,83 +926,568 @@ export function CompactTokenCard({
                     {priceChange24h.toFixed(2)}%
                   </span>
                 </div>
-                <span className="text-[9px] text-gray-400 font-medium">
+                        {hasMobulaData && mobulaData.priceChange1h !== undefined && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] text-gray-500 whitespace-nowrap">
+                              1h:
+                            </span>
+                            <span
+                              className={`text-[9px] font-medium whitespace-nowrap ${
+                                mobulaData.priceChange1h >= 0
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }`}
+                            >
+                              {mobulaData.priceChange1h >= 0 ? "+" : ""}
+                              {mobulaData.priceChange1h.toFixed(1)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          {isPositive ? (
+                            <TrendingUp className="w-4 h-4 text-green-400" />
+                          ) : (
+                            <TrendingDown className="w-4 h-4 text-red-400" />
+                          )}
+                          Price Changes
+                        </div>
+                        <div className="text-xs text-gray-300 space-y-1">
+                          <div>
+                            24h:{" "}
+                            <span
+                              className={
+                                isPositive ? "text-green-400" : "text-red-400"
+                              }
+                            >
+                              {priceChange24h > 0 ? "+" : ""}
+                              {priceChange24h.toFixed(2)}%
+                            </span>
+                          </div>
+                          {hasMobulaData && (
+                            <div className="pt-1 border-t border-gray-700 space-y-0.5">
+                              {mobulaData.priceChange1h !== undefined && (
+                                <div>
+                                  1h:{" "}
+                                  <span
+                                    className={
+                                      mobulaData.priceChange1h >= 0
+                                        ? "text-green-400"
+                                        : "text-red-400"
+                                    }
+                                  >
+                                    {mobulaData.priceChange1h >= 0 ? "+" : ""}
+                                    {mobulaData.priceChange1h.toFixed(2)}%
+                                  </span>
+                                </div>
+                              )}
+                              {mobulaData.priceChange5min !== undefined && (
+                                <div>
+                                  5m:{" "}
+                                  <span
+                                    className={
+                                      mobulaData.priceChange5min >= 0
+                                        ? "text-green-400"
+                                        : "text-red-400"
+                                    }
+                                  >
+                                    {mobulaData.priceChange5min >= 0 ? "+" : ""}
+                                    {mobulaData.priceChange5min.toFixed(2)}%
+                                  </span>
+                                </div>
+                              )}
+                              {mobulaData.ath && mobulaData.ath > token.price && (
+                                <div className="pt-1 border-t border-gray-700">
+                                  ATH: {formatCurrency(mobulaData.ath)}
+                                  <span className="text-red-400 ml-1">
+                                    (-
+                                    {(
+                                      ((mobulaData.ath - token.price) /
+                                        mobulaData.ath) *
+                                      100
+                                    ).toFixed(1)}
+                                    %)
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex flex-col items-end gap-0.5 cursor-help">
+                        <span className="text-[9px] text-gray-500 font-medium whitespace-nowrap">
+                          Price
+                        </span>
+                        <span className="text-[11px] text-gray-300 font-semibold whitespace-nowrap">
                   {formatCurrency(token.price)}
                 </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          <DollarSign className="w-4 h-4" />
+                          Current Price
+                        </div>
+                        <div className="text-xs text-gray-300">
+                          {formatCurrency(token.price)} per token
+                          {hasMobulaData && mobulaData.latest_price && (
+                            <div className="mt-1 pt-1 border-t border-gray-700">
+                              Latest: {formatCurrency(mobulaData.latest_price)}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
               </div>
               {/* Show migrated tag if migrated, otherwise show bonding curve */}
               {isTokenMigrated ? (
-                <div className="flex items-center justify-between">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center justify-between cursor-help">
                   <span className="text-[9px] text-gray-500 font-medium">
                     Status
                   </span>
-                  <span className="px-2 py-0.5 rounded-md bg-green-500/20 border border-green-500/50 text-[9px] font-semibold text-green-400">
+                        <span className="px-2 py-0.5 rounded-md bg-green-500/20 border border-green-500/50 text-[9px] font-semibold text-green-400 flex items-center gap-1">
+                          <Zap className="w-2.5 h-2.5" />
                     Migrated
                   </span>
                 </div>
-              ) : (
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-green-400" />
+                          Token Graduated
+                        </div>
+                        <div className="text-xs text-gray-300">
+                          ✅ Token has graduated from bonding curve
+                          {mobulaData?.bondedAt && (
+                            <div className="mt-1 pt-1 border-t border-gray-700">
+                              Graduated: {new Date(mobulaData.bondedAt).toLocaleDateString()}
+                            </div>
+                          )}
+                          {mobulaData?.poolAddress && (
                 <div>
-                  <div className="flex items-center justify-between text-[9px] text-gray-500 mb-0.5">
-                    <span>Bonding Curve Progress</span>
+                              Pool: {mobulaData.poolAddress.slice(0, 8)}...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="cursor-help">
+                        <div className="flex items-center justify-between text-[9px] text-gray-500 mb-1">
+                          <span className="flex items-center gap-1">
+                            <Target className="w-2.5 h-2.5" />
+                            Bonding Progress
+                          </span>
                     <span className="text-gray-300 font-semibold">
                       {Math.round(bondingProgress * 100)}%
                     </span>
                   </div>
-                  <div className="h-2 rounded-full bg-gray-800/60 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 transition-all"
-                      style={{ width: `${bondingProgress * 100}%` }}
+                        <div className="h-1.5 rounded-full bg-gray-800/60 overflow-hidden">
+                          <div
+                            className="h-full transition-all"
+                            style={{ 
+                              width: `${bondingProgress * 100}%`,
+                              backgroundColor: bondingColor
+                            }}
                     />
                   </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          <Target className="w-4 h-4 text-orange-400" />
+                          Bonding Curve Progress
+                        </div>
+                        <div className="text-xs text-gray-300">
+                          {Math.round(bondingProgress * 100)}% complete
+                          <div className="mt-1 pt-1 border-t border-gray-700">
+                            {Math.round((1 - bondingProgress) * 100)}% remaining until graduation
+                          </div>
+                          {hasMobulaData && mobulaData.bondingPercentage > 0 && (
+                            <div className="mt-1 pt-1 border-t border-gray-700">
+                              Mobula Progress: {mobulaData.bondingPercentage.toFixed(1)}%
                 </div>
               )}
             </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </TooltipProvider>
 
-            {/* Metrics Row - More Colorful */}
+            {/* Metrics Row - More Colorful with Tooltips */}
+            <TooltipProvider delayDuration={200}>
             <div
               className={`flex items-center gap-2 ${displaySettings?.metricsSize === "large" ? "text-xs" : "text-[10px]"} flex-wrap ${displaySettings?.grey ? "text-gray-400" : ""}`}
             >
+                {/* Market Cap with Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
               <span
-                className={`flex items-center gap-0.5 ${displaySettings?.grey ? "text-gray-400" : "text-green-400"}`}
+                      className={`flex items-center gap-0.5 cursor-help ${displaySettings?.grey ? "text-gray-400" : "text-green-400"}`}
               >
-                <DollarSign className="w-2.5 h-2.5 cursor-pointer" />
+                      <DollarSign className="w-2.5 h-2.5" />
                 <span className="font-medium">MC:</span>{" "}
                 {displaySettings?.noDecimals
                   ? formatCurrency(token.marketCap).replace(/\.\d+/g, "")
                   : formatCurrency(token.marketCap)}
               </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <DollarSign className="w-4 h-4" />
+                        Market Cap
+                      </div>
+                      <div className="text-xs text-gray-300">
+                        Total value of all tokens: {formatCurrency(token.marketCap)}
+                        {mobulaData?.liquidity && (
+                          <div className="mt-1 pt-1 border-t border-gray-700">
+                            Liquidity: {formatCurrency(mobulaData.liquidity)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Volume with Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
               <span
-                className={`flex items-center gap-0.5 ${displaySettings?.grey ? "text-gray-400" : "text-blue-400"}`}
+                      className={`flex items-center gap-0.5 cursor-help ${displaySettings?.grey ? "text-gray-400" : "text-blue-400"}`}
               >
-                <BarChart3 className="w-2.5 h-2.5 cursor-pointer" />
+                      <BarChart3 className="w-2.5 h-2.5" />
                 <span className="font-medium">V:</span>{" "}
                 {displaySettings?.noDecimals
                   ? formatCurrency(token.volume).replace(/\.\d+/g, "")
                   : formatCurrency(token.volume)}
               </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <BarChart3 className="w-4 h-4" />
+                        Volume (24h)
+                      </div>
+                      <div className="text-xs text-gray-300 space-y-1">
+                        <div>Total: {formatCurrency(token.volume)}</div>
+                        {mobulaData?.volumeBuy24h && mobulaData?.volumeSell24h && (
+                          <>
+                            <div className="pt-1 border-t border-gray-700 space-y-0.5">
+                              <div className="flex items-center gap-1.5 text-green-400">
+                                <ArrowUpRight className="w-3 h-3" />
+                                Buy: {formatCurrency(mobulaData.volumeBuy24h)}
+                              </div>
+                              <div className="flex items-center gap-1.5 text-red-400">
+                                <ArrowDownRight className="w-3 h-3" />
+                                Sell: {formatCurrency(mobulaData.volumeSell24h)}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                        {mobulaData?.volume1h && (
+                          <div className="pt-1 border-t border-gray-700">
+                            Volume (1h): {formatCurrency(mobulaData.volume1h)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Fee with Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
               <span
-                className={`flex items-center gap-0.5 ${displaySettings?.grey ? "text-gray-400" : "text-yellow-400"}`}
+                      className={`flex items-center gap-0.5 cursor-help ${displaySettings?.grey ? "text-gray-400" : "text-yellow-400"}`}
               >
-                <Coins className="w-2.5 h-2.5 cursor-pointer" />
+                      <Coins className="w-2.5 h-2.5" />
                 <span className="font-medium">F:</span>{" "}
                 {displaySettings?.noDecimals
                   ? Math.round(token.fee)
                   : token.fee.toFixed(3)}
               </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <Coins className="w-4 h-4" />
+                        Fee
+                      </div>
+                      <div className="text-xs text-gray-300">
+                        Platform fee: {token.fee.toFixed(3)}
+                        {mobulaData?.security && (
+                          <div className="mt-1 pt-1 border-t border-gray-700 space-y-0.5">
+                            {mobulaData.security.buyTax && (
+                              <div className="flex items-center gap-1.5">
+                                <Percent className="w-3 h-3" />
+                                Buy Tax: {mobulaData.security.buyTax}%
+                              </div>
+                            )}
+                            {mobulaData.security.sellTax && (
+                              <div className="flex items-center gap-1.5">
+                                <Percent className="w-3 h-3" />
+                                Sell Tax: {mobulaData.security.sellTax}%
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Transactions with Tooltip */}
+                <Tooltip>
+                  <TooltipTrigger asChild>
               <span
-                className={`flex items-center gap-0.5 ${displaySettings?.grey ? "text-gray-400" : "text-purple-400"}`}
+                      className={`flex items-center gap-0.5 cursor-help ${displaySettings?.grey ? "text-gray-400" : "text-purple-400"}`}
               >
-                <Activity className="w-2.5 h-2.5 cursor-pointer" />
+                      <Activity className="w-2.5 h-2.5" />
                 <span className="font-medium">TX:</span>{" "}
                 {formatNumber(token.transactions)}
               </span>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="top"
+                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                  >
+                    <div className="space-y-1">
+                      <div className="font-semibold text-sm flex items-center gap-1.5">
+                        <Activity className="w-4 h-4" />
+                        Transactions
             </div>
+                      <div className="text-xs text-gray-300 space-y-1">
+                        <div>Total: {formatNumber(token.transactions)}</div>
+                        {mobulaData?.buys24h && mobulaData?.sells24h && (
+                          <div className="pt-1 border-t border-gray-700 space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-green-400">
+                              <ArrowUpRight className="w-3 h-3" />
+                              Buys: {formatNumber(mobulaData.buys24h)}
+                            </div>
+                            <div className="flex items-center gap-1.5 text-red-400">
+                              <ArrowDownRight className="w-3 h-3" />
+                              Sells: {formatNumber(mobulaData.sells24h)}
+                            </div>
+                          </div>
+                        )}
+                        {mobulaData?.traders1h && (
+                          <div className="pt-1 border-t border-gray-700">
+                            Unique Traders (1h): {formatNumber(mobulaData.traders1h)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+
+                {/* Buy/Sell Pressure Indicator (Mobula only) */}
+                {buySellPressure && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span
+                        className={`flex items-center gap-0.5 cursor-help ${
+                          buySellPressure === "bullish"
+                            ? "text-green-400"
+                            : buySellPressure === "bearish"
+                              ? "text-red-400"
+                              : "text-gray-400"
+                        }`}
+                      >
+                        {buySellPressure === "bullish" ? (
+                          <ArrowUpRight className="w-2.5 h-2.5" />
+                        ) : buySellPressure === "bearish" ? (
+                          <ArrowDownRight className="w-2.5 h-2.5" />
+                        ) : (
+                          <Activity className="w-2.5 h-2.5" />
+                        )}
+                        <span className="font-medium">
+                          {buySellRatio ? buySellRatio.toFixed(2) : "1.00"}x
+                        </span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          {buySellPressure === "bullish" ? (
+                            <ArrowUpRight className="w-4 h-4 text-green-400" />
+                          ) : buySellPressure === "bearish" ? (
+                            <ArrowDownRight className="w-4 h-4 text-red-400" />
+                          ) : (
+                            <Activity className="w-4 h-4" />
+                          )}
+                          Buy/Sell Ratio (1h)
+                        </div>
+                        <div className="text-xs text-gray-300">
+                          {buySellPressure === "bullish" ? "🐂" : buySellPressure === "bearish" ? "🐻" : "➡️"}{" "}
+                          Ratio: {buySellRatio?.toFixed(2)}x
+                          <div className="mt-1 pt-1 border-t border-gray-700 space-y-0.5">
+                            <div>Buy Volume: {formatCurrency(mobulaData.volumeBuy1h)}</div>
+                            <div>Sell Volume: {formatCurrency(mobulaData.volumeSell1h)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* Security Indicators (Mobula only) */}
+                {mobulaData?.security && (
+                  <>
+                    {mobulaData.security.noMintAuthority && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex items-center gap-0.5 cursor-help text-green-400">
+                            <Lock className="w-2.5 h-2.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="top"
+                          className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                        >
+                          <div className="space-y-1">
+                            <div className="font-semibold text-sm flex items-center gap-1.5">
+                              <Lock className="w-4 h-4 text-green-400" />
+                              Mint Revoked
+                            </div>
+                            <div className="text-xs text-gray-300">
+                              ✅ Mint authority removed - cannot create more tokens
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                    {mobulaData.security.isBlacklisted && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="flex items-center gap-0.5 cursor-help text-red-400">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="top"
+                          className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                        >
+                          <div className="space-y-1">
+                            <div className="font-semibold text-sm flex items-center gap-1.5">
+                              <AlertTriangle className="w-4 h-4 text-red-400" />
+                              Blacklisted
+                            </div>
+                            <div className="text-xs text-gray-300">
+                              ⚠️ Token has blacklisted addresses
+                            </div>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </>
+                )}
+
+                {/* Smart Money Indicators (Mobula only) */}
+                {mobulaData?.smartTradersCount > 0 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center gap-0.5 cursor-help text-blue-400">
+                        <Brain className="w-2.5 h-2.5" />
+                        <span className="font-medium">{mobulaData.smartTradersCount}</span>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          <Brain className="w-4 h-4 text-blue-400" />
+                          Smart Traders
+                        </div>
+                        <div className="text-xs text-gray-300">
+                          {mobulaData.smartTradersCount} smart traders tracking this token
+                          {mobulaData.proTradersCount > 0 && (
+                            <div className="mt-1 pt-1 border-t border-gray-700">
+                              Pro Traders: {mobulaData.proTradersCount}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+
+                {/* DexScreener Listed (Mobula only) */}
+                {mobulaData?.dexscreenerListed && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="flex items-center gap-0.5 cursor-help text-green-400">
+                        <Eye className="w-2.5 h-2.5" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="top"
+                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
+                    >
+                      <div className="space-y-1">
+                        <div className="font-semibold text-sm flex items-center gap-1.5">
+                          <Eye className="w-4 h-4 text-green-400" />
+                          DexScreener Listed
+                        </div>
+                        <div className="text-xs text-gray-300">
+                          ✅ Listed on DexScreener
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
+            </TooltipProvider>
             {/* Token Address/Label */}
             <div className="mt-1.5 pt-1.5 border-t border-gray-800/30 flex items-center gap-1.5">
               <span className="text-[11px] text-gray-400 font-mono flex items-center gap-1">
-                <span className="text-gray-500">{token.id.slice(0, 6)}</span>
+                <span className="text-gray-500">{tokenAddress.slice(0, 6)}</span>
                 <span className="text-gray-600">...</span>
-                <span className="text-gray-500">{token.id.slice(-6)}</span>
+                <span className="text-gray-500">{tokenAddress.slice(-6)}</span>
               </span>
               <button
                 onClick={copyAddress}
