@@ -310,11 +310,28 @@ export default function PulsePage() {
   //   enabled: mobulaEnabled,
   // });
 
-  // Temporary fallback values while Mobula is disabled
-  const tokens = wsTokens;
-  const isLoading = wsLoading;
-  const error = wsError;
-  const source = "fallback";
+  // Prioritize Mobula tokens when enabled - wait for Mobula to load before showing tokens
+  const tokens = useMemo(() => {
+    // If Mobula is enabled, wait for it to load (don't show WebSocket tokens first)
+    if (mobulaEnabled) {
+      // If Mobula is still loading, return empty array (don't show WebSocket tokens)
+      if (mobulaLoading) {
+        return [];
+      }
+      // If Mobula has tokens, use them
+      if (mobulaTokens.length > 0) {
+        return mobulaTokens;
+      }
+      // If Mobula finished loading but has no tokens, still return empty (don't fallback to WebSocket)
+      return [];
+    }
+    // If Mobula is disabled, use WebSocket tokens
+    return wsTokens;
+  }, [mobulaEnabled, mobulaLoading, mobulaTokens, wsTokens]);
+
+  const isLoading = mobulaEnabled ? mobulaLoading : wsLoading;
+  const error = mobulaEnabled ? mobulaError : wsError;
+  const source = mobulaEnabled && mobulaTokens.length > 0 ? "mobula" : mobulaEnabled ? "mobula-loading" : "websocket";
 
   // useEffect(() => {
   //   console.log("📊 Final Token Status:", {
@@ -1020,15 +1037,24 @@ export default function PulsePage() {
   // Helper to get tokens for a specific filter
   const getTokensForFilter = useCallback(
     (filterType: typeof filter) => {
+      // If Mobula is enabled and still loading, return empty array (wait for Mobula)
+      if (mobulaEnabled && mobulaLoading) {
+        return [];
+      }
+
       // TRENDING filter - Use Mobula trending tokens first
       if (filterType === "trending") {
-        if (mobulaTokens.length > 0) {
-          console.log(
-            `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
-          );
-          return mobulaTokens;
+        if (mobulaEnabled) {
+          if (mobulaTokens.length > 0) {
+            console.log(
+              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
+            );
+            return mobulaTokens;
+          }
+          // Mobula finished loading but no tokens - return empty
+          return [];
         }
-        // Fallback to filteredAndSortedTokens
+        // Mobula disabled - fallback to filteredAndSortedTokens
         return filteredAndSortedTokens;
       }
 
@@ -1038,15 +1064,19 @@ export default function PulsePage() {
         filterType === "featured" ||
         filterType === "marketCap"
       ) {
-        // Try Mobula tokens first for all these filters
-        if (mobulaTokens.length > 0) {
-          // console.log(
-          //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
-          // );
-          return mobulaTokens;
+        if (mobulaEnabled) {
+          // Try Mobula tokens first for all these filters
+          if (mobulaTokens.length > 0) {
+            // console.log(
+            //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
+            // );
+            return mobulaTokens;
+          }
+          // Mobula finished loading but no tokens - return empty
+          return [];
         }
 
-        // Return the specific type from pumpFunTokensByType
+        // Mobula disabled - Return the specific type from pumpFunTokensByType
         const pumpFunTokens = pumpFunTokensByType[filterType] || [];
         // console.log(`🔍 Filter ${filterType}: Found ${pumpFunTokens.length} tokens`);
         return pumpFunTokens;
@@ -1058,8 +1088,9 @@ export default function PulsePage() {
         filterType === "finalStretch" ||
         filterType === "graduated"
       ) {
-        // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
-        if (mobulaTokens.length > 0) {
+        if (mobulaEnabled) {
+          // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
+          if (mobulaTokens.length > 0) {
           let filteredMobulaTokens = mobulaTokens;
           
           if (filterType === "new") {
@@ -1091,8 +1122,17 @@ export default function PulsePage() {
             // );
             return filteredMobulaTokens;
           }
+          // Mobula finished loading but no filtered tokens match - return empty (don't fallback)
+          return [];
         }
+      }
 
+      // Mobula disabled - use protocol/WebSocket tokens as fallback
+      if (
+        filterType === "new" ||
+        filterType === "finalStretch" ||
+        filterType === "graduated"
+      ) {
         // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter
         // This prevents tokens from one filter leaking into another when switching filters
         const storedProtocolTokens =

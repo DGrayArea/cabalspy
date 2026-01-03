@@ -509,44 +509,61 @@ export function CompactTokenCard({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex-shrink-0 relative cursor-help">
-                  {/* Circular Progress Ring for Bonding Curve - positioned around logo */}
-                  {!isTokenMigrated && bondingProgress < 1 && (
+                  {/* Bonding Progress Border - single clean border matching logo shape */}
+                  {!isTokenMigrated && bondingProgress < 1 && bondingProgress > 0 && (
                     <svg
-                      className="absolute inset-0 w-10 h-10 transform -rotate-90 pointer-events-none z-0"
-                      viewBox="0 0 40 40"
+                      className={`absolute -inset-1 w-12 h-12 pointer-events-none z-0 transform -rotate-90`}
+                      viewBox="0 0 48 48"
                       style={{ overflow: 'visible' }}
                     >
-                      {/* Background circle - darker track */}
-                      <circle
-                        cx="20"
-                        cy="20"
-                        r="16.5"
-                        fill="none"
-                        stroke="rgba(55, 65, 81, 0.5)"
-                        strokeWidth="2.5"
-                      />
-                      {/* Progress circle with platform-specific color - more visible */}
-                      <circle
-                        cx="20"
-                        cy="20"
-                        r="16.5"
-                        fill="none"
-                        stroke={bondingColor}
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeDasharray={`${2 * Math.PI * 16.5}`}
-                        strokeDashoffset={`${2 * Math.PI * 16.5 * (1 - bondingProgress)}`}
-                        className="transition-all duration-500 ease-out"
-                        style={{ 
-                          opacity: 1,
-                          filter: `drop-shadow(0 0 3px ${bondingColor}60)`
-                        }}
-                      />
+                      {(() => {
+                        const isCircle = displaySettings?.circleImages;
+                        const radius = isCircle ? 22 : 7;
+                        const width = 48;
+                        const height = 48;
+                        // Calculate perimeter
+                        const perimeter = isCircle 
+                          ? 2 * Math.PI * radius
+                          : (width - 2 * radius) * 2 + (height - 2 * radius) * 2 + 2 * Math.PI * radius;
+                        const progressLength = perimeter * bondingProgress;
+                        const totalLength = perimeter;
+                        
+                        return (
+                          <rect
+                            x="0"
+                            y="0"
+                            width="48"
+                            height="48"
+                            rx={isCircle ? "24" : "7"}
+                            ry={isCircle ? "24" : "7"}
+                            fill="none"
+                            stroke={bondingColor}
+                            strokeWidth="3"
+                            strokeDasharray={`${progressLength} ${totalLength}`}
+                            strokeDashoffset="0"
+                            strokeLinecap="round"
+                            className="transition-all duration-500 ease-out"
+                          />
+                        );
+                      })()}
                     </svg>
+                  )}
+                  {/* Full colored border for graduated tokens */}
+                  {(isTokenMigrated || bondingProgress >= 1) && (
+                    <div
+                      className={`absolute -inset-1 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} pointer-events-none z-0`}
+                      style={{
+                        border: `3px solid ${bondingColor}`,
+                        borderRadius: displaySettings?.circleImages ? '50%' : '0.5rem'
+                      }}
+                    />
                   )}
             {token.image && !imageError ? (
               <div
-                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden ring-2 ring-gray-800/50 relative group/token bg-panel-elev z-10`}
+                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden relative group/token bg-panel-elev z-10`}
+                      style={{
+                        border: '2px solid rgba(55, 65, 81, 0.5)'
+                      }}
               >
                 <img
                   src={token.image}
@@ -586,7 +603,10 @@ export function CompactTokenCard({
               </div>
             ) : (
               <div
-                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg shadow-lg shadow-[var(--primary)]/10 relative z-10`}
+                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg shadow-lg shadow-[var(--primary)]/10 relative z-10`}
+                      style={{
+                        border: '2px solid rgba(55, 65, 81, 0.5)'
+                      }}
               >
                       {/* Safeguard: if icon is a URL, use symbol fallback instead */}
                       {token.icon && !token.icon.startsWith('http') && !token.icon.startsWith('data:') && !token.icon.startsWith('/')
@@ -694,10 +714,11 @@ export function CompactTokenCard({
             {/* Token Name and Time */}
             <div className="flex items-center gap-1.5 mb-1">
               <h3 className="font-semibold text-xs truncate">{token.name}</h3>
-              {/* Mobula Badge */}
-              {(token as any)._mobula && (
-                <span className="px-1.5 py-0.5 bg-blue-500/20 border border-blue-500/40 rounded text-[8px] font-medium text-blue-400 flex-shrink-0">
-                  MOBULA
+              {/* Graduated Badge for 100% bonded tokens */}
+              {(isTokenMigrated || bondingProgress >= 1) && (
+                <span className="px-1.5 py-0.5 bg-green-500/20 border border-green-500/50 rounded text-[8px] font-semibold text-green-400 flex items-center gap-0.5 flex-shrink-0">
+                  <Zap className="w-2.5 h-2.5" />
+                  Graduated
                 </span>
               )}
               <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
