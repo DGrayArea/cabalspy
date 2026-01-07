@@ -538,7 +538,7 @@ export function CompactTokenCard({
                             ry={isCircle ? "24" : "7"}
                             fill="none"
                             stroke={bondingColor}
-                            strokeWidth="3"
+                            strokeWidth="2"
                             strokeDasharray={`${progressLength} ${totalLength}`}
                             strokeDashoffset="0"
                             strokeLinecap="round"
@@ -553,8 +553,8 @@ export function CompactTokenCard({
                     <div
                       className={`absolute -inset-1 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} pointer-events-none z-0`}
                       style={{
-                        border: `3px solid ${bondingColor}`,
-                        borderRadius: displaySettings?.circleImages ? '50%' : '0.5rem'
+                        border: `2px solid ${bondingColor}`,
+                        borderRadius: displaySettings?.circleImages ? "50%" : "0.5rem",
                       }}
                     />
                   )}

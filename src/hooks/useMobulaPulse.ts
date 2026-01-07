@@ -75,21 +75,54 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
     if (!enabled) {
       console.log("🔴 Mobula Pulse disabled");
       setIsLoading(false);
+      setError(null);
       return;
     }
 
-    console.log("🟢 Mobula Pulse: Starting auto-refresh...");
-    setIsLoading(true);
+    // Check if API key is available
+    const apiKey = env.NEXT_PUBLIC_MOBULA_API_KEY;
+    if (!apiKey || apiKey === "7b7ba456-f454-4a42-a80e-897319cb0ac1") {
+      const errorMsg = "Mobula API key not configured. Please set NEXT_PUBLIC_MOBULA_API_KEY in your environment variables.";
+      console.error("❌", errorMsg);
+      setError(errorMsg);
+      setIsLoading(false);
+      return;
+    }
 
-    // Start auto-refresh
-    mobulaPulseManager.startAutoRefresh(() => {
-      console.log("🔄 Mobula Pulse: Data refreshed");
-      updateTokens();
+    console.log("🟢 Mobula Pulse: Starting auto-refresh...", {
+      enabled,
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length || 0,
     });
+    setIsLoading(true);
+    setError(null);
 
-    // Initial update
-    updateTokens();
-    setIsLoading(false);
+    // Start auto-refresh with error handling
+    try {
+      mobulaPulseManager.startAutoRefresh(
+        () => {
+          console.log("🔄 Mobula Pulse: Data refreshed");
+          updateTokens();
+          setError(null); // Clear any previous errors on successful refresh
+        },
+        (err: any) => {
+          const errorMessage = err?.message || err?.toString() || "Unknown error fetching Mobula data";
+          console.error("❌ Mobula Pulse: Error during refresh:", errorMessage);
+          setError(errorMessage);
+          logger.error("Mobula Pulse refresh error:", err);
+        }
+      );
+
+      // Initial update
+      updateTokens();
+      setIsLoading(false);
+    } catch (err: any) {
+      const errorMessage = err?.message || err?.toString() || "Failed to initialize Mobula Pulse";
+      console.error("❌ Mobula Pulse: Initialization error:", errorMessage);
+      setError(errorMessage);
+      setIsLoading(false);
+      logger.error("Mobula Pulse initialization error:", err);
+    }
 
     // Cleanup
     return () => {

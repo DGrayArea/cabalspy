@@ -41,9 +41,11 @@ import { useViewport } from "@/context/ViewportContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { WalletSettingsModal } from "@/services/WalletSettingsModal";
-import { pumpFunService } from "@/services/pumpfun";
+import { pumpFunService, PumpFunTokenInfo } from "@/services/pumpfun";
 import { dexscreenerService } from "@/services/dexscreener";
 import { multiChainTokenService } from "@/services/multichain-tokens";
+import { fetchTokenByAddress } from "@/services/mobula-pulse";
+import { env } from "@/lib/env";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
@@ -157,6 +159,7 @@ interface TokenDetailData {
         symbol: string;
       };
     };
+    mobula?: any; // Mobula-specific rich data
     transactions?: unknown[];
     holders?: unknown[];
   };
@@ -322,46 +325,83 @@ function TokenDetailContent() {
         // Fetch token data from multiple sources directly (better for rate limits)
         const tokenData: TokenDetailData["data"] = {};
 
-        // For Solana tokens, try pump.fun first
+        // PRIORITY 1: Try Mobula API first (if enabled) - provides richest data
+        if (env.NEXT_PUBLIC_USE_MOBULA && (normalizedChain === "sol" || normalizedChain === "solana")) {
+          try {
+            const mobulaChainId = normalizedChain === "sol" || normalizedChain === "solana" 
+              ? "solana:solana" 
+              : "bsc";
+            // Add timeout to prevent hanging
+            const mobulaToken = await Promise.race([
+              fetchTokenByAddress(tokenAddress, mobulaChainId),
+              new Promise<TokenData | null>((resolve) => 
+                setTimeout(() => resolve(null), 10000) // 10 second timeout
+              ),
+            ]);
+            if (mobulaToken) {
+              // Convert Mobula TokenData to base format
+              tokenData.base = mobulaToken;
+              // Also store Mobula-specific data if available
+              if ((mobulaToken as any)._mobulaData) {
+                tokenData.mobula = (mobulaToken as any)._mobulaData;
+              }
+            }
+          } catch (error) {
+            console.warn("Failed to fetch Mobula data", error);
+            // Continue to other sources - don't block the page
+          }
+        }
+
+        // PRIORITY 2: For Solana tokens, try pump.fun (with timeout)
         if (normalizedChain === "sol" || normalizedChain === "solana") {
           try {
-            const pumpFunData =
-              await pumpFunService.fetchTokenInfo(tokenAddress);
+            const pumpFunData = await Promise.race([
+              pumpFunService.fetchTokenInfo(tokenAddress),
+              new Promise<PumpFunTokenInfo | null>((resolve) => 
+                setTimeout(() => resolve(null), 8000) // 8 second timeout
+              ),
+            ]);
             if (pumpFunData) {
               tokenData.pumpfun = pumpFunData;
             }
           } catch (error) {
             console.warn("Failed to fetch pump.fun data", error);
+            // Continue to other sources
           }
         }
 
-        // Fetch DexScreener data (works for both Solana and BSC)
+        // PRIORITY 3: Fetch DexScreener data (works for both Solana and BSC) (with timeout)
         try {
           const dexScreenerChain =
             normalizedChain === "sol" || normalizedChain === "solana"
               ? "solana"
               : "bsc";
-          const dexScreenerData = await dexscreenerService.fetchTokenInfo(
-            dexScreenerChain,
-            tokenAddress
-          );
+          const dexScreenerData = await Promise.race([
+            dexscreenerService.fetchTokenInfo(dexScreenerChain, tokenAddress),
+            new Promise<any>((resolve) => 
+              setTimeout(() => resolve(null), 8000) // 8 second timeout
+            ),
+          ]);
           if (dexScreenerData) {
             tokenData.dexscreener = dexScreenerData;
           }
         } catch (error) {
           console.warn("Failed to fetch DexScreener data", error);
+          // Continue - we have fallbacks
         }
 
-        // Get token from multi-chain service cache
-        const allTokens = [
-          ...multiChainTokenService.getSolanaTokens(),
-          ...multiChainTokenService.getBSCTokens(),
-        ];
-        const cachedToken = allTokens.find(
-          (t) => t.id.toLowerCase() === tokenAddress.toLowerCase()
-        );
-        if (cachedToken) {
-          tokenData.base = cachedToken;
+        // PRIORITY 4: Get token from multi-chain service cache (fallback)
+        if (!tokenData.base) {
+          const allTokens = [
+            ...multiChainTokenService.getSolanaTokens(),
+            ...multiChainTokenService.getBSCTokens(),
+          ];
+          const cachedToken = allTokens.find(
+            (t) => t.id.toLowerCase() === tokenAddress.toLowerCase()
+          );
+          if (cachedToken) {
+            tokenData.base = cachedToken;
+          }
         }
 
         setTokenData({

@@ -1045,12 +1045,12 @@ export default function PulsePage() {
       // TRENDING filter - Use Mobula trending tokens first
       if (filterType === "trending") {
         if (mobulaEnabled) {
-          if (mobulaTokens.length > 0) {
-            console.log(
-              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
-            );
-            return mobulaTokens;
-          }
+        if (mobulaTokens.length > 0) {
+          console.log(
+            `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
+          );
+          return mobulaTokens;
+        }
           // Mobula finished loading but no tokens - return empty
           return [];
         }
@@ -1065,12 +1065,12 @@ export default function PulsePage() {
         filterType === "marketCap"
       ) {
         if (mobulaEnabled) {
-          // Try Mobula tokens first for all these filters
-          if (mobulaTokens.length > 0) {
-            // console.log(
-            //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
-            // );
-            return mobulaTokens;
+        // Try Mobula tokens first for all these filters
+        if (mobulaTokens.length > 0) {
+          // console.log(
+          //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
+          // );
+          return mobulaTokens;
           }
           // Mobula finished loading but no tokens - return empty
           return [];
@@ -1089,8 +1089,8 @@ export default function PulsePage() {
         filterType === "graduated"
       ) {
         if (mobulaEnabled) {
-          // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
-          if (mobulaTokens.length > 0) {
+        // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
+        if (mobulaTokens.length > 0) {
           let filteredMobulaTokens = mobulaTokens;
           
           if (filterType === "new") {
@@ -1341,10 +1341,52 @@ export default function PulsePage() {
 
   // Calculate filter counts - must match the data sources used in getTokensForFilter
   const filterCounts = useMemo(() => {
+    // If Mobula is enabled, prioritize Mobula counts for all filters
+    if (mobulaEnabled && mobulaTokensByFilter) {
+      // Calculate counts from Mobula data (matching getTokensForFilter logic)
+      let mobulaNewCount = 0;
+      let mobulaFinalStretchCount = 0;
+      let mobulaGraduatedCount = 0;
+
+      if (mobulaTokens.length > 0) {
+        // NEW: Exclude bonded tokens
+        mobulaNewCount = mobulaTokens.filter((token: any) => {
+          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+          const isBonded = token._mobulaData?.bonded || false;
+          return !isBonded && bondingPercentage < 100;
+        }).length;
+
+        // FINAL STRETCH: Bonding percentage 90-100% but not fully bonded
+        mobulaFinalStretchCount = mobulaTokens.filter((token: any) => {
+          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+          const isBonded = token._mobulaData?.bonded || false;
+          return !isBonded && bondingPercentage >= 90 && bondingPercentage < 100;
+        }).length;
+
+        // GRADUATED: Fully bonded tokens
+        mobulaGraduatedCount = mobulaTokens.filter((token: any) => {
+          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+          const isBonded = token._mobulaData?.bonded || false;
+          return isBonded || bondingPercentage >= 100;
+        }).length;
+      }
+
+      return {
+        trending: mobulaTokensByFilter.trending?.length || 0,
+        new: mobulaNewCount,
+        finalStretch: mobulaFinalStretchCount,
+        graduated: mobulaGraduatedCount,
+        latest: mobulaTokensByFilter.latest?.length || 0,
+        featured: mobulaTokensByFilter.featured?.length || 0,
+        marketCap: mobulaTokensByFilter.marketCap?.length || 0,
+      };
+    }
+
+    // Fallback to non-Mobula counts when Mobula is disabled
     // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
-    const latestCount = pumpFunTokensByType.latest.length;
-    const featuredCount = pumpFunTokensByType.featured.length;
-    const marketCapCount = pumpFunTokensByType.marketCap.length;
+    const latestCount = (pumpFunTokensByType.latest?.length || 0);
+    const featuredCount = (pumpFunTokensByType.featured?.length || 0);
+    const marketCapCount = (pumpFunTokensByType.marketCap?.length || 0);
 
     // NOTE: Graduated = Migrated (same thing - token completed bonding curve)
     // Calculate combined count to avoid double counting
@@ -1475,19 +1517,17 @@ export default function PulsePage() {
       }).length;
     }
 
-    // Trending count - use Mobula trending tokens
-    const trendingCount = mobulaAvailable
-      ? mobulaTokensByFilter.trending?.length || 0
-      : filteredAndSortedTokens.length;
+    // Trending count - use WebSocket tokens when Mobula is disabled
+    const trendingCount = filteredAndSortedTokens.length;
 
     return {
-      trending: trendingCount,
-      new: newCount,
-      finalStretch: finalStretchCount,
-      latest: latestCount,
-      featured: featuredCount,
-      graduated: graduatedCount,
-      marketCap: marketCapCount,
+      trending: trendingCount || 0,
+      new: newCount || 0,
+      finalStretch: finalStretchCount || 0,
+      latest: latestCount || 0,
+      featured: featuredCount || 0,
+      graduated: graduatedCount || 0,
+      marketCap: marketCapCount || 0,
     };
   }, [
     filteredAndSortedTokens,
@@ -1495,8 +1535,11 @@ export default function PulsePage() {
     protocolTokensByFilter,
     pumpFunMigratedTokens,
     wsMigratedTokens,
+    mobulaEnabled,
     mobulaAvailable,
     mobulaTokensByFilter,
+    mobulaTokens,
+    parseTimeToSeconds,
   ]);
 
   const formatCurrency = (value: number) => {
@@ -1631,46 +1674,46 @@ export default function PulsePage() {
                     {
                       id: "trending",
                       label: "Trending",
-                      count: filterCounts.trending || 0,
+                      count: filterCounts.trending ?? 0,
                       icon: TrendingUpIcon,
                       live: true,
                     },
                     {
                       id: "new",
                       label: "New Pairs",
-                      count: filterCounts.new,
+                      count: filterCounts.new ?? 0,
                       icon: Sparkles,
                       live: true,
                     },
                     {
                       id: "finalStretch",
                       label: "Final Stretch",
-                      count: filterCounts.finalStretch || 0,
+                      count: filterCounts.finalStretch ?? 0,
                       icon: Zap,
                     },
                     {
                       id: "graduated",
                       label: "Graduated",
-                      count: filterCounts.graduated,
+                      count: filterCounts.graduated ?? 0,
                       icon: CheckCircle2,
                     },
                     {
                       id: "latest",
                       label: "Latest",
-                      count: filterCounts.latest,
+                      count: filterCounts.latest ?? 0,
                       icon: Clock,
                     },
                     {
                       id: "featured",
                       label: "Featured",
-                      count: filterCounts.featured,
+                      count: filterCounts.featured ?? 0,
                       icon: Star,
                     },
                     {
                       id: "marketCap",
                       label: "Top MC",
-                      count: filterCounts.marketCap,
-                      icon: TrendingUp,
+                      count: filterCounts.marketCap ?? 0,
+                      icon: BarChart3, // Changed from TrendingUp to BarChart3 to differentiate from Trending
                     },
                   ].map(({ id, label, count, icon: Icon, live }) => (
                     <button

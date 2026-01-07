@@ -471,8 +471,24 @@ export async function fetchBasicViews(
       bonding: (response.data.bonding?.data || []).map(transformToken),
       bonded: (response.data.bonded?.data || []).map(transformToken),
     };
-  } catch (error) {
-    logger.error("Error fetching basic views from Mobula:", error);
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
+    const statusCode = error?.response?.status;
+    const statusText = error?.response?.statusText;
+    
+    logger.error("Error fetching basic views from Mobula:", {
+      message: errorMessage,
+      status: statusCode,
+      statusText,
+      url: GET_API_URL,
+      hasApiKey: !!API_KEY,
+    });
+    
+    // Log more details in development
+    if (process.env.NODE_ENV === "development") {
+      console.error("Full error:", error);
+    }
+    
     throw error;
   }
 }
@@ -569,8 +585,24 @@ export async function fetchCustomViews(
         transformToken
       ),
     };
-  } catch (error) {
-    logger.error("Error fetching custom views from Mobula:", error);
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
+    const statusCode = error?.response?.status;
+    const statusText = error?.response?.statusText;
+    
+    logger.error("Error fetching custom views from Mobula:", {
+      message: errorMessage,
+      status: statusCode,
+      statusText,
+      url: POST_API_URL,
+      hasApiKey: !!API_KEY,
+    });
+    
+    // Log more details in development
+    if (process.env.NODE_ENV === "development") {
+      console.error("Full error:", error);
+    }
+    
     throw error;
   }
 }
@@ -662,6 +694,96 @@ export async function fetchSingleView(
 
 /**
  * ============================================================================
+ * FETCH SINGLE TOKEN BY ADDRESS
+ * ============================================================================
+ * Fetches detailed information for a specific token by its address
+ * Uses trending view with high limit and filters results client-side
+ */
+export async function fetchTokenByAddress(
+  address: string,
+  chainId: string = "solana:solana"
+): Promise<TokenData | null> {
+  try {
+    // Mobula Pulse API doesn't support direct address filtering
+    // So we fetch a trending view with a high limit and filter client-side
+    // This is less efficient but works with the current API structure
+    const payload = {
+      assetMode: true,
+      views: [
+        {
+          name: "token-search",
+          chainId: [chainId],
+          poolTypes: SOLANA_POOL_TYPES,
+          sortBy: "volume_24h",
+          sortOrder: "desc",
+          limit: 1000, // Fetch more tokens to increase chance of finding our token
+        },
+      ],
+    };
+
+    const response: AxiosResponse<MobulaResponse> = await axios.post(
+      POST_API_URL,
+      payload,
+      {
+        headers: {
+          Authorization: API_KEY,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    // Filter results to find the token by address
+    const allTokens = (response.data["token-search"]?.data || []).map(transformToken);
+    const normalizedAddress = address.toLowerCase();
+    const foundToken = allTokens.find(
+      (token) => token.address?.toLowerCase() === normalizedAddress
+    );
+
+    if (foundToken) {
+      logger.info(`✅ Found token in Mobula: ${address}`);
+      return foundToken;
+    }
+
+    // If not found in trending, try searching in new tokens view
+    try {
+      const basicViews = await fetchBasicViews(1000, 0);
+      const allBasicTokens = [
+        ...basicViews.new,
+        ...basicViews.bonding,
+        ...basicViews.bonded,
+      ];
+      const foundInBasic = allBasicTokens.find(
+        (token) => token.address?.toLowerCase() === normalizedAddress
+      );
+      if (foundInBasic) {
+        logger.info(`✅ Found token in Mobula basic views: ${address}`);
+        return foundInBasic;
+      }
+    } catch (basicError) {
+      // Ignore basic view errors, we'll return null
+    }
+
+    logger.warn(`⚠️ Token not found in Mobula: ${address}`);
+    return null;
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
+    const statusCode = error?.response?.status;
+    
+    logger.error("Error fetching token by address from Mobula:", {
+      address,
+      chainId,
+      message: errorMessage,
+      status: statusCode,
+    });
+    
+    // Don't throw - return null so other sources can be tried
+    return null;
+  }
+}
+
+/**
+ * ============================================================================
  * FILTER MAPPING
  * ============================================================================
  * Maps your filter tabs to Mobula endpoints/views
@@ -714,14 +836,25 @@ export class MobulaPulseManager {
   /**
    * Start auto-refresh for both GET and POST endpoints
    */
-  startAutoRefresh(onUpdate: () => void): void {
-    // Initial fetch
-    this.refreshAll();
+  startAutoRefresh(
+    onUpdate: () => void,
+    onError?: (error: any) => void
+  ): void {
+    // Initial fetch with error handling
+    this.refreshAll().catch((err) => {
+      logger.error("Mobula Pulse: Initial refresh error:", err);
+      if (onError) onError(err);
+    });
 
     // Set up interval
     this.refreshInterval = setInterval(async () => {
-      await this.refreshAll();
-      onUpdate(); // Notify caller of updates
+      try {
+        await this.refreshAll();
+        onUpdate(); // Notify caller of updates
+      } catch (err) {
+        logger.error("Mobula Pulse: Interval refresh error:", err);
+        if (onError) onError(err);
+      }
     }, this.REFRESH_INTERVAL_MS);
   }
 
