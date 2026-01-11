@@ -17,8 +17,13 @@ import { TokenData } from "@/types/token";
 import { logger } from "@/lib/logger";
 
 // API Configuration
-const GET_API_URL = "https://api.mobula.io/api/2/pulse";
-const POST_API_URL = "https://api.mobula.io/api/2/pulse";
+// Use Next.js API route to proxy requests (avoids CORS issues)
+const GET_API_URL = typeof window !== "undefined" 
+  ? "/api/mobula"  // Client-side: use API route
+  : "https://api.mobula.io/api/2/pulse";  // Server-side: direct call
+const POST_API_URL = typeof window !== "undefined"
+  ? "/api/mobula"  // Client-side: use API route
+  : "https://pulse-v2-api.mobula.io/api/2/pulse";  // Server-side: use v2 API for POST
 const API_KEY =
   process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
   "7b7ba456-f454-4a42-a80e-897319cb0ac1";
@@ -458,11 +463,18 @@ export async function fetchBasicViews(
 
     const url = `${GET_API_URL}?${params.toString()}`;
 
+    // When using API route, don't send Authorization header (handled server-side)
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add Authorization header if calling Mobula directly (server-side)
+    if (GET_API_URL.includes("api.mobula.io")) {
+      headers.Authorization = API_KEY;
+    }
+
     const response: AxiosResponse<MobulaResponse> = await axios.get(url, {
-      headers: {
-        Authorization: API_KEY,
-        "Content-Type": "application/json",
-      },
+      headers,
       timeout: 30000, // Increased to 30 seconds
     });
 
@@ -487,6 +499,17 @@ export async function fetchBasicViews(
     // Log more details in development
     if (process.env.NODE_ENV === "development") {
       console.error("Full error:", error);
+    }
+    
+    // For 502 errors (Bad Gateway), return empty data instead of throwing
+    // This allows the app to continue functioning with fallback data
+    if (statusCode === 502 || statusCode === 503) {
+      logger.warn("Mobula API unavailable (502/503), returning empty data");
+      return {
+        new: [],
+        bonding: [],
+        bonded: [],
+      };
     }
     
     throw error;
@@ -561,14 +584,21 @@ export async function fetchCustomViews(
       ],
     };
 
+    // When using API route, don't send Authorization header (handled server-side)
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add Authorization header if calling Mobula directly (server-side)
+    if (POST_API_URL.includes("api.mobula.io")) {
+      headers.Authorization = API_KEY;
+    }
+
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
       payload,
       {
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
+        headers,
         timeout: 30000, // Increased to 30 seconds
       }
     );
@@ -601,6 +631,18 @@ export async function fetchCustomViews(
     // Log more details in development
     if (process.env.NODE_ENV === "development") {
       console.error("Full error:", error);
+    }
+    
+    // For 502 errors (Bad Gateway), return empty data instead of throwing
+    // This allows the app to continue functioning with fallback data
+    if (statusCode === 502 || statusCode === 503) {
+      logger.warn("Mobula API unavailable (502/503), returning empty data");
+      return {
+        trending: [],
+        "quality-tokens": [],
+        "high-volume": [],
+        "price-gainers": [],
+      };
     }
     
     throw error;
@@ -673,14 +715,21 @@ export async function fetchSingleView(
       views: [viewConfigs[viewName]],
     };
 
+    // When using API route, don't send Authorization header (handled server-side)
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add Authorization header if calling Mobula directly (server-side)
+    if (POST_API_URL.includes("api.mobula.io")) {
+      headers.Authorization = API_KEY;
+    }
+
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
       payload,
       {
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
+        headers,
         timeout: 30000, // Increased to 30 seconds
       }
     );
@@ -721,14 +770,21 @@ export async function fetchTokenByAddress(
       ],
     };
 
+    // When using API route, don't send Authorization header (handled server-side)
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add Authorization header if calling Mobula directly (server-side)
+    if (POST_API_URL.includes("api.mobula.io")) {
+      headers.Authorization = API_KEY;
+    }
+
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
       payload,
       {
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
+        headers,
         timeout: 30000,
       }
     );
@@ -1250,14 +1306,21 @@ export async function fetchCustomFilter(
     const payload = buildCustomFilterPayload(options);
     payload.views[0].offset = offset;
 
+    // When using API route, don't send Authorization header (handled server-side)
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    
+    // Only add Authorization header if calling Mobula directly (server-side)
+    if (POST_API_URL.includes("api.mobula.io")) {
+      headers.Authorization = API_KEY;
+    }
+
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
       payload,
       {
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
+        headers,
         timeout: 30000, // Increased to 30 seconds
       }
     );

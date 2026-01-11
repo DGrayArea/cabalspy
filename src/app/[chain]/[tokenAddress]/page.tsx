@@ -43,8 +43,8 @@ import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { WalletSettingsModal } from "@/services/WalletSettingsModal";
 import { pumpFunService, PumpFunTokenInfo } from "@/services/pumpfun";
 import { dexscreenerService } from "@/services/dexscreener";
+import { geckoTerminalService } from "@/services/geckoterminal";
 import { multiChainTokenService } from "@/services/multichain-tokens";
-import { fetchTokenByAddress } from "@/services/mobula-pulse";
 import { env } from "@/lib/env";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
@@ -159,7 +159,38 @@ interface TokenDetailData {
         symbol: string;
       };
     };
-    mobula?: any; // Mobula-specific rich data
+    geckoterminal?: {
+      logo?: string;
+      name?: string;
+      symbol?: string;
+      priceUsd?: number;
+      priceNative?: number;
+      priceChange24h?: number;
+      priceChange1h?: number;
+      volume24h?: number;
+      volume1h?: number;
+      liquidity?: number;
+      marketCap?: number;
+      fdv?: number;
+      pairAddress?: string;
+      dexId?: string;
+      baseToken?: {
+        address: string;
+        name: string;
+        symbol: string;
+      };
+      quoteToken?: {
+        address: string;
+        name: string;
+        symbol: string;
+      };
+      transactions24h?: {
+        buys: number;
+        sells: number;
+        total: number;
+      };
+    };
+    mobula?: any; // Mobula-specific rich data (disabled for individual token lookups)
     transactions?: unknown[];
     holders?: unknown[];
   };
@@ -209,6 +240,7 @@ function TokenDetailContent() {
   );
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const { toast, dismiss } = useToast();
 
   // Trading state for inline buy/sell
@@ -312,6 +344,7 @@ function TokenDetailContent() {
     const fetchTokenData = async () => {
       try {
         setLoading(true);
+        setImageError(false); // Reset image error when fetching new token
 
         // Validate chain
         const validChains = ["sol", "solana", "bsc"];
@@ -325,34 +358,52 @@ function TokenDetailContent() {
         // Fetch token data from multiple sources directly (better for rate limits)
         const tokenData: TokenDetailData["data"] = {};
 
-        // PRIORITY 1: Try Mobula API first (if enabled) - provides richest data
-        if (env.NEXT_PUBLIC_USE_MOBULA && (normalizedChain === "sol" || normalizedChain === "solana")) {
-          try {
-            const mobulaChainId = normalizedChain === "sol" || normalizedChain === "solana" 
-              ? "solana:solana" 
-              : "bsc";
-            // Add timeout to prevent hanging
-            const mobulaToken = await Promise.race([
-              fetchTokenByAddress(tokenAddress, mobulaChainId),
-              new Promise<TokenData | null>((resolve) => 
-                setTimeout(() => resolve(null), 10000) // 10 second timeout
-              ),
-            ]);
-            if (mobulaToken) {
-              // Convert Mobula TokenData to base format
-              tokenData.base = mobulaToken;
-              // Also store Mobula-specific data if available
-              if ((mobulaToken as any)._mobulaData) {
-                tokenData.mobula = (mobulaToken as any)._mobulaData;
-              }
-            }
-          } catch (error) {
-            console.warn("Failed to fetch Mobula data", error);
-            // Continue to other sources - don't block the page
+        // PRIORITY 1: Fetch DexScreener data (most reliable, works for both Solana and BSC)
+        try {
+          const dexScreenerChain =
+            normalizedChain === "sol" || normalizedChain === "solana"
+              ? "solana"
+              : normalizedChain === "bsc"
+              ? "bsc"
+              : "solana"; // Default to solana
+          const dexScreenerData = await Promise.race([
+            dexscreenerService.fetchTokenInfo(dexScreenerChain, tokenAddress),
+            new Promise<any>((resolve) => 
+              setTimeout(() => resolve(null), 8000) // 8 second timeout
+            ),
+          ]);
+          if (dexScreenerData) {
+            tokenData.dexscreener = dexScreenerData;
           }
+        } catch (error) {
+          console.warn("Failed to fetch DexScreener data", error);
+          // Continue to other sources
         }
 
-        // PRIORITY 2: For Solana tokens, try pump.fun (with timeout)
+        // PRIORITY 2: Fetch GeckoTerminal data (reliable alternative)
+        try {
+          const geckoNetwork =
+            normalizedChain === "sol" || normalizedChain === "solana"
+              ? "solana"
+              : normalizedChain === "bsc"
+              ? "bsc"
+              : "solana"; // Default to solana
+          const geckoData = await Promise.race([
+            geckoTerminalService.fetchTokenInfo(geckoNetwork, tokenAddress),
+            new Promise<any>((resolve) => 
+              setTimeout(() => resolve(null), 8000) // 8 second timeout
+            ),
+          ]);
+          if (geckoData) {
+            // Store GeckoTerminal data (can be merged with DexScreener)
+            tokenData.geckoterminal = geckoData;
+          }
+        } catch (error) {
+          console.warn("Failed to fetch GeckoTerminal data", error);
+          // Continue to other sources
+        }
+
+        // PRIORITY 3: For Solana tokens, try pump.fun (with timeout)
         if (normalizedChain === "sol" || normalizedChain === "solana") {
           try {
             const pumpFunData = await Promise.race([
@@ -368,26 +419,6 @@ function TokenDetailContent() {
             console.warn("Failed to fetch pump.fun data", error);
             // Continue to other sources
           }
-        }
-
-        // PRIORITY 3: Fetch DexScreener data (works for both Solana and BSC) (with timeout)
-        try {
-          const dexScreenerChain =
-            normalizedChain === "sol" || normalizedChain === "solana"
-              ? "solana"
-              : "bsc";
-          const dexScreenerData = await Promise.race([
-            dexscreenerService.fetchTokenInfo(dexScreenerChain, tokenAddress),
-            new Promise<any>((resolve) => 
-              setTimeout(() => resolve(null), 8000) // 8 second timeout
-            ),
-          ]);
-          if (dexScreenerData) {
-            tokenData.dexscreener = dexScreenerData;
-          }
-        } catch (error) {
-          console.warn("Failed to fetch DexScreener data", error);
-          // Continue - we have fallbacks
         }
 
         // PRIORITY 4: Get token from multi-chain service cache (fallback)
@@ -451,42 +482,74 @@ function TokenDetailContent() {
   const baseToken = tokenData?.data?.base;
   const pumpfunData = tokenData?.data?.pumpfun;
   const dexscreenerData = tokenData?.data?.dexscreener;
+  const geckoTerminalData = tokenData?.data?.geckoterminal;
 
-  // Merge data from all sources, prioritizing URL params (from portfolio)
+  // Merge data from all sources, prioritizing DexScreener and GeckoTerminal
   const tokenName =
     tokenNameFromParams ||
+    dexscreenerData?.baseToken?.name ||
+    geckoTerminalData?.name ||
     pumpfunData?.name ||
     baseToken?.name ||
     "Unknown Token";
   const tokenSymbol =
     tokenSymbolFromParams ||
+    dexscreenerData?.baseToken?.symbol ||
+    geckoTerminalData?.symbol ||
     pumpfunData?.symbol ||
     baseToken?.symbol ||
     "UNKNOWN";
-  const tokenImage =
-    tokenLogoFromParams ||
-    dexscreenerData?.logo ||
-    pumpfunData?.logo ||
-    baseToken?.image ||
-    baseToken?.icon;
+  // Get token image with proper validation - ensure it's a valid URL
+  const getTokenImage = () => {
+    const imageUrl = 
+      tokenLogoFromParams ||
+      dexscreenerData?.logo ||
+      geckoTerminalData?.logo ||
+      pumpfunData?.logo ||
+      baseToken?.image ||
+      baseToken?.icon;
+    
+    // If it's a valid URL string, return it; otherwise return null to show fallback
+    if (!imageUrl) return null;
+    if (typeof imageUrl === 'string' && (imageUrl.startsWith('http') || imageUrl.startsWith('data:') || imageUrl.startsWith('/'))) {
+      return imageUrl;
+    }
+    // If it's not a valid URL (e.g., just text), return null
+    return null;
+  };
+  
+  const tokenImage = getTokenImage();
   const tokenDecimals = tokenDecimalsFromParams
     ? parseInt(tokenDecimalsFromParams)
     : baseToken?.decimals || 6;
   const description = pumpfunData?.description;
   const price =
     dexscreenerData?.priceUsd ||
+    geckoTerminalData?.priceUsd ||
     pumpfunData?.priceUsd ||
     pumpfunData?.price ||
     baseToken?.price ||
     0;
   const marketCap =
-    pumpfunData?.marketCap || baseToken?.marketCap || dexscreenerData?.fdv || 0;
+    dexscreenerData?.fdv ||
+    geckoTerminalData?.marketCap ||
+    geckoTerminalData?.fdv ||
+    pumpfunData?.marketCap ||
+    baseToken?.marketCap ||
+    0;
   const volume =
-    dexscreenerData?.volume24h || pumpfunData?.volume || baseToken?.volume || 0;
+    dexscreenerData?.volume24h ||
+    geckoTerminalData?.volume24h ||
+    pumpfunData?.volume ||
+    baseToken?.volume ||
+    0;
   // Get price change - prefer shorter timeframes (1h, 6h) over 24h
   const priceChange =
     dexscreenerData?.priceChange1h ??
+    geckoTerminalData?.priceChange1h ??
     dexscreenerData?.priceChange6h ??
+    dexscreenerData?.priceChange24h ??
+    geckoTerminalData?.priceChange24h ??
     pumpfunData?.priceChange24h ??
     dexscreenerData?.priceChange24h ??
     0;
@@ -711,28 +774,35 @@ function TokenDetailContent() {
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
               {/* Left: Token Info */}
               <div className="flex items-start gap-4 flex-1">
-                {tokenImage ? (
+                {tokenImage && !imageError ? (
                   <div
-                    className="relative w-16 h-fit md:w-20 md:h-fit flex-shrink-0"
-                    style={{ aspectRatio: "1 / 1" }}
+                    className="relative w-20 h-20 md:w-24 md:h-24 flex-shrink-0"
+                    style={{
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                    }}
                   >
-                    <div className="absolute inset-0 rounded-full overflow-hidden">
-                      <Image
-                        src={tokenImage}
-                        alt={tokenSymbol}
-                        fill
-                        className="object-cover"
-                        style={{
-                          borderRadius: "50%",
-                        }}
-                        sizes="(max-width: 768px) 64px, 80px"
-                        unoptimized
-                      />
-                    </div>
+                    <Image
+                      src={tokenImage}
+                      alt={tokenSymbol}
+                      fill
+                      className="object-cover"
+                      style={{
+                        borderRadius: '50%',
+                      }}
+                      sizes="(max-width: 768px) 80px, 96px"
+                      unoptimized
+                      onError={() => setImageError(true)}
+                    />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center flex-shrink-0 text-2xl">
-                    {tokenSymbol[0] || "?"}
+                  <div 
+                    className="w-20 h-20 md:w-24 md:h-24 flex-shrink-0 bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center text-2xl md:text-3xl font-bold"
+                    style={{
+                      borderRadius: '50%',
+                    }}
+                  >
+                    {tokenSymbol?.[0]?.toUpperCase() || tokenName?.[0]?.toUpperCase() || "?"}
                   </div>
                 )}
                 <div className="flex-1 min-w-0">

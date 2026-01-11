@@ -1045,12 +1045,12 @@ export default function PulsePage() {
       // TRENDING filter - Use Mobula trending tokens first
       if (filterType === "trending") {
         if (mobulaEnabled) {
-        if (mobulaTokens.length > 0) {
-          console.log(
-            `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
-          );
-          return mobulaTokens;
-        }
+          if (mobulaTokens.length > 0) {
+            console.log(
+              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
+            );
+            return mobulaTokens;
+          }
           // Mobula finished loading but no tokens - return empty
           return [];
         }
@@ -1065,12 +1065,12 @@ export default function PulsePage() {
         filterType === "marketCap"
       ) {
         if (mobulaEnabled) {
-        // Try Mobula tokens first for all these filters
-        if (mobulaTokens.length > 0) {
-          // console.log(
-          //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
-          // );
-          return mobulaTokens;
+          // Try Mobula tokens first for all these filters
+          if (mobulaTokens.length > 0) {
+            // console.log(
+            //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
+            // );
+            return mobulaTokens;
           }
           // Mobula finished loading but no tokens - return empty
           return [];
@@ -1089,50 +1089,46 @@ export default function PulsePage() {
         filterType === "graduated"
       ) {
         if (mobulaEnabled) {
-        // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
-        if (mobulaTokens.length > 0) {
-          let filteredMobulaTokens = mobulaTokens;
-          
-          if (filterType === "new") {
-            // NEW: Exclude bonded tokens (bondingPercentage < 100% and not bonded)
-            filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-              const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
-              const isBonded = token._mobulaData?.bonded || false;
-              return !isBonded && bondingPercentage < 100;
-            });
-          } else if (filterType === "finalStretch") {
-            // FINAL STRETCH: Bonding percentage 90-100% but not fully bonded
-            filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-              const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
-              const isBonded = token._mobulaData?.bonded || false;
-              return !isBonded && bondingPercentage >= 90 && bondingPercentage < 100;
-            });
-          } else if (filterType === "graduated") {
-            // GRADUATED: Fully bonded tokens (bondingPercentage === 100% or bonded === true)
-            filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-              const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
-              const isBonded = token._mobulaData?.bonded || false;
-              return isBonded || bondingPercentage >= 100;
-            });
+          // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
+          if (mobulaTokens.length > 0) {
+            let filteredMobulaTokens = mobulaTokens;
+            
+            if (filterType === "new") {
+              // NEW: Exclude bonded/graduated tokens (must be < 99% and not bonded)
+              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const isBonded = token._mobulaData?.bonded || false;
+                // Exclude tokens that are bonded or have bonding percentage >= 99%
+                return !isBonded && bondingPercentage < 99;
+              });
+            } else if (filterType === "finalStretch") {
+              // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
+              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const isBonded = token._mobulaData?.bonded || false;
+                return !isBonded && bondingPercentage >= 90 && bondingPercentage < 99;
+              });
+            } else if (filterType === "graduated") {
+              // GRADUATED: Fully bonded tokens (bondingPercentage === 100% or bonded === true)
+              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const isBonded = token._mobulaData?.bonded || false;
+                return isBonded || bondingPercentage >= 100;
+              });
+            }
+            
+            if (filteredMobulaTokens.length > 0) {
+              // console.log(
+              //   `🔍 Filter ${filterType}: Using ${filteredMobulaTokens.length} filtered Mobula tokens (from ${mobulaTokens.length} total)`
+              // );
+              return filteredMobulaTokens;
+            }
+            // Mobula finished loading but no filtered tokens match - return empty (don't fallback)
+            return [];
           }
-          
-          if (filteredMobulaTokens.length > 0) {
-            // console.log(
-            //   `🔍 Filter ${filterType}: Using ${filteredMobulaTokens.length} filtered Mobula tokens (from ${mobulaTokens.length} total)`
-            // );
-            return filteredMobulaTokens;
-          }
-          // Mobula finished loading but no filtered tokens match - return empty (don't fallback)
-          return [];
         }
-      }
 
-      // Mobula disabled - use protocol/WebSocket tokens as fallback
-      if (
-        filterType === "new" ||
-        filterType === "finalStretch" ||
-        filterType === "graduated"
-      ) {
+        // Mobula disabled - use protocol/WebSocket tokens as fallback
         // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter
         // This prevents tokens from one filter leaking into another when switching filters
         const storedProtocolTokens =
@@ -1145,18 +1141,18 @@ export default function PulsePage() {
         let filteredTokens = storedProtocolTokens;
 
         if (filterType === "new") {
-          // NEW filter: MUST exclude ALL migrated tokens, regardless of what API returns
+          // NEW filter: MUST exclude ALL migrated/graduated tokens, regardless of what API returns
           filteredTokens = storedProtocolTokens.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
               !token.migrationTimestamp &&
               !token.raydiumPool &&
               token.bondingProgress !== 1.0 &&
-              token.bondingProgress < 1.0;
+              token.bondingProgress < 0.99; // Exclude tokens at 99% or above (final stretch)
             return isNotMigrated;
           });
         } else if (filterType === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-100%
+          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-99%
           filteredTokens = storedProtocolTokens.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
@@ -1175,7 +1171,7 @@ export default function PulsePage() {
                 : solReserves && solReserves > 0
                   ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
                   : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+            return bondingProgress >= 0.9 && bondingProgress < 0.99;
           });
         } else if (filterType === "graduated") {
           // GRADUATED: Must ONLY include migrated/graduated tokens
@@ -1233,7 +1229,7 @@ export default function PulsePage() {
         }
 
         if (filterType === "finalStretch") {
-          // Filter tokens with bonding progress 90-100% AND not migrated
+          // Filter tokens with bonding progress 90-99% AND not migrated
           const finalStretch = filteredAndSortedTokens.filter((token) => {
             // Exclude migrated tokens
             const isNotMigrated =
@@ -1252,7 +1248,7 @@ export default function PulsePage() {
               solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (more accurate)
                 : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+            return bondingProgress >= 0.9 && bondingProgress < 0.99;
           });
           // console.log(
           //   `🔍 Filter finalStretch: Found ${finalStretch.length} tokens (fallback)`
@@ -1302,7 +1298,7 @@ export default function PulsePage() {
       // CRITICAL: Don't fall back to filteredAndSortedTokens - this causes cross-contamination
       // Each filter should ONLY return tokens from its specific source
       // If no tokens found, return empty array
-      console.warn(`⚠️ No tokens found for filter: ${filterType}`);
+      console.warn("No tokens found for filter:", filterType);
       return [];
     },
     [
@@ -1312,6 +1308,10 @@ export default function PulsePage() {
       pumpFunMigratedTokens,
       wsMigratedTokens,
       mobulaTokens,
+      mobulaEnabled,
+      mobulaLoading,
+      lastFetchedFilter,
+      filter,
     ]
   );
 
@@ -1349,18 +1349,19 @@ export default function PulsePage() {
       let mobulaGraduatedCount = 0;
 
       if (mobulaTokens.length > 0) {
-        // NEW: Exclude bonded tokens
+        // NEW: Exclude bonded/graduated tokens (must be < 99%)
         mobulaNewCount = mobulaTokens.filter((token: any) => {
           const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
           const isBonded = token._mobulaData?.bonded || false;
-          return !isBonded && bondingPercentage < 100;
+          // Exclude tokens that are bonded or have bonding percentage >= 99%
+          return !isBonded && bondingPercentage < 99;
         }).length;
 
-        // FINAL STRETCH: Bonding percentage 90-100% but not fully bonded
+        // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
         mobulaFinalStretchCount = mobulaTokens.filter((token: any) => {
           const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
           const isBonded = token._mobulaData?.bonded || false;
-          return !isBonded && bondingPercentage >= 90 && bondingPercentage < 100;
+          return !isBonded && bondingPercentage >= 90 && bondingPercentage < 99;
         }).length;
 
         // GRADUATED: Fully bonded tokens
@@ -1471,12 +1472,12 @@ export default function PulsePage() {
               : solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
                 : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-          return bondingProgress >= 0.9 && bondingProgress < 1.0;
+          return bondingProgress >= 0.9 && bondingProgress < 0.99;
         }
       );
       finalStretchCount = filteredFinalStretch.length;
     } else {
-      // Fallback: filter tokens with bonding progress 90-100% AND not migrated
+      // Fallback: filter tokens with bonding progress 90-99% AND not migrated
       finalStretchCount = filteredAndSortedTokens.filter((token) => {
         // Exclude migrated tokens
         const isNotMigrated =
@@ -1492,7 +1493,7 @@ export default function PulsePage() {
           solReserves && solReserves > 0
             ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
             : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-        return bondingProgress >= 0.9 && bondingProgress < 1.0;
+        return bondingProgress >= 0.9 && bondingProgress < 0.99;
       }).length;
     }
 
@@ -1676,14 +1677,12 @@ export default function PulsePage() {
                       label: "Trending",
                       count: filterCounts.trending ?? 0,
                       icon: TrendingUpIcon,
-                      live: true,
                     },
                     {
                       id: "new",
                       label: "New Pairs",
                       count: filterCounts.new ?? 0,
                       icon: Sparkles,
-                      live: true,
                     },
                     {
                       id: "finalStretch",
@@ -1734,15 +1733,6 @@ export default function PulsePage() {
                           LIVE
                         </span>
                       )}
-                      <span
-                        className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${
-                          filter === id
-                            ? "bg-white/20 text-white"
-                            : "bg-gray-700/50 text-gray-400"
-                        }`}
-                      >
-                        {count}
-                      </span>
                     </button>
                   ))}
                 </div>
