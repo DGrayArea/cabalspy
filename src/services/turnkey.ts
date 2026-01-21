@@ -12,47 +12,18 @@ export class TurnkeyService {
   private client: TurnkeyClient;
 
   constructor(config: TurnkeyConfig) {
-    // Check if API keys are provided (optional - needed for server-side operations)
     if (!config.apiPrivateKey || !config.apiKey) {
-      logger.warn(
-        "Turnkey API keys not found. Server-side wallet operations will not work.\n" +
-          "To enable server-side wallet creation, you need to:\n" +
-          "1. Go to Turnkey Dashboard → API Keys\n" +
-          "2. Create a new API key pair\n" +
-          "3. Add to .env.local:\n" +
-          "   TURNKEY_API_PRIVATE_KEY=your_private_key\n" +
-          "   NEXT_PUBLIC_TURNKEY_API_KEY=your_public_key\n\n" +
-          "Alternatively, use client-side embedded wallets via @turnkey/react-wallet-kit"
-      );
-      // Create a dummy client that will fail gracefully
+      logger.warn("Turnkey API keys not found. Server-side wallet operations will not work.");
       this.client = null as any;
       return;
     }
 
-    // Validate key formats (basic checks)
-    if (
-      !config.apiPrivateKey.startsWith("0x") &&
-      !config.apiPrivateKey.includes("PRIVATE")
-    ) {
-      logger.warn(
-        "TURNKEY_API_PRIVATE_KEY format may be incorrect. Expected format: starts with '0x' or contains 'PRIVATE'"
-      );
-    }
-
-    if (!config.apiKey.startsWith("0x") && !config.apiKey.includes("PUBLIC")) {
-      logger.warn(
-        "NEXT_PUBLIC_TURNKEY_API_KEY format may be incorrect. Expected format: starts with '0x' or contains 'PUBLIC'"
-      );
-    }
-
     try {
-      // Initialize the API key stamper
       const stamper = new ApiKeyStamper({
         apiPrivateKey: config.apiPrivateKey,
         apiPublicKey: config.apiKey,
       });
 
-      // Initialize the Turnkey client
       this.client = new TurnkeyClient(
         {
           baseUrl: config.baseUrl,
@@ -60,34 +31,14 @@ export class TurnkeyService {
         stamper
       );
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      if (
-        errorMessage.includes("invalid public key") ||
-        errorMessage.includes("switched")
-      ) {
-        throw new Error(
-          `Turnkey API key configuration error: ${errorMessage}\n\n` +
-            "Possible issues:\n" +
-            "1. Public and private keys may be swapped - check your .env.local\n" +
-            "2. Keys may be in wrong format - ensure they're valid P-256 keys\n" +
-            "3. Keys may be incomplete - copy the full key from Turnkey dashboard\n\n" +
-            "Verify:\n" +
-            "- TURNKEY_API_PRIVATE_KEY should be your private key\n" +
-            "- NEXT_PUBLIC_TURNKEY_API_KEY should be your public key"
-        );
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("invalid public key") || errorMessage.includes("switched")) {
+        throw new Error(`Turnkey API key configuration error: ${errorMessage}`);
       }
       throw error;
     }
-
-    // Note: We don't initialize the browser SDK here since this service is used
-    // from client components and we only require the typed HTTP client for now.
   }
 
-  /**
-   * Create a new wallet for a user
-   * Defaults to Solana for Pump.fun compatibility
-   */
   async createWallet(
     userId: string,
     walletName: string,
@@ -101,7 +52,6 @@ export class TurnkeyService {
       );
     }
     try {
-      // Build accounts array with explicit values to ensure proper serialization
       const accounts =
         chain === "solana"
           ? [
@@ -121,16 +71,6 @@ export class TurnkeyService {
               },
             ];
 
-      // Log the accounts structure for debugging
-      logger.info("Creating wallet with accounts", {
-        chain,
-        accountsCount: accounts.length,
-        pathFormat: accounts[0]?.pathFormat,
-        curve: accounts[0]?.curve,
-        fullAccounts: JSON.stringify(accounts),
-      });
-
-      // Ensure accounts are properly structured - create fresh objects to avoid any serialization issues
       const accountsPayload = accounts.map((acc) => ({
         curve: acc.curve,
         pathFormat: acc.pathFormat,
@@ -148,7 +88,6 @@ export class TurnkeyService {
         },
       });
 
-      // Response structure may vary, handle different response formats
       const walletId =
         (response as { wallet?: { walletId?: string } }).wallet?.walletId ||
         (response as { walletId?: string }).walletId ||
@@ -162,27 +101,13 @@ export class TurnkeyService {
         return walletId;
       }
 
-      throw new Error(
-        "Failed to create wallet: No wallet returned from Turnkey"
-      );
+      throw new Error("Failed to create wallet: No wallet returned from Turnkey");
     } catch (error) {
-      // Enhanced error logging to help debug the issue
-      const errorDetails =
-        error instanceof Error ? error.message : String(error);
-      logger.error("Error creating wallet", error, {
-        userId,
-        walletName,
-        chain,
-        errorDetails,
-        accountsStructure: JSON.stringify(accountsPayload),
-      });
+      logger.error("Error creating wallet", error, { userId, walletName, chain });
       throw error;
     }
   }
 
-  /**
-   * Get wallet information
-   */
   async getWallet(walletId: string) {
     if (!this.client) {
       throw new Error("Turnkey API keys not configured. Cannot get wallet.");

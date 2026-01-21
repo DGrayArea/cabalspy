@@ -299,65 +299,27 @@ export default function PulsePage() {
 
   const mobulaAvailable = mobulaEnabled && mobulaTokens.length > 0;
 
-  // For backward compatibility, use trending as default
-  // TEMPORARILY DISABLED - Commented out while debugging 500 errors
-  // const { tokens, isLoading, error, source } = useMobulaTokensWithFallback({
-  //   view: "trending",
-  //   limit: 100,
-  //   fallbackTokens: wsTokens,
-  //   fallbackLoading: wsLoading,
-  //   fallbackError: wsError,
-  //   enabled: mobulaEnabled,
-  // });
 
-  // Prioritize Mobula tokens when enabled - wait for Mobula to load before showing tokens
   const tokens = useMemo(() => {
-    // If Mobula is enabled, wait for it to load (don't show WebSocket tokens first)
     if (mobulaEnabled) {
-      // If Mobula is still loading, return empty array (don't show WebSocket tokens)
       if (mobulaLoading) {
-        return [];
+        return wsTokens.length > 0 ? wsTokens : [];
       }
-      // If Mobula has tokens, use them
       if (mobulaTokens.length > 0) {
         return mobulaTokens;
       }
-      // If Mobula finished loading but has no tokens, still return empty (don't fallback to WebSocket)
-      return [];
+      if (mobulaError) {
+        return wsTokens;
+      }
+      return wsTokens.length > 0 ? wsTokens : [];
     }
-    // If Mobula is disabled, use WebSocket tokens
     return wsTokens;
-  }, [mobulaEnabled, mobulaLoading, mobulaTokens, wsTokens]);
+  }, [mobulaEnabled, mobulaLoading, mobulaTokens, mobulaError, wsTokens]);
 
-  const isLoading = mobulaEnabled ? mobulaLoading : wsLoading;
-  const error = mobulaEnabled ? mobulaError : wsError;
-  const source = mobulaEnabled && mobulaTokens.length > 0 ? "mobula" : mobulaEnabled ? "mobula-loading" : "websocket";
+  const isLoading = mobulaEnabled && !mobulaError ? mobulaLoading : wsLoading;
+  const error = mobulaEnabled && mobulaError ? mobulaError : wsError;
+  const source = mobulaEnabled && mobulaTokens.length > 0 && !mobulaError ? "mobula" : "websocket";
 
-  // useEffect(() => {
-  //   console.log("📊 Final Token Status:", {
-  //     source,
-  //     mobulaAvailable,
-  //     tokenCount: tokens.length,
-  //     isLoading,
-  //     error,
-  //     mobulaTokensCount: tokens.filter((t: any) => t._mobula).length,
-  //     nonMobulaTokensCount: tokens.filter((t: any) => !t._mobula).length,
-  //   });
-
-  //   // Log sample of tokens being displayed
-  //   if (tokens.length > 0) {
-  //     console.log(
-  //       "🎯 Tokens to Display Sample:",
-  //       tokens.slice(0, 3).map((t: any) => ({
-  //         symbol: t.symbol,
-  //         name: t.name,
-  //         isMobula: t._mobula,
-  //         hasPriceChanges: t.percentages?.length > 0,
-  //         priceChanges: t.percentages,
-  //       }))
-  //     );
-  //   }
-  // }, [source, mobulaAvailable, tokens.length, isLoading, error, tokens]);
 
   // Get user from auth context
   const { user, turnkeyUser, turnkeySession } = useAuth();
@@ -543,7 +505,6 @@ export default function PulsePage() {
     const fetchAllPumpFunTokens = async () => {
       setIsLoadingPumpFun(true);
       try {
-        // console.log("🔄 Fetching pump.fun tokens directly from client...");
 
         // Call pumpfun service directly from client (better for rate limits - each user makes their own requests)
         const fetchTokens = async (type: string) => {
@@ -583,13 +544,6 @@ export default function PulsePage() {
         await new Promise((resolve) => setTimeout(resolve, 500));
         const marketCap = await fetchTokens("marketCap");
 
-        // console.log("✅ Pump.fun API results:", {
-        //   latest: latest.length,
-        //   featured: featured.length,
-        //   graduated: graduated.length,
-        //   marketCap: marketCap.length,
-        //   migrated: migrated.length,
-        // });
 
         // Convert and store each type
         // CRITICAL: Tokens from graduated endpoint are ALWAYS migrated - no need to check API fields
@@ -622,7 +576,6 @@ export default function PulsePage() {
           // );
         }
       } catch (error) {
-        // console.error("❌ Failed to fetch pump.fun tokens:", error);
       } finally {
         setIsLoadingPumpFun(false);
       }

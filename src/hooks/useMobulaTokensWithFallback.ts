@@ -90,8 +90,6 @@ export const useMobulaTokensWithFallback = (
   // Merge Mobula data with fallback tokens
   const mergedTokens = useMemo(() => {
     if (!useMobula) {
-      // Mobula failed or disabled → use fallback
-      console.log("📦 Using fallback tokens", { count: fallbackTokens.length });
       return fallbackTokens;
     }
 

@@ -110,37 +110,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for existing session
     const checkSession = async () => {
       try {
-        const token = localStorage.getItem("auth_token");
-        if (token) {
-          // In a real app, you'd verify the token with your backend
-          const userData = localStorage.getItem("user_data");
-          if (userData) {
-            const parsedUser = JSON.parse(userData);
-            // Load wallet IDs if they exist (keys are securely stored by Turnkey)
-            const walletIds = localStorage.getItem(
-              `wallet_ids_${parsedUser.id}`
-            );
-            if (walletIds) {
-              const ids = JSON.parse(walletIds);
-              parsedUser.wallets = {
-                solana: ids.solana
-                  ? { walletId: ids.solana, network: "solana" }
-                  : undefined,
-                ethereum: ids.ethereum
-                  ? { walletId: ids.ethereum, network: "ethereum" }
-                  : undefined,
-                bnb: ids.bnb
-                  ? { walletId: ids.bnb, network: "bnb" }
-                  : undefined,
-                base: ids.base
-                  ? { walletId: ids.base, network: "base" }
-                  : undefined,
-              };
-            }
-            setUser(parsedUser);
+        const response = await fetch("/api/auth/session");
+        if (response.ok) {
+          const data = await response.json();
+          if (data.user) {
+            setUser({
+              id: data.user.id,
+              name: data.user.name,
+              email: data.user.email,
+              telegramId: data.user.telegramId,
+              googleId: data.user.googleId,
+              avatar: data.user.avatar,
+              walletAddress: data.wallet?.address,
+              createdAt: new Date(),
+            });
           }
         }
       } catch (error) {
@@ -265,14 +250,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem("auth_token");
-    localStorage.removeItem("user_data");
-    // Note: We keep wallet_ids for convenience, but keys are with Turnkey
-    // If you want to clear wallet IDs on logout, uncomment:
-    // if (user?.id) {
-    //   localStorage.removeItem(`wallet_ids_${user.id}`);
-    // }
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/session", { method: "DELETE" });
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
     setUser(null);
     setTurnkeyUser(null);
     setTurnkeySession(null);
@@ -280,9 +263,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const connectWallet = (address: string) => {
     if (user) {
-      const updatedUser = { ...user, walletAddress: address };
-      setUser(updatedUser);
-      localStorage.setItem("user_data", JSON.stringify(updatedUser));
+      setUser({ ...user, walletAddress: address });
     }
   };
 

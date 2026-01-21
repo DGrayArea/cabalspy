@@ -16,14 +16,8 @@ import axios, { AxiosResponse } from "axios";
 import { TokenData } from "@/types/token";
 import { logger } from "@/lib/logger";
 
-// API Configuration
-// Use Next.js API route to proxy requests (avoids CORS issues)
-const GET_API_URL = typeof window !== "undefined" 
-  ? "/api/mobula"  // Client-side: use API route
-  : "https://api.mobula.io/api/2/pulse";  // Server-side: direct call
-const POST_API_URL = typeof window !== "undefined"
-  ? "/api/mobula"  // Client-side: use API route
-  : "https://pulse-v2-api.mobula.io/api/2/pulse";  // Server-side: use v2 API for POST
+const GET_API_URL = "https://api.mobula.io/api/2/pulse";
+const POST_API_URL = "https://pulse-v2-api.mobula.io/api/2/pulse";
 const API_KEY =
   process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
   "7b7ba456-f454-4a42-a80e-897319cb0ac1";
@@ -463,20 +457,20 @@ export async function fetchBasicViews(
 
     const url = `${GET_API_URL}?${params.toString()}`;
 
-    // When using API route, don't send Authorization header (handled server-side)
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      "Authorization": API_KEY,
     };
-    
-    // Only add Authorization header if calling Mobula directly (server-side)
-    if (GET_API_URL.includes("api.mobula.io")) {
-      headers.Authorization = API_KEY;
-    }
 
     const response: AxiosResponse<MobulaResponse> = await axios.get(url, {
       headers,
-      timeout: 30000, // Increased to 30 seconds
+      timeout: 15000,
+      validateStatus: (status) => status < 500,
     });
+
+    if (response.status >= 400) {
+      throw new Error(`Mobula API returned ${response.status}: ${JSON.stringify(response.data)}`);
+    }
 
     return {
       new: (response.data.new?.data || []).map(transformToken),
@@ -486,31 +480,18 @@ export async function fetchBasicViews(
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
     const statusCode = error?.response?.status;
-    const statusText = error?.response?.statusText;
+    
+    if (statusCode === 502 || statusCode === 503) {
+      logger.warn("Mobula API unavailable, returning empty data", { statusCode });
+      return { new: [], bonding: [], bonded: [] };
+    }
     
     logger.error("Error fetching basic views from Mobula:", {
       message: errorMessage,
       status: statusCode,
-      statusText,
       url: GET_API_URL,
-      hasApiKey: !!API_KEY,
     });
     
-    // Log more details in development
-    if (process.env.NODE_ENV === "development") {
-      console.error("Full error:", error);
-    }
-    
-    // For 502 errors (Bad Gateway), return empty data instead of throwing
-    // This allows the app to continue functioning with fallback data
-    if (statusCode === 502 || statusCode === 503) {
-      logger.warn("Mobula API unavailable (502/503), returning empty data");
-      return {
-        new: [],
-        bonding: [],
-        bonded: [],
-      };
-    }
     
     throw error;
   }
@@ -584,24 +565,24 @@ export async function fetchCustomViews(
       ],
     };
 
-    // When using API route, don't send Authorization header (handled server-side)
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      "Authorization": API_KEY,
     };
-    
-    // Only add Authorization header if calling Mobula directly (server-side)
-    if (POST_API_URL.includes("api.mobula.io")) {
-      headers.Authorization = API_KEY;
-    }
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
       payload,
       {
         headers,
-        timeout: 30000, // Increased to 30 seconds
+        timeout: 15000,
+        validateStatus: (status) => status < 500,
       }
     );
+
+    if (response.status >= 400) {
+      throw new Error(`Mobula API returned ${response.status}: ${JSON.stringify(response.data)}`);
+    }
 
     return {
       trending: (response.data.trending?.data || []).map(transformToken),
@@ -618,25 +599,9 @@ export async function fetchCustomViews(
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
     const statusCode = error?.response?.status;
-    const statusText = error?.response?.statusText;
     
-    logger.error("Error fetching custom views from Mobula:", {
-      message: errorMessage,
-      status: statusCode,
-      statusText,
-      url: POST_API_URL,
-      hasApiKey: !!API_KEY,
-    });
-    
-    // Log more details in development
-    if (process.env.NODE_ENV === "development") {
-      console.error("Full error:", error);
-    }
-    
-    // For 502 errors (Bad Gateway), return empty data instead of throwing
-    // This allows the app to continue functioning with fallback data
     if (statusCode === 502 || statusCode === 503) {
-      logger.warn("Mobula API unavailable (502/503), returning empty data");
+      logger.warn("Mobula API unavailable, returning empty data", { statusCode });
       return {
         trending: [],
         "quality-tokens": [],
@@ -715,15 +680,10 @@ export async function fetchSingleView(
       views: [viewConfigs[viewName]],
     };
 
-    // When using API route, don't send Authorization header (handled server-side)
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      "Authorization": API_KEY,
     };
-    
-    // Only add Authorization header if calling Mobula directly (server-side)
-    if (POST_API_URL.includes("api.mobula.io")) {
-      headers.Authorization = API_KEY;
-    }
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
@@ -770,15 +730,10 @@ export async function fetchTokenByAddress(
       ],
     };
 
-    // When using API route, don't send Authorization header (handled server-side)
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      "Authorization": API_KEY,
     };
-    
-    // Only add Authorization header if calling Mobula directly (server-side)
-    if (POST_API_URL.includes("api.mobula.io")) {
-      headers.Authorization = API_KEY;
-    }
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
@@ -976,7 +931,7 @@ export class MobulaPulseManager {
       // Continue even if custom views fail
     }
 
-    console.log("🔄 Mobula: Auto-refresh completed", {
+    logger.info("Mobula auto-refresh completed", {
       new: this.basicViewsCache.new.length,
       bonding: this.basicViewsCache.bonding.length,
       bonded: this.basicViewsCache.bonded.length,
@@ -1020,7 +975,7 @@ export class MobulaPulseManager {
     const currentTokens = this.getTokensForFilter(filter);
     const offset = currentTokens.length;
 
-    console.log(`📄 Loading more tokens for ${filter}`, { offset, limit });
+    logger.info(`Loading more tokens for ${filter}`, { offset, limit });
 
     try {
       // For basic views, use GET endpoint
@@ -1306,15 +1261,10 @@ export async function fetchCustomFilter(
     const payload = buildCustomFilterPayload(options);
     payload.views[0].offset = offset;
 
-    // When using API route, don't send Authorization header (handled server-side)
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      "Authorization": API_KEY,
     };
-    
-    // Only add Authorization header if calling Mobula directly (server-side)
-    if (POST_API_URL.includes("api.mobula.io")) {
-      headers.Authorization = API_KEY;
-    }
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,

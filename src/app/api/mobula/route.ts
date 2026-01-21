@@ -46,14 +46,12 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     
-    // Get query parameters from the request
     const assetMode = searchParams.get("assetMode") || "true";
     const chainId = searchParams.get("chainId") || "solana:solana";
     const poolTypes = searchParams.get("poolTypes") || "pumpfun,meteora,moonshot,jupiter,raydium,moonit,letsbonk";
     const limit = searchParams.get("limit") || "100";
     const offset = searchParams.get("offset") || "0";
 
-    // Build the Mobula API URL
     const params = new URLSearchParams({
       assetMode,
       chainId,
@@ -64,20 +62,23 @@ export async function GET(request: NextRequest) {
 
     const url = `${MOBULA_GET_API}?${params.toString()}`;
 
-    // Make the request to Mobula API with retry logic
     const response = await retryRequest(
       () => axios.get(url, {
         headers: {
           Authorization: API_KEY,
           "Content-Type": "application/json",
         },
-        timeout: 30000,
+        timeout: 20000,
+        validateStatus: (status) => status < 500,
       }),
-      3, // Max 3 retries
-      1000 // Base delay 1 second
+      2,
+      1000
     );
 
-    // Return the response with CORS headers
+    if (response.status >= 400) {
+      throw new Error(`Mobula API returned ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+
     return NextResponse.json(response.data, {
       status: 200,
       headers: {
@@ -90,25 +91,21 @@ export async function GET(request: NextRequest) {
     const statusCode = error?.response?.status || 500;
     const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
     
-    console.error("Mobula API Proxy Error (GET):", {
+    console.error("[Mobula Proxy GET Error]", {
       message: errorMessage,
       status: statusCode,
       url: error?.config?.url,
+      stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
     });
     
-    // Return a more informative error response
     return NextResponse.json(
       {
         error: errorMessage,
         status: statusCode,
-        details: statusCode === 502 
-          ? "Mobula API is temporarily unavailable. Please try again in a moment."
-          : statusCode === 429
-          ? "Rate limit exceeded. Please wait before making another request."
-          : "Failed to fetch data from Mobula API",
+        data: null,
       },
       {
-        status: statusCode >= 500 ? 502 : statusCode, // Return 502 for server errors to indicate proxy issue
+        status: statusCode >= 500 ? 502 : statusCode,
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
@@ -121,23 +118,25 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    // Get the request body
     const body = await request.json();
 
-    // Make the request to Mobula API with retry logic
     const response = await retryRequest(
       () => axios.post(MOBULA_POST_API, body, {
         headers: {
           Authorization: API_KEY,
           "Content-Type": "application/json",
         },
-        timeout: 30000,
+        timeout: 20000,
+        validateStatus: (status) => status < 500,
       }),
-      3, // Max 3 retries
-      1000 // Base delay 1 second
+      2,
+      1000
     );
 
-    // Return the response with CORS headers
+    if (response.status >= 400) {
+      throw new Error(`Mobula API returned ${response.status}: ${JSON.stringify(response.data)}`);
+    }
+
     return NextResponse.json(response.data, {
       status: 200,
       headers: {
@@ -150,25 +149,21 @@ export async function POST(request: NextRequest) {
     const statusCode = error?.response?.status || 500;
     const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
     
-    console.error("Mobula API Proxy Error (POST):", {
+    console.error("[Mobula Proxy POST Error]", {
       message: errorMessage,
       status: statusCode,
       url: error?.config?.url,
+      stack: process.env.NODE_ENV === "development" ? error?.stack : undefined,
     });
     
-    // Return a more informative error response
     return NextResponse.json(
       {
         error: errorMessage,
         status: statusCode,
-        details: statusCode === 502 
-          ? "Mobula API is temporarily unavailable. Please try again in a moment."
-          : statusCode === 429
-          ? "Rate limit exceeded. Please wait before making another request."
-          : "Failed to fetch data from Mobula API",
+        data: null,
       },
       {
-        status: statusCode >= 500 ? 502 : statusCode, // Return 502 for server errors to indicate proxy issue
+        status: statusCode >= 500 ? 502 : statusCode,
         headers: {
           "Access-Control-Allow-Origin": "*",
           "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
