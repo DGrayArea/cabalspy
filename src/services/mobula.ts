@@ -12,16 +12,9 @@ import axios, { AxiosResponse } from "axios";
 import { TokenData } from "@/types/token";
 import { logger } from "@/lib/logger";
 
-// GET Method API (simpler, more reliable - use as primary)
-const MOBULA_API_BASE = "https://api.mobula.io/api/2/pulse";
-// POST Method API (for advanced filtering - use as fallback)
-const MOBULA_PULSE_V2_API = "https://pulse-v2-api.mobula.io/api/2/pulse";
-// Primary API key (required for all endpoints)
-const PRIMARY_API_KEY =
-  process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
-  "7b7ba456-f454-4a42-a80e-897319cb0ac1";
-// Fallback API key from env (if primary fails)
-const FALLBACK_API_KEY = process.env.NEXT_PUBLIC_MOBULA_API_KEY_FALLBACK || "";
+// Use proxy route to avoid CORS issues - works in both dev and production
+const MOBULA_API_BASE = "/api/mobula";
+const MOBULA_PULSE_V2_API = "/api/mobula";
 
 // Global request queue to serialize ALL Mobula API requests
 // This prevents concurrent requests that cause 500 errors
@@ -269,7 +262,6 @@ export class MobulaService {
         return await retryRequest(async () => {
           return await axios.get(url, {
             headers: {
-              Authorization: PRIMARY_API_KEY,
               "Content-Type": "application/json",
             },
             timeout: 15000,
@@ -321,7 +313,6 @@ export class MobulaService {
             return await retryRequest(async () => {
               return await axios.get(url, {
                 headers: {
-                  Authorization: FALLBACK_API_KEY,
                   "Content-Type": "application/json",
                 },
                 timeout: 15000,
@@ -476,7 +467,6 @@ export class MobulaService {
               payload,
               {
                 headers: {
-                  Authorization: PRIMARY_API_KEY,
                   "Content-Type": "application/json",
                 },
                 timeout: 15000,
@@ -533,7 +523,6 @@ export class MobulaService {
                   payload,
                   {
                     headers: {
-                      Authorization: FALLBACK_API_KEY,
                       "Content-Type": "application/json",
                     },
                     timeout: 15000,

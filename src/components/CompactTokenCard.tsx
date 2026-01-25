@@ -45,6 +45,7 @@ import {
   getPlatformName,
 } from "@/utils/platformLogos";
 import { aiPlatformDetector } from "@/services/ai-platform-detector";
+import { formatPercent, formatPercentCompact } from "@/utils/format";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { useAuth } from "@/context/AuthContext";
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
@@ -671,8 +672,7 @@ export function CompactTokenCard({
                                   : "text-red-400"
                               }
                             >
-                              {mobulaData.priceChange1h >= 0 ? "+" : ""}
-                              {mobulaData.priceChange1h.toFixed(2)}%
+                              {formatPercent(mobulaData.priceChange1h)}
                             </span>
                           </div>
                         )}
@@ -756,8 +756,7 @@ export function CompactTokenCard({
                                       : "text-red-400"
                                   }
                                 >
-                                  {mobulaData.priceChange1h >= 0 ? "+" : ""}
-                                  {mobulaData.priceChange1h.toFixed(2)}%
+                                  {formatPercent(mobulaData.priceChange1h)}
                                 </span>
                               </div>
                             )}
@@ -943,8 +942,7 @@ export function CompactTokenCard({
                       isPositive ? "text-green-400" : "text-red-400"
                     }`}
                   >
-                    {priceChange24h > 0 ? "+" : ""}
-                    {priceChange24h.toFixed(2)}%
+                    {formatPercent(priceChange24h)}
                   </span>
                 </div>
                         {hasMobulaData && mobulaData.priceChange1h !== undefined && (
@@ -959,8 +957,7 @@ export function CompactTokenCard({
                                   : "text-red-400"
                               }`}
                             >
-                              {mobulaData.priceChange1h >= 0 ? "+" : ""}
-                              {mobulaData.priceChange1h.toFixed(1)}%
+                              {formatPercentCompact(mobulaData.priceChange1h)}
                             </span>
                           </div>
                         )}
@@ -987,8 +984,7 @@ export function CompactTokenCard({
                                 isPositive ? "text-green-400" : "text-red-400"
                               }
                             >
-                              {priceChange24h > 0 ? "+" : ""}
-                              {priceChange24h.toFixed(2)}%
+                              {formatPercent(priceChange24h)}
                             </span>
                           </div>
                           {hasMobulaData && (
@@ -1003,8 +999,7 @@ export function CompactTokenCard({
                                         : "text-red-400"
                                     }
                                   >
-                                    {mobulaData.priceChange1h >= 0 ? "+" : ""}
-                                    {mobulaData.priceChange1h.toFixed(2)}%
+                                    {formatPercent(mobulaData.priceChange1h)}
                                   </span>
                                 </div>
                               )}
@@ -1018,8 +1013,7 @@ export function CompactTokenCard({
                                         : "text-red-400"
                                     }
                                   >
-                                    {mobulaData.priceChange5min >= 0 ? "+" : ""}
-                                    {mobulaData.priceChange5min.toFixed(2)}%
+                                    {formatPercent(mobulaData.priceChange5min)}
                                   </span>
                                 </div>
                               )}

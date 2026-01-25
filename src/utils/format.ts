@@ -67,37 +67,105 @@ function formatSmallNumber(value: number): string {
 /**
  * Format a number as currency (USD)
  * @param value Number to format
- * @returns Formatted string (e.g., "$1.23B", "$456.78M", "$12.34K", "$0.005")
+ * @returns Formatted string (e.g., "$1.23T", "$1.23B", "$456.78M", "$12.34K", "$0.005")
  */
 export function formatCurrency(value: number): string {
-  if (value >= 1000000000) {
-    return `$${(value / 1000000000).toFixed(2)}B`;
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  
+  if (absValue >= 1000000000000) {
+    return `${sign}$${(absValue / 1000000000000).toFixed(2)}T`;
   }
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(2)}M`;
+  if (absValue >= 1000000000) {
+    return `${sign}$${(absValue / 1000000000).toFixed(2)}B`;
   }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(2)}K`;
+  if (absValue >= 1000000) {
+    return `${sign}$${(absValue / 1000000).toFixed(2)}M`;
   }
-  if (value >= 1) {
-    return `$${value.toFixed(2)}`;
+  if (absValue >= 1000) {
+    return `${sign}$${(absValue / 1000).toFixed(2)}K`;
+  }
+  if (absValue >= 1) {
+    return `${sign}$${absValue.toFixed(2)}`;
   }
   // For values less than 1, use smart decimal formatting
-  return `$${formatSmallNumber(value)}`;
+  return `${sign}$${formatSmallNumber(absValue)}`;
 }
 
 /**
- * Format a number with appropriate suffix
+ * Format a number with appropriate suffix (K, M, B, T)
  * @param value Number to format
- * @returns Formatted string (e.g., "1.23M", "456.78K", "12.34")
+ * @returns Formatted string (e.g., "1.23T", "456.78B", "12.34M", "1.23K", "12.34")
  */
 export function formatNumber(value: number): string {
-  if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(2)}M`;
+  const absValue = Math.abs(value);
+  const sign = value < 0 ? "-" : "";
+  
+  if (absValue >= 1000000000000) {
+    return `${sign}${(absValue / 1000000000000).toFixed(2)}T`;
   }
-  if (value >= 1000) {
-    return `${(value / 1000).toFixed(2)}K`;
+  if (absValue >= 1000000000) {
+    return `${sign}${(absValue / 1000000000).toFixed(2)}B`;
+  }
+  if (absValue >= 1000000) {
+    return `${sign}${(absValue / 1000000).toFixed(2)}M`;
+  }
+  if (absValue >= 1000) {
+    return `${sign}${(absValue / 1000).toFixed(2)}K`;
   }
   return value.toFixed(2);
+}
+
+/**
+ * Format a percentage with appropriate suffix for large values
+ * @param value Percentage value (e.g., 150 for 150%)
+ * @param showSign Whether to show + for positive values
+ * @returns Formatted string (e.g., "+150.00%", "-12.34%", "+1.23M%")
+ */
+export function formatPercent(value: number, showSign: boolean = true): string {
+  const absValue = Math.abs(value);
+  const sign = value >= 0 ? (showSign ? "+" : "") : "-";
+  
+  if (absValue >= 1000000000000) {
+    return `${sign}${(absValue / 1000000000000).toFixed(2)}T%`;
+  }
+  if (absValue >= 1000000000) {
+    return `${sign}${(absValue / 1000000000).toFixed(2)}B%`;
+  }
+  if (absValue >= 1000000) {
+    return `${sign}${(absValue / 1000000).toFixed(2)}M%`;
+  }
+  if (absValue >= 10000) {
+    return `${sign}${(absValue / 1000).toFixed(2)}K%`;
+  }
+  return `${sign}${absValue.toFixed(2)}%`;
+}
+
+/**
+ * Format a compact percentage (shorter format for small spaces)
+ * @param value Percentage value
+ * @param showSign Whether to show + for positive values
+ * @returns Formatted string with 1 decimal for compact display
+ */
+export function formatPercentCompact(value: number, showSign: boolean = true): string {
+  const absValue = Math.abs(value);
+  const sign = value >= 0 ? (showSign ? "+" : "") : "-";
+  
+  if (absValue >= 1000000000000) {
+    return `${sign}${(absValue / 1000000000000).toFixed(1)}T%`;
+  }
+  if (absValue >= 1000000000) {
+    return `${sign}${(absValue / 1000000000).toFixed(1)}B%`;
+  }
+  if (absValue >= 1000000) {
+    return `${sign}${(absValue / 1000000).toFixed(1)}M%`;
+  }
+  if (absValue >= 10000) {
+    return `${sign}${(absValue / 1000).toFixed(1)}K%`;
+  }
+  if (absValue >= 1000) {
+    return `${sign}${(absValue / 1000).toFixed(2)}K%`;
+  }
+  return `${sign}${absValue.toFixed(1)}%`;
 }
 

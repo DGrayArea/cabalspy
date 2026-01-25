@@ -89,6 +89,7 @@ import {
   Circle,
 } from "lucide-react";
 import { getChainLogo } from "@/utils/platformLogos";
+import { formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil, formatPercent, formatPercentCompact } from "@/utils/format";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import axios from "axios";
@@ -788,7 +789,7 @@ export default function PulsePage() {
             );
           });
         } else if (filter === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated AND have bonding progress 90-100%
+          // FINAL STRETCH: Must exclude migrated AND have bonding progress 90-99% (strictly no 100%)
           filteredConverted = converted.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
@@ -799,7 +800,7 @@ export default function PulsePage() {
             const bondingProgress =
               token.bondingProgress ||
               Math.min((token.marketCap || 0) / (69 * 137), 1.0); // 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
           });
         } else if (filter === "graduated") {
           // GRADUATED: Must ONLY include migrated/graduated tokens
@@ -1105,7 +1106,7 @@ export default function PulsePage() {
             return isNotMigrated;
           });
         } else if (filterType === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-99%
+          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-99% (strictly no 100%)
           filteredTokens = storedProtocolTokens.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
@@ -1124,7 +1125,7 @@ export default function PulsePage() {
                 : solReserves && solReserves > 0
                   ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
                   : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 0.99;
+            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
           });
         } else if (filterType === "graduated") {
           // GRADUATED: Must ONLY include migrated/graduated tokens
@@ -1182,7 +1183,7 @@ export default function PulsePage() {
         }
 
         if (filterType === "finalStretch") {
-          // Filter tokens with bonding progress 90-99% AND not migrated
+          // Filter tokens with bonding progress 90-99% AND not migrated (strictly no 100%)
           const finalStretch = filteredAndSortedTokens.filter((token) => {
             // Exclude migrated tokens
             const isNotMigrated =
@@ -1201,7 +1202,7 @@ export default function PulsePage() {
               solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (more accurate)
                 : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 0.99;
+            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
           });
           // console.log(
           //   `🔍 Filter finalStretch: Found ${finalStretch.length} tokens (fallback)`
@@ -1430,7 +1431,7 @@ export default function PulsePage() {
       );
       finalStretchCount = filteredFinalStretch.length;
     } else {
-      // Fallback: filter tokens with bonding progress 90-99% AND not migrated
+      // Fallback: filter tokens with bonding progress 90-99% AND not migrated (strictly no 100%)
       finalStretchCount = filteredAndSortedTokens.filter((token) => {
         // Exclude migrated tokens
         const isNotMigrated =
@@ -1446,7 +1447,7 @@ export default function PulsePage() {
           solReserves && solReserves > 0
             ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
             : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-        return bondingProgress >= 0.9 && bondingProgress < 0.99;
+        return bondingProgress >= 0.9 && bondingProgress < 0.9999;
       }).length;
     }
 
@@ -1496,25 +1497,8 @@ export default function PulsePage() {
     parseTimeToSeconds,
   ]);
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000000) {
-      return `$${(value / 1000000000).toFixed(2)}B`;
-    } else if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(2)}K`;
-    }
-    return `$${value.toFixed(2)}`;
-  };
-
-  const formatNumber = (value: number) => {
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(2)}M`;
-    } else if (value >= 1000) {
-      return `${(value / 1000).toFixed(2)}K`;
-    }
-    return value.toString();
-  };
+  const formatCurrency = formatCurrencyUtil;
+  const formatNumber = formatNumberUtil;
 
   return (
     <div className="min-h-screen bg-app text-white pb-16">
@@ -2143,8 +2127,7 @@ function TokenCard({
             <span
               className={`text-[10px] font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
             >
-              {isPositive ? "+" : ""}
-              {percentageChange.toFixed(2)}%
+              {formatPercent(percentageChange)}
             </span>
           </div>
         </div>
@@ -2164,7 +2147,7 @@ function TokenCard({
               ) : (
                 <ArrowDownRight className="w-3 h-3" />
               )}
-              {Math.abs(percentageChange).toFixed(2)}%
+              {formatPercentCompact(Math.abs(percentageChange), false)}
             </div>
           </div>
           <div className="text-base font-bold text-white">
@@ -2259,8 +2242,7 @@ function TokenCard({
                     <span
                       className={`font-medium ${pct > 0 ? "text-green-400" : pct < 0 ? "text-red-400" : "text-gray-400"}`}
                     >
-                      {pct > 0 ? "+" : ""}
-                      {pct.toFixed(1)}%
+                      {formatPercentCompact(pct)}
                     </span>
                   </div>
                 ))}

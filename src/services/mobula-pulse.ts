@@ -16,11 +16,9 @@ import axios, { AxiosResponse } from "axios";
 import { TokenData } from "@/types/token";
 import { logger } from "@/lib/logger";
 
-const GET_API_URL = "https://api.mobula.io/api/2/pulse";
-const POST_API_URL = "https://pulse-v2-api.mobula.io/api/2/pulse";
-const API_KEY =
-  process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
-  "7b7ba456-f454-4a42-a80e-897319cb0ac1";
+// Use proxy route to avoid CORS issues - works in both dev and production
+const GET_API_URL = "/api/mobula";
+const POST_API_URL = "/api/mobula";
 
 // Pool types for Solana
 const SOLANA_POOL_TYPES = [
@@ -459,7 +457,6 @@ export async function fetchBasicViews(
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": API_KEY,
     };
 
     const response: AxiosResponse<MobulaResponse> = await axios.get(url, {
@@ -567,7 +564,6 @@ export async function fetchCustomViews(
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": API_KEY,
     };
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
@@ -682,7 +678,6 @@ export async function fetchSingleView(
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": API_KEY,
     };
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
@@ -732,7 +727,6 @@ export async function fetchTokenByAddress(
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": API_KEY,
     };
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
@@ -1263,7 +1257,6 @@ export async function fetchCustomFilter(
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": API_KEY,
     };
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(

@@ -33,7 +33,7 @@ import {
   Calendar,
   Search,
 } from "lucide-react";
-import { formatCurrency, formatNumber } from "@/utils/format";
+import { formatCurrency, formatNumber, formatPercent, formatPercentCompact } from "@/utils/format";
 import { TokenData } from "@/types/token";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
@@ -832,8 +832,7 @@ function TokenDetailContent() {
                           ) : (
                             <TrendingDown className="w-4 h-4" />
                           )}
-                          {Math.abs(priceChange).toFixed(2)}% (
-                          {priceChangeLabel})
+                          {formatPercentCompact(Math.abs(priceChange), false)} ({priceChangeLabel})
                         </span>
                       )}
                     </div>

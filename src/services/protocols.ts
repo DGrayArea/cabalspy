@@ -1335,8 +1335,8 @@ export class ProtocolService {
           }
         }
 
-        // Final stretch: bonding progress between 90% and 100% (not migrated)
-        return bondingProgress >= 0.9 && bondingProgress < 1.0;
+        // Final stretch: bonding progress between 90% and 99% (not migrated, not graduated)
+        return bondingProgress >= 0.9 && bondingProgress < 0.9999;
       }).sort((a, b) => {
         // Sort by created timestamp (newest first)
         const aTime = a.createdTimestamp || 0;
