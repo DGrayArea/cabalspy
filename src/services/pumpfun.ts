@@ -91,18 +91,21 @@ export type PumpFunEndpointType =
   | "runners";
 
 export class PumpFunService {
-  // Pump.fun frontend API endpoints (unofficial but accessible)
-  private baseUrl = "https://frontend-api.pump.fun"
+  // Use proxy route to avoid CORS issues - works in both dev and production
+  private proxyUrl = "/api/pumpfun";
   
   // Request deduplication - prevent multiple simultaneous requests to the same endpoint
   private pendingRequests = new Map<string, Promise<any>>();
   private requestCache = new Map<string, { data: any; timestamp: number }>();
   private readonly CACHE_DURATION = 60000; // 60 seconds cache (increased to reduce API calls)
   private readonly MIN_REQUEST_INTERVAL = 2000; // Minimum 2 seconds between requests (increased to avoid rate limits)
-  private lastRequestTime = new Map<string, number>();;
-  private advancedApiUrl = "https://advanced-api-v2.pump.fun";
-  private frontendApiV3Url = "https://frontend-api-v3.pump.fun";
-  private swapApiUrl = "https://swap-api.pump.fun";
+  private lastRequestTime = new Map<string, number>();
+
+  // Build proxy URL for different APIs
+  private buildProxyUrl(endpoint: string, api: "base" | "v3" | "advanced" | "swap" = "v3", params?: Record<string, string>): string {
+    const searchParams = new URLSearchParams({ endpoint, api, ...params });
+    return `${this.proxyUrl}?${searchParams.toString()}`;
+  }
 
   private cache: Map<
     string,
@@ -110,45 +113,47 @@ export class PumpFunService {
   > = new Map();
   private cacheTTL = 30000; // 30 second cache (shorter for real-time data)
 
-  // Endpoint definitions - try multiple endpoint patterns
-  private endpoints: Record<PumpFunEndpointType, string> = {
-    graduatedByTime: `${this.advancedApiUrl}/coins/graduated?sortBy=creationTime`,
-    listByMarketCap: `${this.advancedApiUrl}/coins/list?sortBy=marketCap`,
-    listByCreation: `${this.advancedApiUrl}/coins/list?sortBy=creationTime`,
-    marketCapDesc: `${this.frontendApiV3Url}/coins?offset=0&limit=48&sort=market_cap&includeNsfw=false&order=DESC`,
-    createdDesc: `${this.frontendApiV3Url}/coins?offset=0&limit=48&sort=created_timestamp&includeNsfw=false&order=DESC`,
-    latest: `${this.frontendApiV3Url}/coins/latest`,
-    featured: `${this.advancedApiUrl}/coins/featured?keywordSearchActive=false`,
-    runners: `https://pump.fun/api/runners`,
-  };
+  // Get endpoint URL through proxy
+  private getEndpointUrl(endpointType: PumpFunEndpointType): string {
+    const endpoints: Record<PumpFunEndpointType, { endpoint: string; api: "base" | "v3" | "advanced" | "swap"; params?: Record<string, string> }> = {
+      graduatedByTime: { endpoint: "/coins/graduated", api: "advanced", params: { sortBy: "creationTime" } },
+      listByMarketCap: { endpoint: "/coins/list", api: "advanced", params: { sortBy: "marketCap" } },
+      listByCreation: { endpoint: "/coins/list", api: "advanced", params: { sortBy: "creationTime" } },
+      marketCapDesc: { endpoint: "/coins", api: "v3", params: { offset: "0", limit: "48", sort: "market_cap", includeNsfw: "false", order: "DESC" } },
+      createdDesc: { endpoint: "/coins", api: "v3", params: { offset: "0", limit: "48", sort: "created_timestamp", includeNsfw: "false", order: "DESC" } },
+      latest: { endpoint: "/coins/latest", api: "v3" },
+      featured: { endpoint: "/coins/featured", api: "advanced", params: { keywordSearchActive: "false" } },
+      runners: { endpoint: "/api/runners", api: "base" },
+    };
+    const config = endpoints[endpointType];
+    return this.buildProxyUrl(config.endpoint, config.api, config.params);
+  }
 
-  // Alternative endpoint patterns to try if primary fails
+  // Get alternative endpoints through proxy
   private getAlternativeEndpoints(endpointType: PumpFunEndpointType): string[] {
-    const alternatives: Record<string, string[]> = {
+    const alternatives: Record<string, Array<{ endpoint: string; api: "base" | "v3" | "advanced" | "swap"; params?: Record<string, string> }>> = {
       latest: [
-        `${this.frontendApiV3Url}/coins/latest`,
-        `${this.frontendApiV3Url}/coins?sort=created_timestamp&order=DESC&limit=100`,
-        `${this.frontendApiV3Url}/coins?offset=0&limit=100&sort=created_timestamp&includeNsfw=false&order=DESC`,
-        `${this.baseUrl}/coins/latest`,
-        `https://frontend-api.pump.fun/coins/latest`, // Direct URL fallback
+        { endpoint: "/coins/latest", api: "v3" },
+        { endpoint: "/coins", api: "v3", params: { sort: "created_timestamp", order: "DESC", limit: "100" } },
+        { endpoint: "/coins/latest", api: "base" },
       ],
       featured: [
-        `${this.advancedApiUrl}/coins/featured?keywordSearchActive=false`,
-        `${this.frontendApiV3Url}/coins/featured`,
-        `${this.baseUrl}/coins/featured`,
+        { endpoint: "/coins/featured", api: "advanced", params: { keywordSearchActive: "false" } },
+        { endpoint: "/coins/featured", api: "v3" },
+        { endpoint: "/coins/featured", api: "base" },
       ],
       graduatedByTime: [
-        `${this.advancedApiUrl}/coins/graduated?sortBy=creationTime`,
-        `${this.frontendApiV3Url}/coins?complete=true&sort=complete_timestamp&order=DESC`,
-        `${this.advancedApiUrl}/coins/graduated`,
+        { endpoint: "/coins/graduated", api: "advanced", params: { sortBy: "creationTime" } },
+        { endpoint: "/coins", api: "v3", params: { complete: "true", sort: "complete_timestamp", order: "DESC" } },
+        { endpoint: "/coins/graduated", api: "advanced" },
       ],
       listByMarketCap: [
-        `${this.advancedApiUrl}/coins/list?sortBy=marketCap`,
-        `${this.frontendApiV3Url}/coins?sort=market_cap&order=DESC&limit=100`,
-        `${this.advancedApiUrl}/coins/list?sortBy=marketCap&limit=100`,
+        { endpoint: "/coins/list", api: "advanced", params: { sortBy: "marketCap" } },
+        { endpoint: "/coins", api: "v3", params: { sort: "market_cap", order: "DESC", limit: "100" } },
       ],
     };
-    return alternatives[endpointType] || [this.endpoints[endpointType]];
+    const configs = alternatives[endpointType] || [{ endpoint: this.getEndpointUrl(endpointType), api: "v3" as const }];
+    return configs.map(c => this.buildProxyUrl(c.endpoint, c.api, c.params));
   }
 
   /**
@@ -164,25 +169,24 @@ export class PumpFunService {
     }
 
     try {
-      // Try multiple possible endpoints (using working APIs)
+      // Try multiple possible endpoints (using proxy)
       const endpoints = [
         {
-          url: `${this.frontendApiV3Url}/coins/${mintAddress}`,
+          url: this.buildProxyUrl(`/coins/${mintAddress}`, "v3"),
           name: "v3/coins",
         },
         {
-          url: `${this.frontendApiV3Url}/coins?mint=${mintAddress}`,
+          url: this.buildProxyUrl("/coins", "v3", { mint: mintAddress }),
           name: "v3/coins?mint",
         },
       ];
 
-      for (const { url, name } of endpoints) {
+      for (const { url } of endpoints) {
         try {
           const response = await fetch(url, {
             method: "GET",
             headers: {
               Accept: "application/json",
-              "User-Agent": "Mozilla/5.0",
             },
           });
 
@@ -197,8 +201,7 @@ export class PumpFunService {
               return tokenInfo;
             }
           }
-        } catch (error) {
-          // Try next endpoint
+        } catch {
           continue;
         }
       }
@@ -213,21 +216,20 @@ export class PumpFunService {
 
   /**
    * Search for token by mint address
-   * Note: frontend-api.pump.fun/tokens endpoint returns Cloudflare DNS errors
-   * Using only working endpoints
+   * Uses proxy to avoid CORS issues
    */
   private async searchToken(
     mintAddress: string
   ): Promise<PumpFunTokenInfo | null> {
     try {
-      // Try search endpoints (only working APIs)
+      // Try search endpoints through proxy
       const searchEndpoints = [
         {
-          url: `${this.frontendApiV3Url}/coins?search=${mintAddress}`,
+          url: this.buildProxyUrl("/coins", "v3", { search: mintAddress }),
           name: "v3/coins?search",
         },
         {
-          url: `${this.frontendApiV3Url}/coins?mint=${mintAddress}`,
+          url: this.buildProxyUrl("/coins", "v3", { mint: mintAddress }),
           name: "v3/coins?mint",
         },
       ];
@@ -479,9 +481,9 @@ export class PumpFunService {
     limit?: number
   ): Promise<PumpFunTokenInfo[]> {
     try {
-      // Try primary endpoint first, then alternatives
+      // Try primary endpoint first, then alternatives (all through proxy)
       const endpointsToTry = [
-        this.endpoints[endpointType],
+        this.getEndpointUrl(endpointType),
         ...this.getAlternativeEndpoints(endpointType),
       ].filter(
         (url, index, self) => self.indexOf(url) === index // Remove duplicates
@@ -747,12 +749,14 @@ export class PumpFunService {
         params.append("createdTs", createdTs.toString());
       }
 
-      const url = `${this.swapApiUrl}/v2/coins/${mintAddress}/candles?${params.toString()}`;
+      // Build proxy URL for swap API candles endpoint
+      const paramsObj: Record<string, string> = {};
+      params.forEach((value, key) => { paramsObj[key] = value; });
+      const url = this.buildProxyUrl(`/v2/coins/${mintAddress}/candles`, "swap", paramsObj);
 
       const response = await fetch(url, {
         headers: {
           Accept: "application/json",
-          "User-Agent": "Mozilla/5.0",
         },
         signal: controller.signal,
       });
