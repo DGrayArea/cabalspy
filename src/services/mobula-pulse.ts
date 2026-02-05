@@ -32,6 +32,58 @@ const SOLANA_POOL_TYPES = [
 ];
 
 /**
+ * ============================================================================
+ * REQUEST CACHING
+ * ============================================================================
+ * Simple in-memory cache to reduce redundant API calls
+ * Cache TTL: 30 seconds (configurable)
+ */
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+}
+
+class RequestCache {
+  private cache = new Map<string, CacheEntry<any>>();
+  private readonly TTL_MS = 30000; // 30 seconds
+
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) return null;
+
+    const age = Date.now() - entry.timestamp;
+    if (age > this.TTL_MS) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data as T;
+  }
+
+  set<T>(key: string, data: T): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+    });
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  // Get cache stats for debugging
+  getStats() {
+    return {
+      size: this.cache.size,
+      keys: Array.from(this.cache.keys()),
+    };
+  }
+}
+
+const requestCache = new RequestCache();
+
+
+/**
  * Response structure from Mobula API
  * This is the actual structure returned by the API
  */
@@ -444,6 +496,18 @@ export async function fetchBasicViews(
   bonding: TokenData[];
   bonded: TokenData[];
 }> {
+  // Check cache first
+  const cacheKey = `basic_${limit}_${offset}`;
+  const cached = requestCache.get<{
+    new: TokenData[];
+    bonding: TokenData[];
+    bonded: TokenData[];
+  }>(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+
   try {
     const params = new URLSearchParams({
       assetMode: "true",
@@ -469,11 +533,16 @@ export async function fetchBasicViews(
       throw new Error(`Mobula API returned ${response.status}: ${JSON.stringify(response.data)}`);
     }
 
-    return {
+    const result = {
       new: (response.data.new?.data || []).map(transformToken),
       bonding: (response.data.bonding?.data || []).map(transformToken),
       bonded: (response.data.bonded?.data || []).map(transformToken),
     };
+    
+    // Cache the result
+    requestCache.set(cacheKey, result);
+    
+    return result;
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
     const statusCode = error?.response?.status;

@@ -13,6 +13,9 @@ import Image from "next/image";
 import { useSearchParams, usePathname } from "next/navigation";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useMobulaPulse } from "@/hooks/useMobulaPulse";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useFilterState } from "@/hooks/useFilterState";
 import { TokenData } from "@/types/token";
 import { env } from "@/lib/env";
 import AuthButton from "@/components/AuthButton";
@@ -22,6 +25,7 @@ import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
 import { SearchModal } from "@/components/SearchModal";
+import { TokenListSkeleton } from "@/components/TokenCardSkeleton";
 import LaunchpadStatsCard from "@/components/LaunchpadStatsCard";
 import { pumpFunService } from "@/services/pumpfun";
 import { protocolService } from "@/services/protocols";
@@ -255,16 +259,8 @@ export default function PulsePage() {
   //   testEndpoint();
   // }, []);
 
-  // Filter state - must be declared before mobulaTokens useMemo
-  const [filter, setFilter] = useState<
-    | "trending"
-    | "new"
-    | "finalStretch"
-    | "latest"
-    | "featured"
-    | "graduated"
-    | "marketCap"
-  >("trending");
+  // Filter state with localStorage persistence
+  const [filter, setFilter] = useFilterState("trending");
 
   // Mobula Pulse integration - NEW implementation
   const mobulaEnabled = env.NEXT_PUBLIC_USE_MOBULA;
@@ -272,6 +268,7 @@ export default function PulsePage() {
     tokens: mobulaTokensByFilter,
     isLoading: mobulaLoading,
     error: mobulaError,
+    loadMore: mobulaLoadMore,
   } = useMobulaPulse(mobulaEnabled);
 
   // Get tokens for current filter
@@ -336,6 +333,8 @@ export default function PulsePage() {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  // Debounce search to prevent excessive filtering
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sortBy, setSortBy] = useState<
     "marketCap" | "volume" | "transactions" | "time"
   >("marketCap");
@@ -384,6 +383,30 @@ export default function PulsePage() {
   const [isLoadingProtocols, setIsLoadingProtocols] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [hasMore, setHasMore] = useState(true); // For infinite scroll
+
+  // Infinite scroll implementation
+  const handleLoadMore = useCallback(async () => {
+    if (!mobulaEnabled || !mobulaLoadMore) return;
+    
+    try {
+      await mobulaLoadMore(filter);
+      // If we get less than expected, no more data
+      // This will be handled by the hook internally
+    } catch (error) {
+      console.error('Error loading more tokens:', error);
+    }
+  }, [mobulaEnabled, mobulaLoadMore, filter]);
+
+  const { observerTarget, isLoading: isLoadingMore } = useInfiniteScroll(
+    handleLoadMore,
+    {
+      threshold: 0.5,
+      rootMargin: '200px',
+      enabled: mobulaEnabled && !mobulaLoading,
+      hasMore,
+    }
+  );
 
   // Helper function to format time from timestamp
   const formatTimeFromTimestamp = useCallback(
@@ -1739,23 +1762,40 @@ export default function PulsePage() {
 
         {/* Responsive Grid Layout - Shows tokens based on selected filter */}
         <div className="pb-24 px-3 sm:px-4">
-          {tokensToDisplay.length === 0 ? (
+          {/* Show skeleton loaders during initial load */}
+          {(mobulaLoading && tokensToDisplay.length === 0) || isLoadingPumpFun ? (
+            <TokenListSkeleton count={12} />
+          ) : tokensToDisplay.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
-              {isLoadingPumpFun ? "Loading..." : "No tokens found"}
+              No tokens found
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {tokensToDisplay.map((token) => (
-                <CompactTokenCard
-                  key={token.id}
-                  token={token}
-                  formatCurrency={formatCurrency}
-                  formatNumber={formatNumber}
-                  displaySettings={displaySettings}
-                  quickBuyAmount={quickBuyAmount}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                {tokensToDisplay.map((token) => (
+                  <CompactTokenCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                    displaySettings={displaySettings}
+                    quickBuyAmount={quickBuyAmount}
+                  />
+                ))}
+              </div>
+              
+              {/* Infinite scroll sentinel element */}
+              {mobulaEnabled && (
+                <div ref={observerTarget} className="py-8 flex justify-center">
+                  {isLoadingMore && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Loading more tokens...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
