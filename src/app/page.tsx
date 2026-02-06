@@ -150,6 +150,27 @@ function AuthCallbackHandler() {
         console.error("Failed to parse Telegram auth data:", error);
       }
     }
+
+    // Handle Discord auth callback
+    const discordAuth = searchParams.get("discord_auth");
+    const discordData = searchParams.get("data");
+
+    if (discordAuth === "success" && discordData) {
+      try {
+        const user = JSON.parse(decodeURIComponent(discordData));
+        login("discord", {
+          id: user.id,
+          username: user.username,
+          discriminator: user.discriminator,
+          avatar: user.avatar,
+          roles: user.roles
+        });
+        // Clean URL
+        window.history.replaceState({}, "", "/");
+      } catch (error) {
+        console.error("Failed to parse Discord auth data:", error);
+      }
+    }
   }, [searchParams, login]);
 
   return null;

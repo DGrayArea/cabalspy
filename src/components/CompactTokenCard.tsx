@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, Suspense, lazy } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { TokenData } from "@/types/token";
 import {
   ExternalLink,
@@ -12,6 +13,7 @@ import {
   Search,
   Users,
   Grid3x3,
+  Image as ImageIcon,
   DollarSign,
   BarChart3,
   Coins,
@@ -566,13 +568,14 @@ export function CompactTokenCard({
                         border: '2px solid rgba(55, 65, 81, 0.5)'
                       }}
               >
-                <img
-                  src={token.image}
+                <Image
+                  src={token.image!}
                   alt={token.symbol}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                   onError={() => setImageError(true)}
-                  loading="lazy"
-                  style={{ display: "block" }}
+                  sizes="40px"
+                  unoptimized={token.image?.startsWith('data:')} // Optimize unless it's a data URI
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 cursor-pointer">
                   <ExternalLink className="w-3 h-3 text-[var(--primary-text)] cursor-pointer" />
@@ -580,20 +583,19 @@ export function CompactTokenCard({
                 {/* Platform logo overlay - bottom right */}
                 {platformLogo && !platformLogoError ? (
                         <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden z-10">
-                    <img
+                    <Image
                       src={platformLogo}
-                      alt={platformName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
+                      alt={platformName || "Platform"}
+                      fill
+                      className="object-cover"
+                      sizes="14px"
+                      onError={() => {
                         if (process.env.NODE_ENV === "development") {
-                          console.warn(
-                            `Platform logo failed: ${platform} -> ${platformLogo}`
-                          );
+                          console.warn(`Platform logo failed: ${platform} -> ${platformLogo}`);
                         }
                         setPlatformLogoError(true);
                       }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
+                      unoptimized
                     />
                   </div>
                 ) : (
@@ -616,20 +618,19 @@ export function CompactTokenCard({
                 {/* Platform logo overlay - bottom right */}
                 {platformLogo && !platformLogoError ? (
                         <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden z-10">
-                    <img
+                    <Image
                       src={platformLogo}
-                      alt={platformName}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
+                      alt={platformName || "Platform"}
+                      fill
+                      className="object-cover"
+                      sizes="14px"
+                      onError={() => {
                         if (process.env.NODE_ENV === "development") {
-                          console.warn(
-                            `Platform logo failed: ${platform} -> ${platformLogo}`
-                          );
+                          console.warn(`Platform logo failed: ${platform} -> ${platformLogo}`);
                         }
                         setPlatformLogoError(true);
                       }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
+                      unoptimized
                     />
                   </div>
                 ) : (
@@ -647,14 +648,26 @@ export function CompactTokenCard({
               >
                 <div className="space-y-1.5">
                   <div className="font-semibold text-sm flex items-center gap-1.5">
-                    <img
-                      src={token.image || undefined}
-                      alt={token.symbol}
-                      className="w-5 h-5 rounded"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                      }}
-                    />
+                    {token.image ? (
+                      <div className="relative w-5 h-5 rounded overflow-hidden">
+                        <Image
+                          src={token.image}
+                          alt={token.symbol}
+                          fill
+                          className="object-cover"
+                          onError={(e) => {
+                            // Hide parent div or handle error visually if needed
+                            const target = e.target as HTMLImageElement;
+                            if (target && target.style) target.style.display = 'none';
+                          }}
+                          unoptimized
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 bg-gray-700 rounded flex items-center justify-center text-[10px]">
+                        {token.symbol?.slice(0, 1)}
+                      </div>
+                    )}
                     {token.name}
                   </div>
                   <div className="text-xs text-gray-300 space-y-1">

@@ -13,6 +13,7 @@ export interface User {
   name: string;
   email?: string;
   telegramId?: string;
+  discordId?: string;
   googleId?: string;
   avatar?: string;
   walletAddress?: string;
@@ -73,14 +74,22 @@ interface TelegramAuthData {
   photo_url?: string;
 }
 
-type AuthData = GoogleAuthData | TelegramAuthData;
+interface DiscordAuthData {
+  id: string;
+  username: string;
+  discriminator: string;
+  avatar: string | null;
+  roles: string[];
+}
+
+type AuthData = GoogleAuthData | TelegramAuthData | DiscordAuthData;
 
 interface AuthContextType {
   user: User | null;
   turnkeyUser: TurnkeyUser | null;
   turnkeySession: TurnkeySession | null;
   isLoading: boolean;
-  login: (provider: "google" | "telegram", data: AuthData) => Promise<void>;
+  login: (provider: "google" | "telegram" | "discord", data: AuthData) => Promise<void>;
   logout: () => void;
   connectWallet: (address: string) => void;
   setTurnkeyUser: (user: TurnkeyUser | null) => void;
@@ -121,6 +130,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               name: data.user.name,
               email: data.user.email,
               telegramId: data.user.telegramId,
+              discordId: data.user.discordId,
               googleId: data.user.googleId,
               avatar: data.user.avatar,
               walletAddress: data.wallet?.address,
@@ -138,7 +148,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     checkSession();
   }, []);
 
-  const login = async (provider: "google" | "telegram", data: AuthData) => {
+  const login = async (provider: "google" | "telegram" | "discord", data: AuthData) => {
     try {
       setIsLoading(true);
 
@@ -152,6 +162,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
           email: googleData.email,
           googleId: googleData.id,
           avatar: googleData.picture,
+          createdAt: new Date(),
+        };
+
+      } else if (provider === "discord") {
+        const discordData = data as DiscordAuthData;
+        userData = {
+          id: discordData.id,
+          name: discordData.username,
+          discordId: discordData.id,
+          avatar: discordData.avatar || undefined,
           createdAt: new Date(),
         };
       } else {
