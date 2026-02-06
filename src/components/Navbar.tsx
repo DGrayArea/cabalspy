@@ -40,8 +40,8 @@ export default function Navbar({
   onBackClick,
 }: NavbarProps) {
   const pathname = usePathname();
-  const { user, turnkeyUser } = useAuth();
-  const isAuthenticated = user || turnkeyUser;
+  const { user, turnkeyUser, turnkeySession } = useAuth();
+  const isAuthenticated = user || turnkeyUser || turnkeySession;
   const { isDesktop, isMobile } = useViewport();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 

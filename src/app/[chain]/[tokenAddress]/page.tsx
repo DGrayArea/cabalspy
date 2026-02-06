@@ -8,6 +8,12 @@ import {
   useSearchParams,
 } from "next/navigation";
 import Image from "next/image";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -32,6 +38,7 @@ import {
   Volume2,
   Calendar,
   Search,
+  Lock,
 } from "lucide-react";
 import { formatCurrency, formatNumber, formatPercent, formatPercentCompact } from "@/utils/format";
 import { TokenData } from "@/types/token";
@@ -240,6 +247,7 @@ function TokenDetailContent() {
   );
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [imageError, setImageError] = useState(false);
   const { toast, dismiss } = useToast();
 
@@ -1292,8 +1300,12 @@ function TokenDetailContent() {
                   {/* Trade Button */}
                   <button
                     onClick={async () => {
+                      if (!isAuthenticated) {
+                        setShowLoginModal(true);
+                        return;
+                      }
+
                       if (
-                        !isAuthenticated ||
                         !walletAddress ||
                         !connection ||
                         !signSolanaTransaction
@@ -1892,6 +1904,37 @@ function TokenDetailContent() {
           </div>
         </div>
       </footer>
+
+      {/* Login Required Modal */}
+      <Dialog open={showLoginModal} onOpenChange={setShowLoginModal}>
+        <DialogContent className="sm:max-w-md bg-panel border border-gray-800/50 rounded-xl shadow-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
+              <Lock className="w-5 h-5 text-[var(--primary)]" />
+              Login Required
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col items-center justify-center p-6 text-center space-y-4">
+            <div className="w-12 h-12 rounded-full bg-[var(--primary)]/10 flex items-center justify-center border border-[var(--primary)]/30">
+              <Zap className="w-6 h-6 text-[var(--primary)]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-1">Unlock Trading</h3>
+              <p className="text-sm text-gray-400">
+                You need to be logged in to buy tokens and access trading features.
+              </p>
+            </div>
+            <div className="w-full pt-2">
+              <div className="flex justify-center">
+                <AuthButton />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 pt-2 border-t border-gray-800/50 w-full">
+              Requires "Holder" or "Pre-Sale" role.
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Search Modal */}
       <SearchModal

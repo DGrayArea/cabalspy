@@ -91,6 +91,8 @@ import {
   MessageCircle,
   Sliders,
   Circle,
+  Loader2,
+  Lock,
 } from "lucide-react";
 import { getChainLogo } from "@/utils/platformLogos";
 import { formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil, formatPercent, formatPercentCompact } from "@/utils/format";
@@ -341,7 +343,7 @@ export default function PulsePage() {
 
 
   // Get user from auth context
-  const { user, turnkeyUser, turnkeySession } = useAuth();
+  const { user, turnkeyUser, turnkeySession, isLoading: isAuthLoading } = useAuth();
   // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
   const isAuthenticated = user || turnkeyUser || turnkeySession;
 
@@ -1550,6 +1552,7 @@ export default function PulsePage() {
       <Suspense fallback={null}>
         <AuthCallbackHandler />
       </Suspense>
+
       {/* Header */}
       <Navbar
         showSearch={true}
