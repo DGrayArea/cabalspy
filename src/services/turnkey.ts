@@ -1,6 +1,7 @@
 import { TurnkeyClient } from "@turnkey/http";
 import { ApiKeyStamper } from "@turnkey/api-key-stamper";
 import { logger } from "@/lib/logger";
+import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 
 export interface TurnkeyConfig {
   baseUrl: string;
@@ -13,7 +14,9 @@ export class TurnkeyService {
 
   constructor(config: TurnkeyConfig) {
     if (!config.apiPrivateKey || !config.apiKey) {
-      logger.warn("Turnkey API keys not found. Server-side wallet operations will not work.");
+      logger.warn(
+        "Turnkey API keys not found. Server-side wallet operations will not work."
+      );
       this.client = null as any;
       return;
     }
@@ -31,12 +34,26 @@ export class TurnkeyService {
         stamper
       );
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("invalid public key") || errorMessage.includes("switched")) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      if (
+        errorMessage.includes("invalid public key") ||
+        errorMessage.includes("switched")
+      ) {
         throw new Error(`Turnkey API key configuration error: ${errorMessage}`);
       }
       throw error;
     }
+  }
+
+  /**
+   * Get a Solana connection using the configured RPC URL
+   */
+  getSolanaConnection(): Connection {
+    const rpcUrl =
+      process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+      "https://api.mainnet-beta.solana.com";
+    return new Connection(rpcUrl, "confirmed");
   }
 
   async createWallet(
@@ -103,7 +120,11 @@ export class TurnkeyService {
 
       throw new Error("Failed to create wallet: No wallet returned from Turnkey");
     } catch (error) {
-      logger.error("Error creating wallet", error, { userId, walletName, chain });
+      logger.error("Error creating wallet", error, {
+        userId,
+        walletName,
+        chain,
+      });
       throw error;
     }
   }
@@ -192,22 +213,9 @@ export class TurnkeyService {
     try {
       // For Solana (default for Pump.fun)
       if (network === "solana") {
-        const rpcUrl =
-          process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
-          "https://api.mainnet-beta.solana.com";
-        const response = await fetch(rpcUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: 1,
-            method: "getBalance",
-            params: [address],
-          }),
-        });
-
-        const data = await response.json();
-        const lamports = data.result?.value || 0;
+        const connection = this.getSolanaConnection();
+        const publicKey = new PublicKey(address);
+        const lamports = await connection.getBalance(publicKey);
         const sol = lamports / 1e9;
 
         return {
@@ -261,7 +269,63 @@ export class TurnkeyService {
   }
 
   /**
-   * Send a transaction
+   * Send a Solana transaction
+   */
+  async sendSolanaTransaction(
+    walletId: string,
+    accountId: string,
+    transaction: Transaction | VersionedTransaction,
+    connection?: Connection
+  ): Promise<string> {
+    const conn = connection || this.getSolanaConnection();
+
+    // Serialize transaction to hex
+    let serializedTx: Buffer;
+    if (transaction instanceof VersionedTransaction) {
+      serializedTx = Buffer.from(transaction.serialize());
+    } else {
+      // For legacy transactions
+      if (!transaction.recentBlockhash) {
+        const { blockhash } = await conn.getLatestBlockhash();
+        transaction.recentBlockhash = blockhash;
+      }
+      if (!transaction.feePayer) {
+        // Need to know fee payer... assuming it's the signer
+        // But we don't have the signer's public key here easily unless passed
+        // For now, assuming transaction is properly constructed before passed
+      }
+      serializedTx = transaction.serialize({ requireAllSignatures: false });
+    }
+    const hexTx = serializedTx.toString("hex");
+
+    // Sign with Turnkey
+    const activity = await this.signTransaction(
+      walletId,
+      accountId,
+      hexTx,
+      "TRANSACTION_TYPE_SOLANA"
+    );
+
+    const result = activity.result?.signTransactionResult;
+    if (!result || !result.signedTransaction) {
+      throw new Error("Failed to sign transaction: No result returned");
+    }
+
+    const signedTxHex = result.signedTransaction;
+    const signedTxBuffer = Buffer.from(signedTxHex, "hex");
+
+    // Broadcast raw transaction
+    const signature = await conn.sendRawTransaction(signedTxBuffer, {
+      skipPreflight: false,
+      preflightCommitment: "confirmed",
+    });
+
+    return signature;
+  }
+
+  /**
+   * Send an Ethereum transaction (Legacy implementation)
+   * @deprecated Use dedicated methods for specific chains
    */
   async sendTransaction(
     walletId: string,
@@ -283,7 +347,8 @@ export class TurnkeyService {
       const signedTx = await this.signTransaction(
         walletId,
         accountId,
-        JSON.stringify(transaction)
+        JSON.stringify(transaction),
+        "TRANSACTION_TYPE_ETHEREUM"
       );
 
       return signedTx;
