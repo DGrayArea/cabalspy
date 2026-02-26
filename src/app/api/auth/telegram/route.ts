@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { createHmac, randomBytes } from 'crypto';
 import { db } from '@/lib/db';
-import { turnkeyService } from '@/services/turnkey';
+import { syncUserWallets } from '@/lib/walletSync';
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,41 +59,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    let user = await db.getUserByTelegramId(id.toString());
+    let user = await db.user.findUnique({
+      where: { telegramId: id.toString() }
+    });
 
     if (!user) {
-      user = await db.createUser({
-        telegramId: id.toString(),
-        name: `${first_name} ${last_name || ''}`.trim() || username || 'User',
-        avatar: photo_url,
-      });
-
-      try {
-        const walletId = await turnkeyService.createWallet(
-          user.id,
-          `${user.name}'s Wallet`,
-          'solana'
-        );
-
-        const walletAccounts = await turnkeyService.getWalletAddresses(walletId);
-        const solanaAccount = walletAccounts.find(acc => acc.path === "m/44'/501'/0'/0'");
-
-        if (solanaAccount) {
-          await db.createWallet({
-            userId: user.id,
-            turnkeyWalletId: walletId,
-            turnkeyAccountId: solanaAccount.accountId,
-            address: solanaAccount.address,
-            network: 'solana',
-          });
+      user = await db.user.create({
+        data: {
+          telegramId: id.toString(),
+          name: `${first_name} ${last_name || ''}`.trim() || username || 'User',
+          avatar: photo_url,
         }
-      } catch (walletError) {
-        logger.error('Failed to create wallet for user', walletError);
-      }
+      });
     }
 
+    // Sync all Turnkey wallets
+    await syncUserWallets(user.id, user.name);
+
     const sessionToken = randomBytes(32).toString('hex');
-    await db.createSession(user.id, sessionToken, 86400 * 7);
+    const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
+
+    await db.session.create({
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        expiresAt
+      }
+    });
 
     const response = NextResponse.json({
       success: true,

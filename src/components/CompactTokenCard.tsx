@@ -1093,7 +1093,7 @@ export function CompactTokenCard({
                     </TooltipContent>
                   </Tooltip>
               </div>
-              {/* Show migrated tag if migrated, otherwise show bonding curve */}
+              {/* Bonding curve bar — commented out
               {isTokenMigrated ? (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -1118,16 +1118,6 @@ export function CompactTokenCard({
                         </div>
                         <div className="text-xs text-gray-300">
                           ✅ Token has graduated from bonding curve
-                          {mobulaData?.bondedAt && (
-                            <div className="mt-1 pt-1 border-t border-gray-700">
-                              Graduated: {new Date(mobulaData.bondedAt).toLocaleDateString()}
-                            </div>
-                          )}
-                          {mobulaData?.poolAddress && (
-                <div>
-                              Pool: {mobulaData.poolAddress.slice(0, 8)}...
-                            </div>
-                          )}
                         </div>
                       </div>
                     </TooltipContent>
@@ -1148,7 +1138,7 @@ export function CompactTokenCard({
                         <div className="h-1.5 rounded-full bg-gray-800/60 overflow-hidden">
                           <div
                             className="h-full transition-all"
-                            style={{ 
+                            style={{
                               width: `${bondingProgress * 100}%`,
                               backgroundColor: bondingColor
                             }}
@@ -1167,19 +1157,12 @@ export function CompactTokenCard({
                         </div>
                         <div className="text-xs text-gray-300">
                           {Math.round(bondingProgress * 100)}% complete
-                          <div className="mt-1 pt-1 border-t border-gray-700">
-                            {Math.round((1 - bondingProgress) * 100)}% remaining until graduation
-                          </div>
-                          {hasMobulaData && mobulaData.bondingPercentage > 0 && (
-                            <div className="mt-1 pt-1 border-t border-gray-700">
-                              Mobula Progress: {mobulaData.bondingPercentage.toFixed(1)}%
-                </div>
-              )}
-            </div>
+                        </div>
                       </div>
                     </TooltipContent>
                   </Tooltip>
                 )}
+              */}
               </div>
             </TooltipProvider>
 

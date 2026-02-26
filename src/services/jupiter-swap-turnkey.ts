@@ -1,82 +1,77 @@
 /**
- * Simplified Jupiter Swap with Turnkey Wallet Signing
- * Uses Jupiter Lite API with instruction-based approach
+ * Jupiter Ultra Swap Integration
+ * Uses Jupiter Ultra API (https://api.jup.ag/ultra/v1) for best-in-class routing,
+ * MEV protection, and automatic fee collection.
+ *
+ * Fee structure:
+ *   referralFee = 125 bps → Jupiter keeps 20% (25 bps), platform nets 100 bps (1%)
  */
 
-import {
-  Connection,
-  PublicKey,
-  VersionedTransaction,
-  TransactionMessage,
-  TransactionInstruction,
-  AddressLookupTableAccount,
-} from "@solana/web3.js";
+import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 
-const JUPITER_LITE_API = "https://api.jup.ag";
-const JUPITER_API_KEY = process.env.NEXT_PUBLIC_JUPITER_API_KEY || "";
+const JUPITER_ULTRA_API = "https://api.jup.ag/ultra/v1";
+const JUPITER_API_KEY =
+  process.env.NEXT_PUBLIC_JUPITER_API_KEY || "";
+const REFERRAL_ACCOUNT =
+  process.env.NEXT_PUBLIC_JUPITER_REFERRAL_ACCOUNT || "";
+// 125 bps → Jupiter takes 20% (25 bps), platform nets 100 bps (1%)
+const REFERRAL_FEE_BPS =
+  parseInt(process.env.NEXT_PUBLIC_JUPITER_REFERRAL_FEE || "125", 10);
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface JupiterSwapParams {
-  inputMint: string; // Token mint address (use "So11111111111111111111111111111111111111112" for SOL)
-  outputMint: string; // Token mint address
-  amount: number; // Amount in human-readable units (e.g., 0.1 SOL or 100 tokens)
-  inputDecimals?: number; // Decimals for input token (default: 9 for SOL, 6 for tokens)
+  inputMint: string;       // Token mint address ("So11111111111111111111111111111111111111112" for SOL)
+  outputMint: string;      // Token mint address
+  amount: number;          // Human-readable amount (e.g. 0.1 SOL or 100 tokens)
+  inputDecimals?: number;  // Decimals for input token (default: 9 for SOL, 6 for others)
   outputDecimals?: number; // Decimals for output token (default: 6)
-  userPublicKey: string; // User's wallet public key
-  slippageBps?: number; // Slippage in basis points (default: 150 = 1.5%)
-  connection: Connection; // Solana connection
+  userPublicKey: string;   // User's wallet public key
+  slippageBps?: number;    // Ignored — Ultra manages slippage dynamically (kept for API compat)
+  connection: Connection;  // Solana connection (used for token decimal lookup)
   signTransaction: (
     transaction: VersionedTransaction
-  ) => Promise<VersionedTransaction>; // Turnkey signing function (returns signed VersionedTransaction)
+  ) => Promise<VersionedTransaction>; // Turnkey signing function
 }
 
 export interface JupiterSwapResult {
   success: boolean;
   signature?: string;
   error?: string;
-  outAmount?: string; // Human-readable output amount
+  outAmount?: string;    // Human-readable output amount
   outAmountRaw?: string; // Raw output amount from Jupiter
 }
 
-/**
- * Get quote from Jupiter API
- */
-async function getJupiterQuote({
-  inputMint,
-  outputMint,
-  amount,
-  slippageBps = 150,
-}: {
+interface UltraOrderResponse {
+  requestId: string;
+  transaction: string; // Base64-encoded transaction
   inputMint: string;
   outputMint: string;
-  amount: string; // Amount in raw units (lamports/token smallest unit)
-  slippageBps?: number;
-}) {
-  const quoteUrl = `${JUPITER_LITE_API}/swap/v1/quote?inputMint=${inputMint}&outputMint=${outputMint}&amount=${amount}&slippageBps=${slippageBps}&restrictIntermediateTokens=true&onlyDirectRoutes=false&asLegacyTransaction=false`;
+  inAmount: string;
+  outAmount: string;
+  feeMint?: string;  // Which token Ultra is collecting fees in
+  feeBps?: number;   // Actual fee bps (matches referralFee when token account is set up)
+  error?: string;
+}
 
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
+interface UltraExecuteResponse {
+  status: "Success" | "Failed";
+  signature?: string;
+  error?: string;
+  code?: number;
+}
 
-  if (JUPITER_API_KEY) {
-    headers["x-api-key"] = JUPITER_API_KEY;
-  }
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-  const response = await fetch(quoteUrl, {
-    method: "GET",
-    headers,
-  });
-  const quote = await response.json();
-
-  if (!response.ok || quote.error) {
-    throw new Error(`Quote failed: ${quote.error || "Unknown error"}`);
-  }
-
-  return quote;
+function ultraHeaders(): HeadersInit {
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+  if (JUPITER_API_KEY) headers["x-api-key"] = JUPITER_API_KEY;
+  return headers;
 }
 
 /**
- * Get token decimals from mint address
- * Tries multiple methods: blockchain fetch, Jupiter token list, then defaults
+ * Get token decimals from mint address.
+ * Tries blockchain → Jupiter token list → defaults to 6.
  */
 async function getTokenDecimals(
   connection: Connection,
@@ -87,164 +82,117 @@ async function getTokenDecimals(
     return 9;
   }
 
-  // Method 1: Try fetching from blockchain
+  // Method 1: Blockchain
   try {
     const mintPublicKey = new PublicKey(mintAddress);
     const mintInfo = await connection.getParsedAccountInfo(mintPublicKey);
-
     if (mintInfo.value) {
       const parsed = mintInfo.value.data;
       if ("parsed" in parsed && "info" in parsed.parsed) {
         const decimals = (parsed.parsed.info as any).decimals;
-        if (decimals !== undefined && decimals !== null) {
-          return decimals;
-        }
+        if (decimals !== undefined && decimals !== null) return decimals;
       }
     }
-  } catch (error) {
-    console.warn(
-      `Failed to fetch decimals from blockchain for ${mintAddress}:`,
-      error
-    );
+  } catch {
+    // fall through
   }
 
-  // Method 2: Try fetching from Jupiter token list API
+  // Method 2: Jupiter token list
   try {
-    const jupiterTokenListUrl = "https://token.jup.ag/all";
-    const response = await fetch(jupiterTokenListUrl);
+    const response = await fetch("https://token.jup.ag/all");
     if (response.ok) {
       const tokenList = await response.json();
       const token = tokenList.find((t: any) => t.address === mintAddress);
-      if (token && token.decimals !== undefined) {
-        return token.decimals;
-      }
+      if (token?.decimals !== undefined) return token.decimals;
     }
-  } catch (error) {
-    console.warn(
-      `Failed to fetch decimals from Jupiter token list for ${mintAddress}:`,
-      error
-    );
+  } catch {
+    // fall through
   }
 
-  // Method 3: Try Jupiter tokens API v2 (if API key available)
-  try {
-    const apiKey = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
-    if (apiKey) {
-      const jupiterTokensUrl = `https://api.jup.ag/tokens/v2/search?mints=${mintAddress}`;
-      const response = await fetch(jupiterTokensUrl, {
-        headers: {
-          "X-API-KEY": apiKey,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.tokens && data.tokens.length > 0) {
-          const token = data.tokens[0];
-          if (token.decimals !== undefined) {
-            return token.decimals;
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.warn(
-      `Failed to fetch decimals from Jupiter API v2 for ${mintAddress}:`,
-      error
-    );
-  }
-
-  // Last resort: Default to 6 (most common for SPL tokens)
-  // But log a warning so we know we're guessing
   console.warn(
-    `⚠️ Could not determine decimals for token ${mintAddress}, defaulting to 6. This may cause incorrect calculations.`
+    `⚠️ Could not determine decimals for ${mintAddress}, defaulting to 6`
   );
   return 6;
 }
 
+// ─── Ultra API calls ──────────────────────────────────────────────────────────
+
 /**
- * Get swap instructions from Jupiter API
+ * Step 1 — Get an Ultra order (pre-built transaction + requestId).
  */
-async function getJupiterSwapInstructions({
-  quoteResponse,
-  userPublicKey,
+async function getUltraOrder({
+  inputMint,
+  outputMint,
+  amountRaw,
+  taker,
 }: {
-  quoteResponse: any;
-  userPublicKey: string;
-}) {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-  };
-
-  if (JUPITER_API_KEY) {
-    headers["x-api-key"] = JUPITER_API_KEY;
-  }
-
-  const instructionsResponse = await fetch(
-    `${JUPITER_LITE_API}/swap/v1/swap-instructions`,
-    {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        quoteResponse,
-        userPublicKey,
-        // Additional parameters to improve transaction success rate
-        dynamicComputeUnitLimit: true, // Optimize compute units to prevent exceeding block limits
-        prioritizationFeeLamports: "auto", // Auto-calculate priority fee for faster processing
-      }),
-    }
-  );
-
-  const instructions = await instructionsResponse.json();
-
-  if (instructions.error) {
-    throw new Error("Failed to get swap instructions: " + instructions.error);
-  }
-
-  return instructions;
-}
-
-/**
- * Deserialize instruction from Jupiter API format
- */
-function deserializeInstruction(instruction: any): TransactionInstruction {
-  return new TransactionInstruction({
-    programId: new PublicKey(instruction.programId),
-    keys: instruction.accounts.map((key: any) => ({
-      pubkey: new PublicKey(key.pubkey),
-      isSigner: key.isSigner,
-      isWritable: key.isWritable,
-    })),
-    data: Buffer.from(instruction.data, "base64"),
+  inputMint: string;
+  outputMint: string;
+  amountRaw: string;
+  taker: string;
+}): Promise<UltraOrderResponse> {
+  const params = new URLSearchParams({
+    inputMint,
+    outputMint,
+    amount: amountRaw,
+    taker,
   });
+
+  // Only attach referral params when a referral account is configured
+  if (REFERRAL_ACCOUNT) {
+    params.set("referralAccount", REFERRAL_ACCOUNT);
+    params.set("referralFee", REFERRAL_FEE_BPS.toString());
+  }
+
+  const url = `${JUPITER_ULTRA_API}/order?${params.toString()}`;
+  const response = await fetch(url, {
+    method: "GET",
+    headers: ultraHeaders(),
+  });
+
+  const data: UltraOrderResponse = await response.json();
+
+  if (!response.ok || data.error) {
+    throw new Error(`Ultra order failed: ${data.error ?? response.statusText}`);
+  }
+
+  return data;
 }
 
 /**
- * Get address lookup table accounts
+ * Step 2 — Submit the signed transaction to Jupiter's executor.
  */
-async function getAddressLookupTableAccounts(
-  connection: Connection,
-  keys: string[]
-): Promise<AddressLookupTableAccount[]> {
-  const addressLookupTableAccountInfos =
-    await connection.getMultipleAccountsInfo(
-      keys.map((key) => new PublicKey(key))
-    );
+async function executeUltraOrder({
+  signedTransaction,
+  requestId,
+}: {
+  signedTransaction: string; // Base64-encoded signed transaction
+  requestId: string;
+}): Promise<UltraExecuteResponse> {
+  const response = await fetch(`${JUPITER_ULTRA_API}/execute`, {
+    method: "POST",
+    headers: ultraHeaders(),
+    body: JSON.stringify({ signedTransaction, requestId }),
+  });
 
-  return addressLookupTableAccountInfos.reduce((acc, accountInfo, index) => {
-    const addressLookupTableAddress = keys[index];
-    if (accountInfo) {
-      const addressLookupTableAccount = new AddressLookupTableAccount({
-        key: new PublicKey(addressLookupTableAddress),
-        state: AddressLookupTableAccount.deserialize(accountInfo.data),
-      });
-      acc.push(addressLookupTableAccount);
-    }
-    return acc;
-  }, new Array<AddressLookupTableAccount>());
+  const data: UltraExecuteResponse = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      `Ultra execute failed: ${data.error ?? response.statusText}`
+    );
+  }
+
+  return data;
 }
 
+// ─── Public API ───────────────────────────────────────────────────────────────
+
 /**
- * Execute Jupiter swap using Turnkey wallet signing
+ * Execute a token swap via Jupiter Ultra.
+ *
+ * Drop-in replacement for the previous `executeJupiterSwap` — same parameter
+ * shape, same return shape.
  */
 export async function executeJupiterSwap({
   inputMint,
@@ -253,20 +201,16 @@ export async function executeJupiterSwap({
   inputDecimals,
   outputDecimals,
   userPublicKey,
-  slippageBps = 150,
+  // slippageBps is accepted but ignored — Ultra manages slippage dynamically
   connection,
   signTransaction,
 }: JupiterSwapParams): Promise<JupiterSwapResult> {
   try {
-    // Validate inputs
     if (!inputMint || !outputMint || !amount || amount <= 0) {
       throw new Error("Invalid input parameters");
     }
 
-    // Get token decimals if not provided (fetch in parallel for speed)
-    // This is critical: tokens can have different decimals (6, 9, 2, 8, etc.)
-    // Priority: Use provided decimals > Fetch from blockchain/Jupiter APIs
-    // If decimals are provided, use them directly (they likely came from the token API response)
+    // Resolve decimals (use provided values or fetch from chain/Jupiter)
     const [inputTokenDecimals, outputTokenDecimals] = await Promise.all([
       inputDecimals !== undefined
         ? Promise.resolve(inputDecimals)
@@ -276,104 +220,60 @@ export async function executeJupiterSwap({
         : getTokenDecimals(connection, outputMint),
     ]);
 
-    // Convert human-readable amount to raw units using the correct decimals
-    // Example: 0.1 SOL with 9 decimals = 100,000,000 lamports
-    // Example: 100 tokens with 6 decimals = 100,000,000 raw units
-    const amountInRawUnits = Math.floor(
+    // Convert human-readable → raw units
+    const amountRaw = Math.floor(
       amount * Math.pow(10, inputTokenDecimals)
     ).toString();
 
-    // Get quote
-    const quoteResponse = await getJupiterQuote({
+    // ── Step 1: Get order ──────────────────────────────────────────────────
+    const order = await getUltraOrder({
       inputMint,
       outputMint,
-      amount: amountInRawUnits,
-      slippageBps,
+      amountRaw,
+      taker: userPublicKey,
     });
 
-    // Get swap instructions
-    const instructionsResponse = await getJupiterSwapInstructions({
-      quoteResponse,
-      userPublicKey,
-    });
+    // ── Step 2: Deserialize & sign ─────────────────────────────────────────
+    const transaction = VersionedTransaction.deserialize(
+      Buffer.from(order.transaction, "base64")
+    );
 
-    const {
-      tokenLedgerInstruction,
-      computeBudgetInstructions,
-      setupInstructions,
-      swapInstruction: swapInstructionPayload,
-      cleanupInstruction,
-      addressLookupTableAddresses,
-    } = instructionsResponse;
+    const signedTx = await signTransaction(transaction);
+    const signedTransactionB64 = Buffer.from(signedTx.serialize()).toString(
+      "base64"
+    );
 
-    // Deserialize instructions in the correct order
-    const instructions: TransactionInstruction[] = [
-      // Compute budget instructions must come first
-      ...(computeBudgetInstructions?.map(deserializeInstruction) || []),
-      // Token ledger instruction if needed
-      ...(tokenLedgerInstruction
-        ? [deserializeInstruction(tokenLedgerInstruction)]
-        : []),
-      // Setup instructions (create missing ATAs, etc.)
-      ...(setupInstructions?.map(deserializeInstruction) || []),
-      // The actual swap instruction
-      deserializeInstruction(swapInstructionPayload),
-      // Cleanup instruction (unwrap SOL if needed)
-      ...(cleanupInstruction
-        ? [deserializeInstruction(cleanupInstruction)]
-        : []),
-    ];
-
-    // Get address lookup table accounts if needed
-    const addressLookupTableAccounts: AddressLookupTableAccount[] = [];
-    if (addressLookupTableAddresses?.length > 0) {
-      addressLookupTableAccounts.push(
-        ...(await getAddressLookupTableAccounts(
-          connection,
-          addressLookupTableAddresses
-        ))
+    // Log fee info so you can verify collection is working
+    if (order.feeMint) {
+      const collecting = order.feeBps === REFERRAL_FEE_BPS;
+      console.log(
+        `[Ultra] feeMint=${order.feeMint} feeBps=${order.feeBps ?? 0}` +
+          (collecting ? " ✅ fee collected" : " ⚠️ no token account for this mint — fee skipped")
       );
     }
 
-    // Get latest blockhash with finalized commitment for longer validity
-    const { blockhash } = await connection.getLatestBlockhash("finalized");
+    // ── Step 3: Execute via Jupiter ────────────────────────────────────────
+    const result = await executeUltraOrder({
+      signedTransaction: signedTransactionB64,
+      requestId: order.requestId,
+    });
 
-    // Build transaction message
-    const messageV0 = new TransactionMessage({
-      payerKey: new PublicKey(userPublicKey),
-      recentBlockhash: blockhash,
-      instructions,
-    }).compileToV0Message(addressLookupTableAccounts);
+    if (result.status !== "Success" || !result.signature) {
+      throw new Error(result.error ?? "Ultra execute returned non-success status");
+    }
 
-    // Create versioned transaction
-    const transaction = new VersionedTransaction(messageV0);
-
-    // Sign transaction using Turnkey (returns signed VersionedTransaction directly)
-    const signedTransaction = await signTransaction(transaction);
-
-    // Send transaction
-    const signature = await connection.sendRawTransaction(
-      signedTransaction.serialize(),
-      {
-        maxRetries: 3,
-        skipPreflight: false,
-      }
-    );
-
-    // Convert output amount to human-readable format using the correct decimals
-    // Example: 100,000,000 raw units with 6 decimals = 100 tokens
-    // Example: 1,000,000,000 raw units with 9 decimals = 1 SOL
-    const outAmountRaw = parseInt(quoteResponse.outAmount || "0");
+    // Convert raw output → human-readable
+    const outAmountRaw = parseInt(order.outAmount || "0");
     const outAmountHuman = outAmountRaw / Math.pow(10, outputTokenDecimals);
 
     return {
       success: true,
-      signature,
+      signature: result.signature,
       outAmount: outAmountHuman.toString(),
-      outAmountRaw: quoteResponse.outAmount,
+      outAmountRaw: order.outAmount,
     };
   } catch (error: any) {
-    console.error("Jupiter swap failed:", error);
+    console.error("Jupiter Ultra swap failed:", error);
     return {
       success: false,
       error: error.message || "Swap failed",

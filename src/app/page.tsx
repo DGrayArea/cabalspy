@@ -25,7 +25,7 @@ import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
 import { SearchModal } from "@/components/SearchModal";
-import { TokenListSkeleton } from "@/components/TokenCardSkeleton";
+import { TokenListSkeleton, MarqueeSkeleton } from "@/components/TokenCardSkeleton";
 import LaunchpadStatsCard from "@/components/LaunchpadStatsCard";
 import { pumpFunService } from "@/services/pumpfun";
 import { protocolService } from "@/services/protocols";
@@ -407,6 +407,8 @@ export default function PulsePage() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [hasMore, setHasMore] = useState(true); // For infinite scroll
+  // Track which filters have loaded data at least once (to show skeleton on first visit)
+  const [filtersEverLoaded, setFiltersEverLoaded] = useState<Set<string>>(new Set());
 
   // Infinite scroll implementation
   const handleLoadMore = useCallback(async () => {
@@ -1339,6 +1341,40 @@ export default function PulsePage() {
     return uniqueTokens;
   }, [filter, getTokensForFilter, filteredAndSortedTokens]);
 
+  // Mark a filter as "ever loaded" once it has tokens
+  useEffect(() => {
+    if (tokensToDisplay.length > 0) {
+      setFiltersEverLoaded((prev) => {
+        if (prev.has(filter)) return prev;
+        const next = new Set(prev);
+        next.add(filter);
+        return next;
+      });
+    }
+  }, [filter, tokensToDisplay.length]);
+
+  // Determine whether to show skeleton for the current filter
+  const showSkeleton = (() => {
+    // Always skeleton on initial Mobula load
+    if (mobulaEnabled && mobulaLoading && tokensToDisplay.length === 0) return true;
+    // Skeleton when this filter has never loaded and data is still coming in
+    if (!filtersEverLoaded.has(filter) && tokensToDisplay.length === 0) {
+      // For protocol-based filters, show skeleton while protocols are loading
+      if (
+        (filter === "new" || filter === "finalStretch" || filter === "graduated") &&
+        isLoadingProtocols
+      ) return true;
+      // For pumpfun filters, show skeleton while pumpfun is loading
+      if (
+        (filter === "latest" || filter === "featured" || filter === "marketCap") &&
+        isLoadingPumpFun
+      ) return true;
+      // For trending, show skeleton while Mobula or WS is loading
+      if (filter === "trending" && (mobulaLoading || wsLoading)) return true;
+    }
+    return false;
+  })();
+
   // Calculate filter counts - must match the data sources used in getTokensForFilter
   const filterCounts = useMemo(() => {
     // If Mobula is enabled, prioritize Mobula counts for all filters
@@ -1639,15 +1675,17 @@ export default function PulsePage() {
             <LaunchpadStatsCard />
           </div>
 
-          {/* Top Featured Tokens Marquee */}
-          {featuredTokens.length > 0 && (
-            <div className="mb-6">
-              <div className="px-3 sm:px-4 mb-2">
-                <h2 className="text-lg font-bold text-white">Top Featured</h2>
-              </div>
-              <TokenMarquee tokens={featuredTokens} speed="normal" />
+          {/* Top Featured Tokens Marquee — show skeleton until tokens arrive */}
+          <div className="mb-6">
+            <div className="px-3 sm:px-4 mb-2">
+              <h2 className="text-lg font-bold text-white">Top Featured</h2>
             </div>
-          )}
+            {featuredTokens.length > 0 ? (
+              <TokenMarquee tokens={featuredTokens} speed="normal" />
+            ) : (
+              <MarqueeSkeleton />
+            )}
+          </div>
 
           {/* Filter Tabs with Counts */}
           <div className="mb-4 w-full sticky top-[64px] bg-app/98 backdrop-blur-md z-40 py-3 border-b border-gray-800/50 overflow-x-auto scrollbar-hide scroll-smooth shadow-lg -mx-3 sm:-mx-4 px-3 sm:px-4">
@@ -1786,12 +1824,15 @@ export default function PulsePage() {
 
         {/* Responsive Grid Layout - Shows tokens based on selected filter */}
         <div className="pb-24 px-3 sm:px-4">
-          {/* Show skeleton loaders during initial load */}
-          {(mobulaLoading && tokensToDisplay.length === 0) || isLoadingPumpFun ? (
+          {/* Show skeleton loaders during initial load or filter switch */}
+          {showSkeleton ? (
             <TokenListSkeleton count={12} />
           ) : tokensToDisplay.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              No tokens found
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
+              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
+                <Activity className="w-6 h-6 text-gray-600" />
+              </div>
+              <p className="text-sm">No tokens found</p>
             </div>
           ) : (
             <>

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { db } from "@/lib/db";
+import { syncUserWallets } from "@/lib/walletSync";
 
 // Roles defined in original python app
 const ALLOWED_ROLES = new Set(["1440085206785720413", "1386648661391441920"]); // Holder + Pre-Sale
@@ -101,20 +103,52 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL("/?error=missing_role", request.url));
     }
 
-    // 5. Prepare user data for frontend
-    const frontendUser = {
-        id: userData.id,
-        username: userData.username,
-        discriminator: userData.discriminator,
-        avatar: userData.avatar 
+    // 5. Check if user exists in database, or create them
+    let user = await db.user.findUnique({
+      where: { discordId: userData.id },
+    });
+
+    if (!user) {
+      user = await db.user.create({
+        data: {
+          discordId: userData.id,
+          name: userData.username,
+          avatar: userData.avatar
             ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
             : null,
+        },
+      });
+    }
+
+    // 6. Sync Turnkey wallets for this user
+    await syncUserWallets(user.id, user.name);
+
+    // 7. Create session
+    const { randomBytes } = require("crypto");
+    const sessionToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
+
+    await db.session.create({
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        expiresAt,
+      },
+    });
+
+    // 8. Prepare user data for frontend
+    const frontendUser = {
+        id: user.id,
+        discordId: userData.id,
+        username: userData.username,
+        discriminator: userData.discriminator,
+        avatar: user.avatar,
         roles: roles
     };
 
     const encodedData = encodeURIComponent(JSON.stringify(frontendUser));
     
-    // 6. Redirect to frontend
+    // 9. Redirect to frontend
     // Determine the base URL for the callback
     const baseUrl =
       process.env.NEXTAUTH_URL || process.env.VERCEL_URL
@@ -125,12 +159,23 @@ export async function GET(request: NextRequest) {
     frontendUrl.searchParams.set("discord_auth", "success");
     frontendUrl.searchParams.set("data", encodedData);
 
+    const response = NextResponse.redirect(frontendUrl);
+    
+    response.cookies.set('session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 86400 * 7,
+      path: '/',
+    });
+
     logger.info("Discord auth successful", { userId: userData.id, username: userData.username });
 
-    return NextResponse.redirect(frontendUrl);
+    return response;
 
   } catch (error) {
     logger.error("Discord callback error", error);
     return NextResponse.redirect(new URL("/?error=server_error", request.url));
   }
 }
+

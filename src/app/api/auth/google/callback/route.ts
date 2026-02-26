@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
-import { turnkeyService } from '@/services/turnkey';
+import { syncUserWallets } from '@/lib/walletSync';
 import { randomBytes } from 'crypto';
 
 export async function GET(request: NextRequest) {
@@ -63,42 +63,34 @@ export async function GET(request: NextRequest) {
 
     const userInfo = await userResponse.json();
 
-    let user = await db.getUserByGoogleId(userInfo.id);
+    let user = await db.user.findUnique({
+      where: { googleId: userInfo.id }
+    });
 
     if (!user) {
-      user = await db.createUser({
-        email: userInfo.email,
-        googleId: userInfo.id,
-        name: userInfo.name || userInfo.email || 'User',
-        avatar: userInfo.picture,
-      });
-
-      try {
-        const walletId = await turnkeyService.createWallet(
-          user.id,
-          `${user.name}'s Wallet`,
-          'solana'
-        );
-
-        const walletAccounts = await turnkeyService.getWalletAddresses(walletId);
-        const solanaAccount = walletAccounts.find(acc => acc.path === "m/44'/501'/0'/0'");
-
-        if (solanaAccount) {
-          await db.createWallet({
-            userId: user.id,
-            turnkeyWalletId: walletId,
-            turnkeyAccountId: solanaAccount.accountId,
-            address: solanaAccount.address,
-            network: 'solana',
-          });
+      user = await db.user.create({
+        data: {
+          email: userInfo.email,
+          googleId: userInfo.id,
+          name: userInfo.name || userInfo.email || 'User',
+          avatar: userInfo.picture,
         }
-      } catch (walletError) {
-        logger.error('Failed to create wallet for user', walletError);
-      }
+      });
     }
 
+    // Sync all Turnkey wallets
+    await syncUserWallets(user.id, user.name);
+
     const sessionToken = randomBytes(32).toString('hex');
-    await db.createSession(user.id, sessionToken, 86400 * 7);
+    const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
+
+    await db.session.create({
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        expiresAt
+      }
+    });
 
     const response = NextResponse.redirect(new URL('/', request.url));
     response.cookies.set('session', sessionToken, {

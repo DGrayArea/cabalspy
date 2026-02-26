@@ -185,81 +185,31 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         };
       }
 
-      // Get or create wallets for this user
-      // Backend will create new wallets on signup, or return existing on login
-      const existingWalletIdsStr = localStorage.getItem(
-        `wallet_ids_${userData.id}`
-      );
-      const existingWalletIds = existingWalletIdsStr
-        ? JSON.parse(existingWalletIdsStr)
-        : null;
-
-      // Always call backend - it will create new wallets or return existing ones
+      // Instead of caching and creating wallets here, we fetch the updated session
+      // Since the auth callback routes (Google, Discord, Telegram) handle DB user creation
+      // and Turnkey wallet syncing, calling checking the session again guarantees we have the
+      // most up-to-date user + wallet config.
       try {
-        const response = await fetch("/api/turnkey/create-wallets", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: userData.id,
-            userName: userData.name,
-            userEmail: userData.email,
-            // Send existing wallet IDs if we have them (for verification)
-            existingWalletIds: existingWalletIds || undefined,
-          }),
-        });
-
+        const response = await fetch("/api/auth/session");
         if (response.ok) {
-          const walletData = await response.json();
-          // Only store wallet IDs (safe to store - keys are with Turnkey)
-          const walletIds = {
-            solana: walletData.wallets.solana?.walletId,
-            ethereum: walletData.wallets.ethereum?.walletId,
-            bnb: walletData.wallets.bnb?.walletId,
-            base: walletData.wallets.base?.walletId,
-          };
-          userData.wallets = walletData.wallets;
-          // Store only wallet IDs in localStorage (not keys)
-          localStorage.setItem(
-            `wallet_ids_${userData.id}`,
-            JSON.stringify(walletIds)
-          );
-
-          // Log wallet creation status
-          const createdWallets = [];
-          if (walletIds.solana) createdWallets.push("Solana");
-          if (walletIds.ethereum) createdWallets.push("Ethereum");
-          if (walletIds.bnb) createdWallets.push("BNB");
-          if (walletIds.base) createdWallets.push("Base");
-
-          if (walletData.warnings && walletData.warnings.length > 0) {
-            console.warn(
-              `⚠️ Partial wallet creation: ${createdWallets.join(" and ")} created`,
-              `Errors: ${walletData.warnings.join(", ")}`
-            );
-          } else {
-            console.log(
-              walletData.isNewUser
-                ? `✅ New user - Turnkey wallets created (${createdWallets.join(", ")})`
-                : `✅ Existing user - Turnkey wallets retrieved (${createdWallets.join(", ")})`,
-              "- Keys stored securely by Turnkey"
-            );
+          const data = await response.json();
+          if (data.user) {
+            userData = {
+              id: data.user.id,
+              name: data.user.name,
+              email: data.user.email,
+              telegramId: data.user.telegramId,
+              discordId: data.user.discordId,
+              googleId: data.user.googleId,
+              avatar: data.user.avatar,
+              walletAddress: data.wallet?.address,
+              createdAt: new Date(),
+            };
           }
-        } else {
-          console.error("Failed to get/create wallets:", await response.text());
-          // Continue with login even if wallet creation fails
         }
       } catch (error) {
-        console.error("Error getting/creating Turnkey wallets:", error);
-        // Continue with login even if wallet creation fails
+        console.error("Error confirming session after login:", error);
       }
-
-      // Store user data (in production, verify with backend/Turnkey first)
-      // Generate a session token for local storage
-      const sessionToken = crypto.randomUUID();
-      localStorage.setItem("auth_token", sessionToken);
-      localStorage.setItem("user_data", JSON.stringify(userData));
 
       setUser(userData);
     } catch (error) {
