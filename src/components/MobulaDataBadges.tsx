@@ -37,9 +37,9 @@ interface MobulaDataBadgesProps {
 export function MobulaDataBadges({
   token,
   className,
-  maxBadges = 4,
+    maxBadges = 4,
 }: MobulaDataBadgesProps) {
-  const data = token._mobulaData;
+  const data = (token as any)._mobulaData;
   if (!data) return null;
 
   const badges: Array<{
@@ -181,7 +181,7 @@ export function MobulaDataBadges({
   }
 
   // Priority 8: Dexscreener
-  if (data.dexscreenerListed) {
+  if ((data as any).dexscreenerListed) {
     badges.push({
       icon: <Eye className="w-3 h-3" />,
       label: "Listed",

@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "next lint",
+    "test:apis": "tsx scripts/test-endpoints.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -76,14 +77,17 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@prisma/client": "5.22.0",
+    "@prisma/adapter-pg": "^7.4.2",
+    "@prisma/client": "7.4.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.9",
-    "prisma": "^5.22.0",
+    "pg": "^8.20.0",
+    "prisma": "^7.4.2",
     "tailwindcss": "^4",
     "tsx": "^4.19.2",
     "typescript": "^5"

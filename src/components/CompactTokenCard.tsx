@@ -572,85 +572,53 @@ export function CompactTokenCard({
                       }}
                     />
                   )}
-            {token.image && !imageError ? (
-              <div
-                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden relative group/token bg-panel-elev z-10`}
-                      style={{
-                        border: '2px solid rgba(55, 65, 81, 0.5)'
-                      }}
-              >
-                <Image
-                  src={token.image!}
-                  alt={token.symbol}
-                  fill
-                  className="object-cover"
-                  onError={() => setImageError(true)}
-                  sizes="40px"
-                  unoptimized={token.image?.startsWith('data:')} // Optimize unless it's a data URI
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 cursor-pointer">
-                  <ExternalLink className="w-3 h-3 text-[var(--primary-text)] cursor-pointer" />
+            <div className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden relative group/token bg-panel-elev z-10 flex-shrink-0 border-2 border-gray-800/50`}>
+              {/* Fallback Gradient / Icon (Underneath) */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg z-0">
+                {token.icon && !token.icon.startsWith('http') && !token.icon.startsWith('data:') && !token.icon.startsWith('/')
+                  ? token.icon
+                  : token.symbol?.charAt(0).toUpperCase() || "🪙"}
+              </div>
+
+              {/* Token Image */}
+              {token.image && !imageError && (
+                <div className="absolute inset-0 z-10">
+                  <Image
+                    src={token.image}
+                    alt={token.symbol}
+                    fill
+                    className="object-cover"
+                    onError={() => setImageError(true)}
+                    sizes="40px"
+                    unoptimized={token.image?.startsWith('data:')}
+                  />
                 </div>
-                {/* Platform logo overlay - bottom right */}
-                {platformLogo && !platformLogoError ? (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden z-10">
-                    <Image
-                      src={platformLogo}
-                      alt={platformName || "Platform"}
-                      fill
-                      className="object-cover"
-                      sizes="14px"
-                      onError={() => {
-                        if (process.env.NODE_ENV === "development") {
-                          console.warn(`Platform logo failed: ${platform} -> ${platformLogo}`);
-                        }
-                        setPlatformLogoError(true);
-                      }}
-                      unoptimized
-                    />
-                  </div>
-                ) : (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px] z-10">
-                    {platformIcon}
-                  </div>
-                )}
+              )}
+
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 cursor-pointer z-20">
+                <ExternalLink className="w-3 h-3 text-[var(--primary-text)] cursor-pointer" />
               </div>
-            ) : (
-              <div
-                      className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg shadow-lg shadow-[var(--primary)]/10 relative z-10`}
-                      style={{
-                        border: '2px solid rgba(55, 65, 81, 0.5)'
-                      }}
-              >
-                      {/* Safeguard: if icon is a URL, use symbol fallback instead */}
-                      {token.icon && !token.icon.startsWith('http') && !token.icon.startsWith('data:') && !token.icon.startsWith('/')
-                        ? token.icon
-                        : token.symbol?.charAt(0).toUpperCase() || "🪙"}
-                {/* Platform logo overlay - bottom right */}
-                {platformLogo && !platformLogoError ? (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden z-10">
-                    <Image
-                      src={platformLogo}
-                      alt={platformName || "Platform"}
-                      fill
-                      className="object-cover"
-                      sizes="14px"
-                      onError={() => {
-                        if (process.env.NODE_ENV === "development") {
-                          console.warn(`Platform logo failed: ${platform} -> ${platformLogo}`);
-                        }
-                        setPlatformLogoError(true);
-                      }}
-                      unoptimized
-                    />
-                  </div>
-                ) : (
-                        <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center text-[8px] z-10">
-                    {platformIcon}
-                  </div>
-                )}
-              </div>
-            )}
+
+              {/* Platform logo overlay - bottom right */}
+              {platformLogo && !platformLogoError ? (
+                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border border-panel flex items-center justify-center overflow-hidden z-30">
+                  <Image
+                    src={platformLogo}
+                    alt={platformName || "Platform"}
+                    fill
+                    className="object-cover"
+                    sizes="14px"
+                    onError={() => setPlatformLogoError(true)}
+                    unoptimized
+                  />
+                </div>
+              ) : (
+                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border border-panel flex items-center justify-center text-[8px] z-30">
+                  {platformIcon}
+                </div>
+              )}
+            </div>
           </div>
               </TooltipTrigger>
               <TooltipContent

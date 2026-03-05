@@ -293,7 +293,7 @@ export class MobulaService {
       // Try fallback API key if primary fails with auth error
       if (
         (error.response?.status === 401 || error.response?.status === 403) &&
-        FALLBACK_API_KEY
+        process.env.NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY
       ) {
         console.log("🔄 Mobula GET: Trying fallback API key...");
         const fallbackNow = Date.now();
@@ -499,7 +499,7 @@ export class MobulaService {
         // Try fallback API key if primary fails with auth error
         if (
           (error.response?.status === 401 || error.response?.status === 403) &&
-          FALLBACK_API_KEY
+          process.env.NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY
         ) {
           console.log("🔄 Mobula POST: Trying fallback API key...");
           const fallbackNow = Date.now();

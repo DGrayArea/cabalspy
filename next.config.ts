@@ -26,6 +26,12 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '**',
       },
+      {
+        // Allow http sources (e.g. raw IP:port from pump.fun metadata)
+        protocol: 'http',
+        hostname: '**',
+        port: '*',
+      },
     ],
   },
   

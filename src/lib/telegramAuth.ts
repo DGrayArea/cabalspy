@@ -115,11 +115,13 @@ function cleanupExpiredTokens() {
   }
 }
 
+import { getBotUsername as getConfigBotUsername } from "./telegramConfig";
+
 /**
- * Get bot username from environment or return default
+ * Get bot username from environment-aware config
  */
 export function getBotUsername(): string {
-  return process.env.TELEGRAM_BOT_USERNAME || "your_bot_username";
+  return getConfigBotUsername();
 }
 
 /**

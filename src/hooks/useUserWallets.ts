@@ -56,10 +56,10 @@ export function useUserWallets() {
                 ...walletIds.solana,
               },
               {
-                walletId: walletIds.bsc?.walletId,
+                walletId: (walletIds as any).bsc?.walletId,
                 walletName: "BSC Wallet",
                 network: "bsc",
-                ...walletIds.bsc,
+                ...((walletIds as any).bsc || {}),
               },
             ].filter((w) => w.walletId)
           );

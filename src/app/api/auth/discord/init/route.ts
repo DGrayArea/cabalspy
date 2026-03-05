@@ -10,25 +10,20 @@ import { logger } from "@/lib/logger";
 export async function GET(request: NextRequest) {
   try {
     const clientId = process.env.DISCORD_CLIENT_ID;
-    const redirectUri = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
     
-    if (!clientId || !redirectUri) {
-      logger.error("Discord auth configuration missing");
+    // Determine the base URL for the callback
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    
+    const redirectUri = `${baseUrl}/api/auth/discord/callback`;
+    
+    if (!clientId) {
+      logger.error("Discord auth configuration missing: client ID is required");
       return NextResponse.json(
         { error: "Server configuration error" },
         { status: 500 }
       );
     }
-
-    // Determine the base URL for the callback
-    const baseUrl =
-      process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
-        
-    // If the configured redirect URI is localhost but we're in production, 
-    // we might want to adjust it dynamically, but for now we trust the .env
-    
     // Scopes needed: identify (for user info) and guilds.members.read (to check roles)
     const scope = "identify guilds.members.read";
     

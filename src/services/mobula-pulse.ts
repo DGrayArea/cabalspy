@@ -811,7 +811,7 @@ export async function fetchTokenByAddress(
     const allTokens = (response.data["token-search"]?.data || []).map(transformToken);
     const normalizedAddress = address.toLowerCase();
     const foundToken = allTokens.find(
-      (token) => token.address?.toLowerCase() === normalizedAddress
+      (token) => (token as any).address?.toLowerCase() === normalizedAddress
     );
 
     if (foundToken) {
@@ -828,7 +828,7 @@ export async function fetchTokenByAddress(
         ...basicViews.bonded,
       ];
       const foundInBasic = allBasicTokens.find(
-        (token) => token.address?.toLowerCase() === normalizedAddress
+        (token) => (token as any).address?.toLowerCase() === normalizedAddress
       );
       if (foundInBasic) {
         logger.info(`✅ Found token in Mobula basic views: ${address}`);

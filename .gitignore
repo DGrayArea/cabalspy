@@ -45,3 +45,7 @@ TELEGRAM_AUTHENTICATION.md
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma generated client
+/src/lib/generated
+

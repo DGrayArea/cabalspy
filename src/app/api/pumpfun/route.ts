@@ -47,10 +47,35 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
+      // Known-dead endpoints — return empty array silently instead of 502
+      const knownDeadEndpoints = ["/coins/latest", "/coins/featured"];
+      if (knownDeadEndpoints.some(dead => endpoint.startsWith(dead))) {
+        return NextResponse.json([], {
+          status: 200,
+          headers: { "Access-Control-Allow-Origin": "*" },
+        });
+      }
       throw new Error(`Pump.fun API returned ${response.status}`);
     }
 
-    const data = await response.json();
+    // Read body as text first to guard against empty responses
+    const text = await response.text();
+    if (!text || text.trim() === "") {
+      return NextResponse.json(null, {
+        status: 404,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    let data: unknown;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON from Pump.fun", data: null },
+        { status: 502, headers: { "Access-Control-Allow-Origin": "*" } }
+      );
+    }
 
     return NextResponse.json(data, {
       status: 200,

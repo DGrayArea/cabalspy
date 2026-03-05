@@ -328,7 +328,7 @@ export function WalletSettingsModal({
 
           // handleExportWallet opens a new window to export.turnkey.com
           await handleExportWallet({
-            walletId: embeddedSolanaWallet.walletId,
+            walletId: embeddedSolanaWallet.walletId as string,
           });
 
           console.log("✅ Wallet export initiated");

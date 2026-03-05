@@ -1,0 +1,1 @@
+[{"name":"@prisma/engines","version":"7.4.2","scripts":{"postinstall":"node scripts/install.js"}},{"name":"prisma","version":"7.4.2","scripts":{"preinstall":"node scripts/preinstall.js"}}]

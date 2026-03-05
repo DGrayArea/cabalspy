@@ -10,7 +10,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ user: null }, { status: 200 });
     }
 
-    const session = await db.getSessionByToken(sessionToken);
+    const session = await db.session.findUnique({
+      where: { token: sessionToken },
+    });
 
     if (!session) {
       const response = NextResponse.json({ user: null }, { status: 200 });
@@ -18,7 +20,9 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    const user = await db.getUserById(session.userId);
+    const user = await db.user.findUnique({
+      where: { id: session.userId },
+    });
 
     if (!user) {
       const response = NextResponse.json({ user: null }, { status: 200 });
@@ -26,7 +30,9 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    const wallet = await db.getWalletByUserId(user.id, 'solana');
+    const wallet = await db.wallet.findFirst({
+      where: { userId: user.id, network: 'solana' },
+    });
 
     return NextResponse.json({
       user: {
@@ -36,6 +42,7 @@ export async function GET(request: NextRequest) {
         avatar: user.avatar,
         telegramId: user.telegramId,
         googleId: user.googleId,
+        discordId: user.discordId,
       },
       wallet: wallet ? {
         address: wallet.address,
@@ -53,7 +60,9 @@ export async function DELETE(request: NextRequest) {
     const sessionToken = request.cookies.get('session')?.value;
 
     if (sessionToken) {
-      await db.deleteSession(sessionToken);
+      await db.session.delete({
+        where: { token: sessionToken },
+      }).catch(() => {}); // Ignore if already deleted
     }
 
     const response = NextResponse.json({ success: true });

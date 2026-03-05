@@ -25,11 +25,16 @@ export async function GET(request: NextRequest) {
 
     const clientId = process.env.DISCORD_CLIENT_ID;
     const clientSecret = process.env.DISCORD_CLIENT_SECRET;
-    const redirectUri = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI;
     const guildId = process.env.DISCORD_GUILD_ID;
     const botToken = process.env.DISCORD_BOT_TOKEN;
 
-    if (!clientId || !clientSecret || !redirectUri || !guildId || !botToken) {
+    // Determine the base URL for the callback (must match the one used in init)
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    
+    const redirectUri = `${baseUrl}/api/auth/discord/callback`;
+
+    if (!clientId || !clientSecret || !guildId || !botToken) {
       logger.error("Discord auth configuration missing");
       return NextResponse.redirect(new URL("/?error=server_configuration", request.url));
     }
@@ -149,12 +154,6 @@ export async function GET(request: NextRequest) {
     const encodedData = encodeURIComponent(JSON.stringify(frontendUser));
     
     // 9. Redirect to frontend
-    // Determine the base URL for the callback
-    const baseUrl =
-      process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
-
     const frontendUrl = new URL("/", baseUrl);
     frontendUrl.searchParams.set("discord_auth", "success");
     frontendUrl.searchParams.set("data", encodedData);

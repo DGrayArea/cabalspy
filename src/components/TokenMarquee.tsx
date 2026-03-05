@@ -79,14 +79,17 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
       >
         {duplicatedTokens.map((token, index) => {
             const hasImageError = imageErrors.has(token.id);
-            // Get 24h change from percentages array (last element) or calculate from average
-            const priceChange =
-              token.percentages && token.percentages.length > 0
-                ? token.percentages[4] !== undefined
-                  ? token.percentages[4]
-                  : token.percentages.reduce((sum, p) => sum + p, 0) /
-                    token.percentages.length
-                : 0;
+            // Prioritize priceChange24h from Mobula/Pumpfun
+            // If not available, fallback to the 24h slot (index 4) of percentages array
+            const priceChange = 
+              token.priceChange24h !== undefined 
+                ? token.priceChange24h 
+                : (token.percentages && token.percentages.length > 0
+                  ? token.percentages[4] !== undefined
+                    ? token.percentages[4]
+                    : token.percentages.reduce((sum, p) => sum + p, 0) /
+                      token.percentages.length
+                  : 0);
             const isPositive = priceChange >= 0;
 
             // Get platform info using AI detector

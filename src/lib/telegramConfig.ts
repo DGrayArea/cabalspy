@@ -33,6 +33,11 @@ export function getEnvironment(): Environment {
  * Get base URL for current environment
  */
 export function getBaseUrl(): string {
+  // Always prioritize NEXT_PUBLIC_APP_URL as it's our explicit app URL
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
   const env = getEnvironment();
 
   // Production/Preview: Use Vercel URL or NEXTAUTH_URL
@@ -48,11 +53,11 @@ export function getBaseUrl(): string {
     }
 
     // Last resort (shouldn't happen in Vercel)
-    return "https://yourdomain.com";
+    return "https://cabalspy-pi.vercel.app";
   }
 
-  // Development: Use localhost or NEXTAUTH_URL
-  return process.env.NEXTAUTH_URL || "http://localhost:3000";
+  // Development: Use localhost
+  return "http://localhost:3000";
 }
 
 /**
@@ -73,6 +78,19 @@ export function getBotToken(): string | undefined {
 
   // Default to main bot token
   return process.env.TELEGRAM_BOT_TOKEN;
+}
+
+/**
+ * Get Telegram bot username for current environment
+ */
+export function getBotUsername(): string {
+  const env = getEnvironment();
+
+  if (env === "development" && process.env.TELEGRAM_BOT_USERNAME_DEV) {
+    return process.env.TELEGRAM_BOT_USERNAME_DEV;
+  }
+
+  return process.env.TELEGRAM_BOT_USERNAME || "cabalspy_bot";
 }
 
 /**

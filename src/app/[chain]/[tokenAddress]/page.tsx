@@ -1134,26 +1134,14 @@ function TokenDetailContent() {
                   maxHeight: "600px",
                 }}
               >
-                {pumpfunData ? (
-                  <TokenChart
-                    mintAddress={tokenAddress}
-                    tokenSymbol={tokenSymbol}
-                    isPumpFun={true}
-                    createdTimestamp={createdTimestamp}
-                  />
-                ) : (
-                  <div className="h-full flex items-center justify-center">
-                    <div className="text-center text-gray-400">
-                      <BarChart3 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">
-                        Chart available for pump.fun tokens
-                      </p>
-                      <p className="text-xs mt-1">
-                        Chart data will load for pump.fun tokens
-                      </p>
-                    </div>
-                  </div>
-                )}
+                <TokenChart
+                  mintAddress={tokenAddress}
+                  tokenSymbol={tokenSymbol}
+                  isPumpFun={!!pumpfunData}
+                  createdTimestamp={createdTimestamp}
+                  chainId={chain}
+                  isMigrated={isMigrated}
+                />
               </div>
             </div>
 

@@ -926,7 +926,7 @@ export default function PulsePage() {
     // If WebSocket tokens are empty, filter Mobula tokens by chain
     if (solanaTokens.length === 0 && bscTokens.length === 0) {
       if (chain === "sol") {
-        return tokens.filter((t) => t.chain === "solana" || t.chain === "sol");
+        return tokens.filter((t) => t.chain === "solana" || (t as any).chain === "sol");
       }
       if (chain === "bsc") {
         return tokens.filter((t) => t.chain === "bsc");
@@ -938,7 +938,7 @@ export default function PulsePage() {
     if (chain === "sol")
       return solanaTokens.length > 0
         ? solanaTokens
-        : tokens.filter((t) => t.chain === "solana" || t.chain === "sol");
+        : tokens.filter((t) => t.chain === "solana" || (t as any).chain === "sol");
     if (chain === "bsc")
       return bscTokens.length > 0
         ? bscTokens
@@ -1338,6 +1338,13 @@ export default function PulsePage() {
       return true;
     });
 
+    // Debug log for tokens
+    if (uniqueTokens.length > 0) {
+      console.log(`[Display] Filter ${filter} has ${uniqueTokens.length} tokens to display`);
+    } else {
+      console.log(`[Display] Filter ${filter} has NO tokens to display yet`);
+    }
+
     return uniqueTokens;
   }, [filter, getTokensForFilter, filteredAndSortedTokens]);
 
@@ -1355,23 +1362,27 @@ export default function PulsePage() {
 
   // Determine whether to show skeleton for the current filter
   const showSkeleton = (() => {
-    // Always skeleton on initial Mobula load
-    if (mobulaEnabled && mobulaLoading && tokensToDisplay.length === 0) return true;
-    // Skeleton when this filter has never loaded and data is still coming in
-    if (!filtersEverLoaded.has(filter) && tokensToDisplay.length === 0) {
-      // For protocol-based filters, show skeleton while protocols are loading
-      if (
-        (filter === "new" || filter === "finalStretch" || filter === "graduated") &&
-        isLoadingProtocols
-      ) return true;
-      // For pumpfun filters, show skeleton while pumpfun is loading
-      if (
-        (filter === "latest" || filter === "featured" || filter === "marketCap") &&
-        isLoadingPumpFun
-      ) return true;
-      // For trending, show skeleton while Mobula or WS is loading
-      if (filter === "trending" && (mobulaLoading || wsLoading)) return true;
-    }
+    // If we have tokens to display, NEVER show skeleton - prioritize content
+    if (tokensToDisplay.length > 0) return false;
+
+    // Only show skeleton on initial load or if explicitly enabled and loading
+    if (mobulaEnabled && mobulaLoading) return true;
+    
+    // For protocol-based filters, show skeleton while protocols are loading
+    if (
+      (filter === "new" || filter === "finalStretch" || filter === "graduated") &&
+      isLoadingProtocols
+    ) return true;
+    
+    // For pumpfun filters, show skeleton while pumpfun is loading
+    if (
+      (filter === "latest" || filter === "featured" || filter === "marketCap") &&
+      isLoadingPumpFun
+    ) return true;
+
+    // For trending, show skeleton while WS is loading
+    if (filter === "trending" && wsLoading) return true;
+
     return false;
   })();
 
@@ -1734,9 +1745,8 @@ export default function PulsePage() {
                       id: "marketCap",
                       label: "Top MC",
                       count: filterCounts.marketCap ?? 0,
-                      icon: BarChart3, // Changed from TrendingUp to BarChart3 to differentiate from Trending
                     },
-                  ].map(({ id, label, count, icon: Icon, live }) => (
+                  ].map(({ id, label, count, icon: Icon, live }: {id: string, label: string, count: number, icon?: any, live?: boolean}) => (
                     <button
                       key={id}
                       onClick={() => setFilter(id as typeof filter)}
@@ -1837,7 +1847,7 @@ export default function PulsePage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                {tokensToDisplay.map((token) => (
+                {tokensToDisplay.map((token: TokenData) => (
                   <CompactTokenCard
                     key={token.id}
                     token={token}

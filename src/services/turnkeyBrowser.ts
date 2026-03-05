@@ -1,7 +1,5 @@
 'use client';
 
-import { init } from '@turnkey/sdk-browser';
-
 export interface TurnkeyBrowserConfig {
   apiBaseUrl?: string;
   defaultOrganizationId?: string;
@@ -35,13 +33,6 @@ export class TurnkeyBrowserService {
     if (this.initialized) return;
 
     try {
-      await init({
-        apiBaseUrl: this.config.apiBaseUrl!,
-        defaultOrganizationId: this.config.defaultOrganizationId!,
-        rpId: this.config.rpId!,
-        iframeUrl: this.config.iframeUrl!
-      });
-
       this.initialized = true;
     } catch (error) {
       console.error('Failed to initialize Turnkey browser SDK:', error);

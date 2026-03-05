@@ -107,7 +107,7 @@ export class WebSocketService {
     }
   }
 
-  private emit(event: string, data?: unknown): void {
+  emit(event: string, data?: unknown): void {
     const callbacks = this.listeners.get(event);
     if (callbacks) {
       callbacks.forEach(callback => callback(data));
@@ -282,7 +282,7 @@ export class PumpAPIService {
   }
 
   subscribeToTokenUpdates(callback: (token: TokenData) => void): void {
-    this.wsService.subscribe('tokenUpdate', callback);
+    this.wsService.subscribe('tokenUpdate', callback as WebSocketCallback);
   }
 
   onConnected(callback: () => void): void {
@@ -335,11 +335,11 @@ export class PumpAPIService {
   }
 
   subscribeToFinalStretch(callback: (tokens: TokenData[]) => void): void {
-    this.wsService.subscribe('finalStretchUpdate', callback);
+    this.wsService.subscribe('finalStretchUpdate', callback as WebSocketCallback);
   }
 
   subscribeToMigration(callback: (tokens: TokenData[]) => void): void {
-    this.wsService.subscribe('migrationUpdate', callback);
+    this.wsService.subscribe('migrationUpdate', callback as WebSocketCallback);
   }
 
   private isMigrationEvent(d: unknown): boolean {

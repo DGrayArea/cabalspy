@@ -109,7 +109,7 @@ export class PumpFunService {
 
   private cache: Map<
     string,
-    { data: PumpFunTokenInfo | PumpFunTokenInfo[]; timestamp: number }
+    { data: any; timestamp: number }
   > = new Map();
   private cacheTTL = 30000; // 30 second cache (shorter for real-time data)
 
@@ -121,8 +121,8 @@ export class PumpFunService {
       listByCreation: { endpoint: "/coins/list", api: "advanced", params: { sortBy: "creationTime" } },
       marketCapDesc: { endpoint: "/coins", api: "v3", params: { offset: "0", limit: "48", sort: "market_cap", includeNsfw: "false", order: "DESC" } },
       createdDesc: { endpoint: "/coins", api: "v3", params: { offset: "0", limit: "48", sort: "created_timestamp", includeNsfw: "false", order: "DESC" } },
-      latest: { endpoint: "/coins/latest", api: "v3" },
-      featured: { endpoint: "/coins/featured", api: "advanced", params: { keywordSearchActive: "false" } },
+      latest: { endpoint: "/coins", api: "v3", params: { sort: "created_timestamp", order: "DESC", limit: "100" } },
+      featured: { endpoint: "/coins/list", api: "advanced", params: { sortBy: "marketCap" } },
       runners: { endpoint: "/api/runners", api: "base" },
     };
     const config = endpoints[endpointType];
@@ -133,14 +133,12 @@ export class PumpFunService {
   private getAlternativeEndpoints(endpointType: PumpFunEndpointType): string[] {
     const alternatives: Record<string, Array<{ endpoint: string; api: "base" | "v3" | "advanced" | "swap"; params?: Record<string, string> }>> = {
       latest: [
-        { endpoint: "/coins/latest", api: "v3" },
         { endpoint: "/coins", api: "v3", params: { sort: "created_timestamp", order: "DESC", limit: "100" } },
-        { endpoint: "/coins/latest", api: "base" },
+        { endpoint: "/coins", api: "v3", params: { sort: "created_timestamp", order: "DESC" } },
       ],
       featured: [
-        { endpoint: "/coins/featured", api: "advanced", params: { keywordSearchActive: "false" } },
-        { endpoint: "/coins/featured", api: "v3" },
-        { endpoint: "/coins/featured", api: "base" },
+        { endpoint: "/coins/list", api: "advanced", params: { sortBy: "marketCap" } },
+        { endpoint: "/coins", api: "v3", params: { sort: "market_cap", order: "DESC", limit: "100" } },
       ],
       graduatedByTime: [
         { endpoint: "/coins/graduated", api: "advanced", params: { sortBy: "creationTime" } },
@@ -165,7 +163,7 @@ export class PumpFunService {
     const cacheKey = `pumpfun:${mintAddress}`;
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.data;
+      return Array.isArray(cached.data) ? cached.data[0] : (cached.data as PumpFunTokenInfo);
     }
 
     try {

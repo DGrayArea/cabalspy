@@ -45,7 +45,7 @@ export function MobulaDataTooltips({
   size = "md",
   showLabels = false,
 }: MobulaDataTooltipsProps) {
-  const data = token._mobulaData;
+  const data = (token as any)._mobulaData;
   if (!data) return null;
 
   const iconSize = size === "sm" ? 14 : size === "md" ? 16 : 18;
@@ -259,7 +259,7 @@ export function MobulaDataTooltips({
   }
 
   // Dexscreener Status
-  if (data.dexscreenerListed) {
+  if ((data as any).dexscreenerListed) {
     tooltipItems.push({
       icon: <Eye className={iconClass} />,
       label: "Dexscreener Listed",

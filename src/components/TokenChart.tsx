@@ -15,6 +15,17 @@ import type {
   CandlestickSeriesOptions,
   LineSeriesOptions,
 } from "lightweight-charts";
+import { 
+  BarChart3, 
+  TrendingUp, 
+  TrendingDown, 
+  Activity, 
+  Users, 
+  Zap, 
+  Copy, 
+  Loader2,
+  ExternalLink
+} from "lucide-react";
 import { pumpFunService } from "@/services/pumpfun";
 
 interface TokenChartProps {
@@ -32,7 +43,9 @@ export function TokenChart({
   tokenSymbol,
   isPumpFun = false,
   createdTimestamp,
-}: TokenChartProps) {
+  chainId = "solana",
+  isMigrated = false,
+}: TokenChartProps & { chainId?: string; isMigrated?: boolean }) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick" | "Line"> | null>(null);
@@ -42,9 +55,12 @@ export function TokenChart({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Use native chart only for active pump.fun tokens
+  const useNativeChart = isPumpFun && !isMigrated;
+
   // Initialize chart
   useEffect(() => {
-    if (!chartContainerRef.current) return;
+    if (!useNativeChart || !chartContainerRef.current) return;
 
     // Create chart with dark theme
     const chart = createChart(chartContainerRef.current, {
@@ -235,11 +251,32 @@ export function TokenChart({
     createdTimestamp,
   ]);
 
-  if (!isPumpFun) {
+  if (!useNativeChart) {
+    // Chain mapping for DexScreener
+    const dexChain = chainId === "sol" || chainId === "solana" ? "solana" : chainId;
+    const embedUrl = `https://dexscreener.com/${dexChain}/${mintAddress}?embed=1&theme=dark`;
+
     return (
-      <div className="h-full flex items-center justify-center bg-panel-elev rounded-lg border border-gray-800/50">
-        <div className="text-center text-gray-400">
-          <p className="text-sm">Chart available for pump.fun tokens only</p>
+      <div className="h-full w-full flex flex-col">
+        <div className="mb-2 sm:mb-4 flex-shrink-0 flex items-center justify-between">
+          <h3 className="text-sm sm:text-base md:text-lg font-semibold truncate">
+            {tokenSymbol} Chart (DexScreener)
+          </h3>
+          <a
+            href={`https://dexscreener.com/${dexChain}/${mintAddress}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+          >
+            View on DexScreener <ExternalLink className="w-3 h-3" />
+          </a>
+        </div>
+        <div className="flex-1 min-h-[300px] w-full bg-panel-elev rounded-lg overflow-hidden border border-gray-800/50">
+          <iframe
+            src={embedUrl}
+            className="w-full h-full border-none"
+            title={`${tokenSymbol} Chart`}
+          />
         </div>
       </div>
     );
