@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { TokenData } from "@/types/token";
-import { formatCurrency } from "@/utils/format";
+import { formatCurrency, formatPercentCompact } from "@/utils/format";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import Image from "next/image";
 import { getPlatformLogo, getPlatformIcon, getPlatformName } from "@/utils/platformLogos";
@@ -189,7 +189,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                       ) : (
                         <TrendingDown className="w-3 h-3" />
                       )}
-                      <span>{Math.abs(priceChange).toFixed(2)}%</span>
+                      <span>{formatPercentCompact(Math.abs(priceChange), false)}</span>
                     </div>
                   </div>
                 </div>

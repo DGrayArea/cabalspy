@@ -355,7 +355,8 @@ export class PumpAPIService {
     const data = d as Record<string, unknown>;
     const pct = (data.progressPct ?? data.progress ?? data.saleProgressPct ?? 0) as number;
     const stage = ((data.stage || data.state || '') as string).toLowerCase();
-    return Boolean(data.finalStretch === true || stage.includes('final') || pct >= 90);
+    // Final stretch is 90-99% only, exclude 100% (graduated)
+    return Boolean(data.finalStretch === true || stage.includes('final') || (pct >= 90 && pct < 99.99));
   }
 
   private toTokenData(data: unknown): TokenData {

@@ -30,6 +30,9 @@ OPTIONAL_VARS=(
     "TELEGRAM_BOT_TOKEN"
     "NEXTAUTH_SECRET"
     "NEXTAUTH_URL"
+    "NEXT_PUBLIC_MOBULA_API_KEY"
+    "NEXT_PUBLIC_USE_MOBULA"
+    "NEXT_PUBLIC_JUPITER_API_KEY"
 )
 
 echo "📋 Required Environment Variables:"

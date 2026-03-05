@@ -1,0 +1,53 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id         String   @id @default(uuid())
+  email      String?  @unique
+  telegramId String?  @unique
+  googleId   String?  @unique
+  discordId  String?  @unique
+  name       String
+  avatar     String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  wallets    Wallet[]
+  sessions   Session[]
+}
+
+model Wallet {
+  id               String   @id @default(uuid())
+  userId           String
+  turnkeyWalletId  String
+  turnkeyAccountId String
+  address          String
+  network          String   // 'solana', 'ethereum', 'bnb', 'base'
+  createdAt        DateTime @default(now())
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, network])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([token])
+}

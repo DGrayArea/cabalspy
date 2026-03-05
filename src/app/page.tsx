@@ -10,9 +10,14 @@ import {
 } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useMobulaPulse } from "@/hooks/useMobulaPulse";
+import { useDebounce } from "@/hooks/useDebounce";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useFilterState } from "@/hooks/useFilterState";
 import { TokenData } from "@/types/token";
+import { env } from "@/lib/env";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
 import { useViewport } from "@/context/ViewportContext";
@@ -20,6 +25,7 @@ import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
 import { SearchModal } from "@/components/SearchModal";
+import { TokenListSkeleton, MarqueeSkeleton } from "@/components/TokenCardSkeleton";
 import LaunchpadStatsCard from "@/components/LaunchpadStatsCard";
 import { pumpFunService } from "@/services/pumpfun";
 import { protocolService } from "@/services/protocols";
@@ -85,8 +91,14 @@ import {
   MessageCircle,
   Sliders,
   Circle,
+  Loader2,
+  Lock,
 } from "lucide-react";
 import { getChainLogo } from "@/utils/platformLogos";
+import { formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil, formatPercent, formatPercentCompact } from "@/utils/format";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import axios from "axios";
 
 // Lazy load TradingPanel
 const TradingPanel = lazy(() => import("@/components/TradingPanel"));
@@ -140,6 +152,27 @@ function AuthCallbackHandler() {
         console.error("Failed to parse Telegram auth data:", error);
       }
     }
+
+    // Handle Discord auth callback
+    const discordAuth = searchParams.get("discord_auth");
+    const discordData = searchParams.get("data");
+
+    if (discordAuth === "success" && discordData) {
+      try {
+        const user = JSON.parse(decodeURIComponent(discordData));
+        login("discord", {
+          id: user.id,
+          username: user.username,
+          discriminator: user.discriminator,
+          avatar: user.avatar,
+          roles: user.roles
+        });
+        // Clean URL
+        window.history.replaceState({}, "", "/");
+      } catch (error) {
+        console.error("Failed to parse Discord auth data:", error);
+      }
+    }
   }, [searchParams, login]);
 
   return null;
@@ -151,17 +184,166 @@ export default function PulsePage() {
   // - BSC: forr.meme
   const { isDesktop, isMobile } = useViewport();
   const {
-    tokens,
+    tokens: wsTokens,
     solanaTokens,
     bscTokens,
     migrated: wsMigratedTokens,
-    isLoading,
-    error,
+    isLoading: wsLoading,
+    error: wsError,
     isConnected,
   } = useWebSocket();
 
+  // useEffect(() => {
+  //   const testEndpoint = async () => {
+  //     const response = await axios.get(
+  //       "https://api.mobula.io/api/2/pulse?chainId=solana:solana&poolTypes=pumpfun&poolTypes=meteora&poolTypes=moonshot&poolTypes=jupiter&poolTypes=raydium&poolTypes=moonit&poolTypes=letsbonk&limit=100"
+  //     );
+
+  //     const postResponse = await axios.post(
+  //       "https://api.mobula.io/api/2/pulse",
+  //       {
+  //         assetMode: true,
+  //         views: [
+  //           {
+  //             name: "trending",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "volume_1h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //           },
+  //           {
+  //             name: "price-gainers",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "price_change_24h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //           },
+  //           {
+  //             name: "quality-tokens",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "volume_1h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //           },
+  //           {
+  //             name: "high-volume",
+  //             chainId: ["solana:solana"],
+  //             poolTypes: [
+  //               "pumpfun",
+  //               "meteora",
+  //               "moonshot",
+  //               "jupiter",
+  //               "raydium",
+  //               "moonit",
+  //               "letsbonk",
+  //             ],
+  //             sortBy: "volume_1h",
+  //             sortOrder: "desc",
+  //             limit: 100,
+  //             filters: {
+  //               volume_1h: { gte: 1000 },
+  //               market_cap: { gte: 5000, lte: 50000 },
+  //               trades_1h: { gte: 10 },
+  //             },
+  //           },
+  //         ],
+  //       }
+  //     );
+
+  //   };
+
+  //   testEndpoint();
+  // }, []);
+
+  // Filter state with localStorage persistence
+  const [filter, setFilter] = useFilterState("trending");
+
+  // Mobula Pulse integration - NEW implementation
+  const mobulaEnabled = env.NEXT_PUBLIC_USE_MOBULA;
+  const {
+    tokens: mobulaTokensByFilter,
+    isLoading: mobulaLoading,
+    error: mobulaError,
+    loadMore: mobulaLoadMore,
+  } = useMobulaPulse(mobulaEnabled);
+
+  // Get tokens for current filter
+  const mobulaTokens = useMemo(() => {
+    if (!mobulaEnabled) return [];
+
+    switch (filter) {
+      case "trending":
+        return mobulaTokensByFilter.trending || [];
+      case "new":
+        return mobulaTokensByFilter.new || [];
+      case "finalStretch":
+        return mobulaTokensByFilter.finalStretch || [];
+      case "graduated":
+        return mobulaTokensByFilter.graduated || [];
+      case "marketCap":
+        return mobulaTokensByFilter.marketCap || [];
+      case "featured":
+        return mobulaTokensByFilter.featured || [];
+      case "latest":
+        return mobulaTokensByFilter.latest || [];
+      default:
+        return [];
+    }
+  }, [filter, mobulaTokensByFilter, mobulaEnabled]);
+
+  const mobulaAvailable = mobulaEnabled && mobulaTokens.length > 0;
+
+
+  const tokens = useMemo(() => {
+    if (mobulaEnabled) {
+      if (mobulaLoading) {
+        return wsTokens.length > 0 ? wsTokens : [];
+      }
+      if (mobulaTokens.length > 0) {
+        return mobulaTokens;
+      }
+      if (mobulaError) {
+        return wsTokens;
+      }
+      return wsTokens.length > 0 ? wsTokens : [];
+    }
+    return wsTokens;
+  }, [mobulaEnabled, mobulaLoading, mobulaTokens, mobulaError, wsTokens]);
+
+  const isLoading = mobulaEnabled && !mobulaError ? mobulaLoading : wsLoading;
+  const error = mobulaEnabled && mobulaError ? mobulaError : wsError;
+  const source = mobulaEnabled && mobulaTokens.length > 0 && !mobulaError ? "mobula" : "websocket";
+
+
   // Get user from auth context
-  const { user, turnkeyUser, turnkeySession } = useAuth();
+  const { user, turnkeyUser, turnkeySession, isLoading: isAuthLoading } = useAuth();
   // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
   const isAuthenticated = user || turnkeyUser || turnkeySession;
 
@@ -174,13 +356,12 @@ export default function PulsePage() {
   };
 
   const [searchQuery, setSearchQuery] = useState("");
+  // Debounce search to prevent excessive filtering
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
   const [sortBy, setSortBy] = useState<
     "marketCap" | "volume" | "transactions" | "time"
   >("marketCap");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [filter, setFilter] = useState<
-    "new" | "finalStretch" | "latest" | "featured" | "graduated" | "marketCap"
-  >("new");
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([
     "pump",
     "raydium",
@@ -225,6 +406,32 @@ export default function PulsePage() {
   const [isLoadingProtocols, setIsLoadingProtocols] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [hasMore, setHasMore] = useState(true); // For infinite scroll
+  // Track which filters have loaded data at least once (to show skeleton on first visit)
+  const [filtersEverLoaded, setFiltersEverLoaded] = useState<Set<string>>(new Set());
+
+  // Infinite scroll implementation
+  const handleLoadMore = useCallback(async () => {
+    if (!mobulaEnabled || !mobulaLoadMore) return;
+    
+    try {
+      await mobulaLoadMore(filter);
+      // If we get less than expected, no more data
+      // This will be handled by the hook internally
+    } catch (error) {
+      console.error('Error loading more tokens:', error);
+    }
+  }, [mobulaEnabled, mobulaLoadMore, filter]);
+
+  const { observerTarget, isLoading: isLoadingMore } = useInfiniteScroll(
+    handleLoadMore,
+    {
+      threshold: 0.5,
+      rootMargin: '200px',
+      enabled: mobulaEnabled && !mobulaLoading,
+      hasMore,
+    }
+  );
 
   // Helper function to format time from timestamp
   const formatTimeFromTimestamp = useCallback(
@@ -347,7 +554,6 @@ export default function PulsePage() {
     const fetchAllPumpFunTokens = async () => {
       setIsLoadingPumpFun(true);
       try {
-        // console.log("🔄 Fetching pump.fun tokens directly from client...");
 
         // Call pumpfun service directly from client (better for rate limits - each user makes their own requests)
         const fetchTokens = async (type: string) => {
@@ -362,8 +568,6 @@ export default function PulsePage() {
                 return await pumpFunService.fetchGraduated(100);
               case "marketCap":
                 return await pumpFunService.fetchByMarketCap(100);
-              case "graduated":
-                return await pumpFunService.fetchMigratedTokens(100);
               default:
                 return [];
             }
@@ -376,23 +580,19 @@ export default function PulsePage() {
           }
         };
 
-        // Fetch all types with longer delays to avoid rate limiting
-        // Only fetch latest initially, skip other endpoints to reduce API load
+        // Fetch all types with delays to avoid rate limiting
         const latest = await fetchTokens("latest");
 
-        // Skip other endpoints on initial load to avoid rate limiting
-        // The websocket will provide real-time data
-        const featured: PumpFunTokenInfo[] = [];
-        const graduated: PumpFunTokenInfo[] = [];
-        const marketCap: PumpFunTokenInfo[] = [];
+        // Wait 500ms between requests to avoid rate limiting
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const featured = await fetchTokens("featured");
 
-        // console.log("✅ Pump.fun API results:", {
-        //   latest: latest.length,
-        //   featured: featured.length,
-        //   graduated: graduated.length,
-        //   marketCap: marketCap.length,
-        //   migrated: migrated.length,
-        // });
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const graduated = await fetchTokens("graduated");
+
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const marketCap = await fetchTokens("marketCap");
+
 
         // Convert and store each type
         // CRITICAL: Tokens from graduated endpoint are ALWAYS migrated - no need to check API fields
@@ -425,7 +625,6 @@ export default function PulsePage() {
           // );
         }
       } catch (error) {
-        // console.error("❌ Failed to fetch pump.fun tokens:", error);
       } finally {
         setIsLoadingPumpFun(false);
       }
@@ -577,8 +776,10 @@ export default function PulsePage() {
                   }
 
                   // Fallback: Calculate from market cap (less accurate, varies with SOL price)
-                  // This is approximate since SOL price changes affect USD equivalent
-                  const bondingCurveTargetUSD = 69000; // Approximate at ~$1000 SOL
+                  // Pump.fun bonding curve completes at 69 SOL
+                  // At current SOL price (~$137), that's approximately $9,453
+                  const SOL_PRICE_APPROX = 137; // Current approximate SOL price
+                  const bondingCurveTargetUSD = 69 * SOL_PRICE_APPROX; // ~$9,453
                   return token.marketCap
                     ? Math.min(
                         (token.marketCap || 0) / bondingCurveTargetUSD,
@@ -636,7 +837,7 @@ export default function PulsePage() {
             );
           });
         } else if (filter === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated AND have bonding progress 90-100%
+          // FINAL STRETCH: Must exclude migrated AND have bonding progress 90-99% (strictly no 100%)
           filteredConverted = converted.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
@@ -646,8 +847,8 @@ export default function PulsePage() {
             if (!isNotMigrated) return false;
             const bondingProgress =
               token.bondingProgress ||
-              Math.min((token.marketCap || 0) / 69000, 1.0);
-            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+              Math.min((token.marketCap || 0) / (69 * 137), 1.0); // 69 SOL * ~$137
+            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
           });
         } else if (filter === "graduated") {
           // GRADUATED: Must ONLY include migrated/graduated tokens
@@ -717,12 +918,31 @@ export default function PulsePage() {
     }
   }, [filter, selectedProtocols, formatTimeFromTimestamp]);
 
-  // Filter tokens by selected chain (using chain-specific lists from useWebSocket)
-  // This is used for "new" and "graduated" filters - always use WebSocket tokens
+  // Filter tokens by selected chain
+  // Use Mobula tokens if WebSocket tokens are empty, otherwise use WebSocket tokens
   const chainFilteredTokens = useMemo(() => {
     if (chain === "all") return tokens;
-    if (chain === "sol") return solanaTokens;
-    if (chain === "bsc") return bscTokens;
+
+    // If WebSocket tokens are empty, filter Mobula tokens by chain
+    if (solanaTokens.length === 0 && bscTokens.length === 0) {
+      if (chain === "sol") {
+        return tokens.filter((t) => t.chain === "solana" || t.chain === "sol");
+      }
+      if (chain === "bsc") {
+        return tokens.filter((t) => t.chain === "bsc");
+      }
+      return tokens;
+    }
+
+    // Use WebSocket tokens if available
+    if (chain === "sol")
+      return solanaTokens.length > 0
+        ? solanaTokens
+        : tokens.filter((t) => t.chain === "solana" || t.chain === "sol");
+    if (chain === "bsc")
+      return bscTokens.length > 0
+        ? bscTokens
+        : tokens.filter((t) => t.chain === "bsc");
     return tokens;
   }, [tokens, solanaTokens, bscTokens, chain]);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
@@ -730,9 +950,9 @@ export default function PulsePage() {
   const [slippage, setSlippage] = useState("0.5");
   const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
     if (typeof window !== "undefined") {
-      return localStorage.getItem("quickBuyAmount") || "0.1";
+      return localStorage.getItem("quickBuyAmount") || "0.01";
     }
-    return "0.1";
+    return "0.01";
   });
   const [displaySettings, setDisplaySettings] = useState({
     metricsSize: "small" as "small" | "large",
@@ -819,17 +1039,49 @@ export default function PulsePage() {
   // Helper to get tokens for a specific filter
   const getTokensForFilter = useCallback(
     (filterType: typeof filter) => {
-      // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
-      // NOTE: "graduated" is handled separately below (same as "migrated")
+      // If Mobula is enabled and still loading, return empty array (wait for Mobula)
+      if (mobulaEnabled && mobulaLoading) {
+        return [];
+      }
+
+      // TRENDING filter - Use Mobula trending tokens first
+      if (filterType === "trending") {
+        if (mobulaEnabled) {
+          if (mobulaTokens.length > 0) {
+            console.log(
+              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
+            );
+            return mobulaTokens;
+          }
+          // Mobula finished loading but no tokens - return empty
+          return [];
+        }
+        // Mobula disabled - fallback to filteredAndSortedTokens
+        return filteredAndSortedTokens;
+      }
+
+      // For pump.fun filters (latest, featured, marketCap) - prefer Mobula, then pump.fun
       if (
         filterType === "latest" ||
         filterType === "featured" ||
         filterType === "marketCap"
       ) {
-        // Return the specific type from pumpFunTokensByType
-        const tokens = pumpFunTokensByType[filterType] || [];
-        // console.log(`🔍 Filter ${filterType}: Found ${tokens.length} tokens`);
-        return tokens;
+        if (mobulaEnabled) {
+          // Try Mobula tokens first for all these filters
+          if (mobulaTokens.length > 0) {
+            // console.log(
+            //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
+            // );
+            return mobulaTokens;
+          }
+          // Mobula finished loading but no tokens - return empty
+          return [];
+        }
+
+        // Mobula disabled - Return the specific type from pumpFunTokensByType
+        const pumpFunTokens = pumpFunTokensByType[filterType] || [];
+        // console.log(`🔍 Filter ${filterType}: Found ${pumpFunTokens.length} tokens`);
+        return pumpFunTokens;
       }
 
       // Use protocol tokens for the three main tabs (new, finalStretch, graduated)
@@ -838,6 +1090,47 @@ export default function PulsePage() {
         filterType === "finalStretch" ||
         filterType === "graduated"
       ) {
+        if (mobulaEnabled) {
+          // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
+          if (mobulaTokens.length > 0) {
+            let filteredMobulaTokens = mobulaTokens;
+            
+            if (filterType === "new") {
+              // NEW: Exclude bonded/graduated tokens (must be < 99% and not bonded)
+              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const isBonded = token._mobulaData?.bonded || false;
+                // Exclude tokens that are bonded or have bonding percentage >= 99%
+                return !isBonded && bondingPercentage < 99;
+              });
+            } else if (filterType === "finalStretch") {
+              // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
+              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const isBonded = token._mobulaData?.bonded || false;
+                return !isBonded && bondingPercentage >= 90 && bondingPercentage < 99;
+              });
+            } else if (filterType === "graduated") {
+              // GRADUATED: Fully bonded tokens (bondingPercentage === 100% or bonded === true)
+              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
+                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const isBonded = token._mobulaData?.bonded || false;
+                return isBonded || bondingPercentage >= 100;
+              });
+            }
+            
+            if (filteredMobulaTokens.length > 0) {
+              // console.log(
+              //   `🔍 Filter ${filterType}: Using ${filteredMobulaTokens.length} filtered Mobula tokens (from ${mobulaTokens.length} total)`
+              // );
+              return filteredMobulaTokens;
+            }
+            // Mobula finished loading but no filtered tokens match - return empty (don't fallback)
+            return [];
+          }
+        }
+
+        // Mobula disabled - use protocol/WebSocket tokens as fallback
         // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter
         // This prevents tokens from one filter leaking into another when switching filters
         const storedProtocolTokens =
@@ -850,18 +1143,18 @@ export default function PulsePage() {
         let filteredTokens = storedProtocolTokens;
 
         if (filterType === "new") {
-          // NEW filter: MUST exclude ALL migrated tokens, regardless of what API returns
+          // NEW filter: MUST exclude ALL migrated/graduated tokens, regardless of what API returns
           filteredTokens = storedProtocolTokens.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
               !token.migrationTimestamp &&
               !token.raydiumPool &&
               token.bondingProgress !== 1.0 &&
-              token.bondingProgress < 1.0;
+              token.bondingProgress < 0.99; // Exclude tokens at 99% or above (final stretch)
             return isNotMigrated;
           });
         } else if (filterType === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-100%
+          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-99% (strictly no 100%)
           filteredTokens = storedProtocolTokens.filter((token: any) => {
             const isNotMigrated =
               !token.isMigrated &&
@@ -879,8 +1172,8 @@ export default function PulsePage() {
                 ? token.bondingProgress
                 : solReserves && solReserves > 0
                   ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-                  : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
-            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+                  : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
+            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
           });
         } else if (filterType === "graduated") {
           // GRADUATED: Must ONLY include migrated/graduated tokens
@@ -938,7 +1231,7 @@ export default function PulsePage() {
         }
 
         if (filterType === "finalStretch") {
-          // Filter tokens with bonding progress 90-100% AND not migrated
+          // Filter tokens with bonding progress 90-99% AND not migrated (strictly no 100%)
           const finalStretch = filteredAndSortedTokens.filter((token) => {
             // Exclude migrated tokens
             const isNotMigrated =
@@ -956,8 +1249,8 @@ export default function PulsePage() {
             const bondingProgress =
               solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (more accurate)
-                : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD (less accurate)
-            return bondingProgress >= 0.9 && bondingProgress < 1.0;
+                : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
+            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
           });
           // console.log(
           //   `🔍 Filter finalStretch: Found ${finalStretch.length} tokens (fallback)`
@@ -1007,7 +1300,7 @@ export default function PulsePage() {
       // CRITICAL: Don't fall back to filteredAndSortedTokens - this causes cross-contamination
       // Each filter should ONLY return tokens from its specific source
       // If no tokens found, return empty array
-      console.warn(`⚠️ No tokens found for filter: ${filterType}`);
+      console.warn("No tokens found for filter:", filterType);
       return [];
     },
     [
@@ -1016,6 +1309,11 @@ export default function PulsePage() {
       pumpFunTokensByType,
       pumpFunMigratedTokens,
       wsMigratedTokens,
+      mobulaTokens,
+      mobulaEnabled,
+      mobulaLoading,
+      lastFetchedFilter,
+      filter,
     ]
   );
 
@@ -1043,12 +1341,89 @@ export default function PulsePage() {
     return uniqueTokens;
   }, [filter, getTokensForFilter, filteredAndSortedTokens]);
 
+  // Mark a filter as "ever loaded" once it has tokens
+  useEffect(() => {
+    if (tokensToDisplay.length > 0) {
+      setFiltersEverLoaded((prev) => {
+        if (prev.has(filter)) return prev;
+        const next = new Set(prev);
+        next.add(filter);
+        return next;
+      });
+    }
+  }, [filter, tokensToDisplay.length]);
+
+  // Determine whether to show skeleton for the current filter
+  const showSkeleton = (() => {
+    // Always skeleton on initial Mobula load
+    if (mobulaEnabled && mobulaLoading && tokensToDisplay.length === 0) return true;
+    // Skeleton when this filter has never loaded and data is still coming in
+    if (!filtersEverLoaded.has(filter) && tokensToDisplay.length === 0) {
+      // For protocol-based filters, show skeleton while protocols are loading
+      if (
+        (filter === "new" || filter === "finalStretch" || filter === "graduated") &&
+        isLoadingProtocols
+      ) return true;
+      // For pumpfun filters, show skeleton while pumpfun is loading
+      if (
+        (filter === "latest" || filter === "featured" || filter === "marketCap") &&
+        isLoadingPumpFun
+      ) return true;
+      // For trending, show skeleton while Mobula or WS is loading
+      if (filter === "trending" && (mobulaLoading || wsLoading)) return true;
+    }
+    return false;
+  })();
+
   // Calculate filter counts - must match the data sources used in getTokensForFilter
   const filterCounts = useMemo(() => {
+    // If Mobula is enabled, prioritize Mobula counts for all filters
+    if (mobulaEnabled && mobulaTokensByFilter) {
+      // Calculate counts from Mobula data (matching getTokensForFilter logic)
+      let mobulaNewCount = 0;
+      let mobulaFinalStretchCount = 0;
+      let mobulaGraduatedCount = 0;
+
+      if (mobulaTokens.length > 0) {
+        // NEW: Exclude bonded/graduated tokens (must be < 99%)
+        mobulaNewCount = mobulaTokens.filter((token: any) => {
+          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+          const isBonded = token._mobulaData?.bonded || false;
+          // Exclude tokens that are bonded or have bonding percentage >= 99%
+          return !isBonded && bondingPercentage < 99;
+        }).length;
+
+        // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
+        mobulaFinalStretchCount = mobulaTokens.filter((token: any) => {
+          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+          const isBonded = token._mobulaData?.bonded || false;
+          return !isBonded && bondingPercentage >= 90 && bondingPercentage < 99;
+        }).length;
+
+        // GRADUATED: Fully bonded tokens
+        mobulaGraduatedCount = mobulaTokens.filter((token: any) => {
+          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+          const isBonded = token._mobulaData?.bonded || false;
+          return isBonded || bondingPercentage >= 100;
+        }).length;
+      }
+
+      return {
+        trending: mobulaTokensByFilter.trending?.length || 0,
+        new: mobulaNewCount,
+        finalStretch: mobulaFinalStretchCount,
+        graduated: mobulaGraduatedCount,
+        latest: mobulaTokensByFilter.latest?.length || 0,
+        featured: mobulaTokensByFilter.featured?.length || 0,
+        marketCap: mobulaTokensByFilter.marketCap?.length || 0,
+      };
+    }
+
+    // Fallback to non-Mobula counts when Mobula is disabled
     // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
-    const latestCount = pumpFunTokensByType.latest.length;
-    const featuredCount = pumpFunTokensByType.featured.length;
-    const marketCapCount = pumpFunTokensByType.marketCap.length;
+    const latestCount = (pumpFunTokensByType.latest?.length || 0);
+    const featuredCount = (pumpFunTokensByType.featured?.length || 0);
+    const marketCapCount = (pumpFunTokensByType.marketCap?.length || 0);
 
     // NOTE: Graduated = Migrated (same thing - token completed bonding curve)
     // Calculate combined count to avoid double counting
@@ -1132,13 +1507,13 @@ export default function PulsePage() {
               ? token.bondingProgress
               : solReserves && solReserves > 0
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-                : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
-          return bondingProgress >= 0.9 && bondingProgress < 1.0;
+                : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
+          return bondingProgress >= 0.9 && bondingProgress < 0.99;
         }
       );
       finalStretchCount = filteredFinalStretch.length;
     } else {
-      // Fallback: filter tokens with bonding progress 90-100% AND not migrated
+      // Fallback: filter tokens with bonding progress 90-99% AND not migrated (strictly no 100%)
       finalStretchCount = filteredAndSortedTokens.filter((token) => {
         // Exclude migrated tokens
         const isNotMigrated =
@@ -1153,8 +1528,8 @@ export default function PulsePage() {
         const bondingProgress =
           solReserves && solReserves > 0
             ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-            : Math.min((token.marketCap || 0) / 69000, 1.0); // Fallback to USD
-        return bondingProgress >= 0.9 && bondingProgress < 1.0;
+            : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
+        return bondingProgress >= 0.9 && bondingProgress < 0.9999;
       }).length;
     }
 
@@ -1179,13 +1554,17 @@ export default function PulsePage() {
       }).length;
     }
 
+    // Trending count - use WebSocket tokens when Mobula is disabled
+    const trendingCount = filteredAndSortedTokens.length;
+
     return {
-      new: newCount,
-      finalStretch: finalStretchCount,
-      latest: latestCount,
-      featured: featuredCount,
-      graduated: graduatedCount,
-      marketCap: marketCapCount,
+      trending: trendingCount || 0,
+      new: newCount || 0,
+      finalStretch: finalStretchCount || 0,
+      latest: latestCount || 0,
+      featured: featuredCount || 0,
+      graduated: graduatedCount || 0,
+      marketCap: marketCapCount || 0,
     };
   }, [
     filteredAndSortedTokens,
@@ -1193,27 +1572,15 @@ export default function PulsePage() {
     protocolTokensByFilter,
     pumpFunMigratedTokens,
     wsMigratedTokens,
+    mobulaEnabled,
+    mobulaAvailable,
+    mobulaTokensByFilter,
+    mobulaTokens,
+    parseTimeToSeconds,
   ]);
 
-  const formatCurrency = (value: number) => {
-    if (value >= 1000000000) {
-      return `$${(value / 1000000000).toFixed(2)}B`;
-    } else if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(2)}M`;
-    } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(2)}K`;
-    }
-    return `$${value.toFixed(2)}`;
-  };
-
-  const formatNumber = (value: number) => {
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(2)}M`;
-    } else if (value >= 1000) {
-      return `${(value / 1000).toFixed(2)}K`;
-    }
-    return value.toString();
-  };
+  const formatCurrency = formatCurrencyUtil;
+  const formatNumber = formatNumberUtil;
 
   return (
     <div className="min-h-screen bg-app text-white pb-16">
@@ -1221,235 +1588,17 @@ export default function PulsePage() {
       <Suspense fallback={null}>
         <AuthCallbackHandler />
       </Suspense>
+
       {/* Header */}
-      <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50 w-full">
-        <div className="w-full px-2 sm:px-4 py-2 sm:py-3">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
-            {/* Left: Logo and Navigation */}
-            <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 flex-1">
-              <Link
-                href="/"
-                className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer"
-              >
-                <Image
-                  src="/logo.jpg"
-                  alt="Cabalspy Logo"
-                  width={32}
-                  height={32}
-                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-gray-800/50 flex-shrink-0"
-                  unoptimized
-                />
-                <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent text-base sm:text-xl font-bold whitespace-nowrap">
-                  CABALSPY
-                </span>
-              </Link>
-              {/* Desktop Navigation - Show on lg and above */}
-              <nav className="hidden lg:flex items-center gap-4">
-                <Link
-                  href="/"
-                  className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  Home
-                </Link>
-                {/* <Link
-                  href="/pulse"
-                  className="text-sm text-white font-medium cursor-pointer"
-                >
-                  Pulse
-                </Link> */}
-                {/* <Link
-                  href="/profile"
-                  className="text-sm text-gray-400 hover:text-white transition-colors cursor-pointer"
-                >
-                  Profile
-                </Link> */}
-              </nav>
-            </div>
-
-            {/* Desktop: Action Buttons - Show on desktop (md and above) */}
-            <div
-              style={{
-                display: isDesktop ? "flex" : "none",
-                alignItems: "center",
-                gap: "0.5rem",
-                flexShrink: 0,
-              }}
-            >
-              <button
-                onClick={() => setShowSearchModal(true)}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                title="Search Token"
-              >
-                <Search className="w-4 h-4 cursor-pointer" />
-              </button>
-              <button
-                onClick={() => refresh()}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                title="Refresh"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
-                />
-              </button>
-              {/* Profile - Only show when authenticated */}
-              {/* {isAuthenticated && (
-                <Link
-                  href="/profile"
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                  title="Profile"
-                >
-                  <User className="w-4 h-4 cursor-pointer" />
-                </Link>
-              )} */}
-              {/* Wallet Settings - Only show when logged in */}
-              {isAuthenticated && (
-                <button
-                  onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
-                  title="Wallet Settings"
-                >
-                  <Wallet className="w-4 h-4 cursor-pointer" />
-                </button>
-              )}
-              {/* Auth Button - Login buttons when not authenticated, profile when authenticated */}
-              <AuthButton />
-            </div>
-
-            {/* Mobile: Hamburger Menu and Wallet - Show only on mobile (below md breakpoint) */}
-            <div
-              style={{
-                display: isMobile ? "flex" : "none",
-                alignItems: "center",
-                gap: "0.5rem",
-              }}
-            >
-              {/* Wallet Settings - Only show when authenticated */}
-              {isAuthenticated && (
-                <button
-                  onClick={() => setShowWalletSettings(!showWalletSettings)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                  title="Wallet Settings"
-                >
-                  <Wallet className="w-5 h-5 cursor-pointer" />
-                </button>
-              )}
-              <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
-                <DialogTrigger asChild>
-                  <button
-                    className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                    title="Menu"
-                  >
-                    <Menu className="w-5 h-5 cursor-pointer" />
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-transparent backdrop-blur-xl border-0 rounded-none shadow-none p-0 top-[5%] translate-y-0 max-h-[90vh] overflow-y-auto">
-                  <div className="flex flex-col">
-                    {/* Header */}
-                    <div className="px-6 pt-6 pb-4">
-                      <DialogHeader className="text-left">
-                        <DialogTitle className="text-white text-2xl font-bold">
-                          Menu
-                        </DialogTitle>
-                      </DialogHeader>
-                    </div>
-
-                    {/* Content - Starts from top */}
-                    <div className="flex flex-col py-2">
-                      {/* Navigation Links */}
-                      <nav className="flex flex-col px-2">
-                        <Link
-                          href="/"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                        >
-                          <span className="group-hover:translate-x-1 transition-transform">
-                            Home
-                          </span>
-                        </Link>
-                        {/* <Link
-                          href="/pulse"
-                          onClick={() => setShowMobileMenu(false)}
-                          className="flex items-center gap-4 px-4 py-4 text-base font-semibold text-white bg-panel-elev/30 rounded-xl transition-all cursor-pointer group"
-                        >
-                          <span className="group-hover:translate-x-1 transition-transform">
-                            Pulse
-                          </span>
-                        </Link> */}
-                        {/* Profile - Only show when authenticated */}
-                        {/* {isAuthenticated && (
-                          <Link
-                            href="/profile"
-                            onClick={() => setShowMobileMenu(false)}
-                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                          >
-                            <span className="group-hover:translate-x-1 transition-transform">
-                              Profile
-                            </span>
-                          </Link>
-                        )} */}
-                      </nav>
-
-                      {/* Action Buttons */}
-                      <div className="px-2 pt-2 pb-2">
-                        <div className="flex flex-col gap-1">
-                          <button
-                            onClick={() => {
-                              setShowSearchModal(true);
-                              setShowMobileMenu(false);
-                            }}
-                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                          >
-                            <Search className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                            <span className="group-hover:translate-x-1 transition-transform">
-                              Search Token
-                            </span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              refresh();
-                              setShowMobileMenu(false);
-                            }}
-                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                          >
-                            <RefreshCw
-                              className={`w-5 h-5 text-gray-400 group-hover:text-white transition-colors ${isLoading ? "animate-spin" : ""}`}
-                            />
-                            <span className="group-hover:translate-x-1 transition-transform">
-                              Refresh
-                            </span>
-                          </button>
-                          {/* Wallet Settings - Only show when logged in */}
-                          {isAuthenticated && (
-                            <button
-                              onClick={() => {
-                                setShowWalletSettings(true);
-                                setShowMobileMenu(false);
-                              }}
-                              className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                            >
-                              <Wallet className="w-5 h-5 text-gray-400 group-hover:text-white transition-colors" />
-                              <span className="group-hover:translate-x-1 transition-transform">
-                                Wallet Settings
-                              </span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Auth Button */}
-                      <div className="px-6 pt-4 pb-6">
-                        <div className="flex justify-center">
-                          <AuthButton />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </div>
-      </header>
+      <Navbar
+        showSearch={true}
+        onSearchClick={() => setShowSearchModal(true)}
+        showRefresh={true}
+        onRefreshClick={() => refresh()}
+        isLoading={isLoading}
+        showWalletSettings={true}
+        onWalletSettingsClick={() => setShowWalletSettings(!showWalletSettings)}
+      />
 
       {/* Main Content */}
       <div className="w-full py-4 sm:py-6">
@@ -1526,15 +1675,17 @@ export default function PulsePage() {
             <LaunchpadStatsCard />
           </div>
 
-          {/* Top Featured Tokens Marquee */}
-          {featuredTokens.length > 0 && (
-            <div className="mb-6">
-              <div className="px-3 sm:px-4 mb-2">
-                <h2 className="text-lg font-bold text-white">Top Featured</h2>
-              </div>
-              <TokenMarquee tokens={featuredTokens} speed="normal" />
+          {/* Top Featured Tokens Marquee — show skeleton until tokens arrive */}
+          <div className="mb-6">
+            <div className="px-3 sm:px-4 mb-2">
+              <h2 className="text-lg font-bold text-white">Top Featured</h2>
             </div>
-          )}
+            {featuredTokens.length > 0 ? (
+              <TokenMarquee tokens={featuredTokens} speed="normal" />
+            ) : (
+              <MarqueeSkeleton />
+            )}
+          </div>
 
           {/* Filter Tabs with Counts */}
           <div className="mb-4 w-full sticky top-[64px] bg-app/98 backdrop-blur-md z-40 py-3 border-b border-gray-800/50 overflow-x-auto scrollbar-hide scroll-smooth shadow-lg -mx-3 sm:-mx-4 px-3 sm:px-4">
@@ -1544,41 +1695,46 @@ export default function PulsePage() {
                 <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
                   {[
                     {
+                      id: "trending",
+                      label: "Trending",
+                      count: filterCounts.trending ?? 0,
+                      icon: TrendingUpIcon,
+                    },
+                    {
                       id: "new",
                       label: "New Pairs",
-                      count: filterCounts.new,
+                      count: filterCounts.new ?? 0,
                       icon: Sparkles,
-                      live: true,
                     },
                     {
                       id: "finalStretch",
                       label: "Final Stretch",
-                      count: filterCounts.finalStretch || 0,
+                      count: filterCounts.finalStretch ?? 0,
                       icon: Zap,
                     },
                     {
                       id: "graduated",
                       label: "Graduated",
-                      count: filterCounts.graduated,
+                      count: filterCounts.graduated ?? 0,
                       icon: CheckCircle2,
                     },
                     {
                       id: "latest",
                       label: "Latest",
-                      count: filterCounts.latest,
+                      count: filterCounts.latest ?? 0,
                       icon: Clock,
                     },
                     {
                       id: "featured",
                       label: "Featured",
-                      count: filterCounts.featured,
+                      count: filterCounts.featured ?? 0,
                       icon: Star,
                     },
                     {
                       id: "marketCap",
                       label: "Top MC",
-                      count: filterCounts.marketCap,
-                      icon: TrendingUp,
+                      count: filterCounts.marketCap ?? 0,
+                      icon: BarChart3, // Changed from TrendingUp to BarChart3 to differentiate from Trending
                     },
                   ].map(({ id, label, count, icon: Icon, live }) => (
                     <button
@@ -1599,15 +1755,6 @@ export default function PulsePage() {
                           LIVE
                         </span>
                       )}
-                      <span
-                        className={`px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-xs font-bold ${
-                          filter === id
-                            ? "bg-white/20 text-white"
-                            : "bg-gray-700/50 text-gray-400"
-                        }`}
-                      >
-                        {count}
-                      </span>
                     </button>
                   ))}
                 </div>
@@ -1677,122 +1824,48 @@ export default function PulsePage() {
 
         {/* Responsive Grid Layout - Shows tokens based on selected filter */}
         <div className="pb-24 px-3 sm:px-4">
-          {tokensToDisplay.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              {isLoadingPumpFun ? "Loading..." : "No tokens found"}
+          {/* Show skeleton loaders during initial load or filter switch */}
+          {showSkeleton ? (
+            <TokenListSkeleton count={12} />
+          ) : tokensToDisplay.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
+              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
+                <Activity className="w-6 h-6 text-gray-600" />
+              </div>
+              <p className="text-sm">No tokens found</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-              {tokensToDisplay.map((token) => (
-                <CompactTokenCard
-                  key={token.id}
-                  token={token}
-                  formatCurrency={formatCurrency}
-                  formatNumber={formatNumber}
-                  displaySettings={displaySettings}
-                  quickBuyAmount={quickBuyAmount}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                {tokensToDisplay.map((token) => (
+                  <CompactTokenCard
+                    key={token.id}
+                    token={token}
+                    formatCurrency={formatCurrency}
+                    formatNumber={formatNumber}
+                    displaySettings={displaySettings}
+                    quickBuyAmount={quickBuyAmount}
+                  />
+                ))}
+              </div>
+              
+              {/* Infinite scroll sentinel element */}
+              {mobulaEnabled && (
+                <div ref={observerTarget} className="py-8 flex justify-center">
+                  {isLoadingMore && (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                      <span>Loading more tokens...</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* Footer Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-panel border-t border-gray-800/50 px-3 sm:px-4 py-2.5 z-40 w-full">
-        <div className="w-full flex items-center justify-between flex-wrap gap-2 sm:gap-3">
-          {/* Left Section */}
-          <div className="flex items-center gap-3">
-            <button className="px-3 py-1 text-xs bg-panel-elev hover:bg-panel rounded border border-gray-800/50 text-gray-400 hover:text-white transition-colors cursor-pointer font-medium flex items-center gap-1.5">
-              <Settings className="w-3 h-3" />
-              PRESET 1
-            </button>
-            <div className="flex items-center gap-1.5">
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <FileText className="w-3 h-3" />
-                <span>1</span>
-              </div>
-              <div className="flex items-center gap-1 text-xs text-gray-400">
-                <List className="w-3 h-3" />
-                <span>0</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Center Navigation */}
-          <div className="flex items-center gap-3 sm:gap-4 text-xs">
-            <Link
-              href="/"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
-            >
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
-              <Wallet className="w-3.5 h-3.5 text-blue-400" />
-              <span>Wallet</span>
-            </Link>
-            <a
-              href="#"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
-            >
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
-              <Twitter className="w-3.5 h-3.5 text-blue-400" />
-              <span>Twitter</span>
-            </a>
-            <Link
-              href="/"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5 relative"
-            >
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
-              <Search className="w-3.5 h-3.5 text-purple-400" />
-              <span>Discover</span>
-            </Link>
-            {/* <Link
-              href="/pulse"
-              className="text-white font-medium cursor-pointer flex items-center gap-1.5 relative"
-            >
-              <div className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500"></div>
-              <Activity className="w-3.5 h-3.5 text-green-400" />
-              <span>Pulse</span>
-            </Link> */}
-            <Link
-              href="/"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <BarChart3 className="w-3.5 h-3.5 text-yellow-400" />
-              <span>PnL</span>
-            </Link>
-          </div>
-
-          {/* Right Section */}
-          <div className="flex items-center gap-3 text-xs">
-            <span className="text-gray-300 font-medium">$132.01</span>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-green-400"></div>
-              <select className="px-2 py-1 bg-panel-elev border border-gray-800/50 rounded text-xs text-gray-300 focus:outline-none cursor-pointer hover:bg-panel transition-colors">
-                <option>GLOBAL</option>
-              </select>
-            </div>
-            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded relative">
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500"></div>
-              <Bell className="w-3.5 h-3.5" />
-            </button>
-            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
-              <Palette className="w-3.5 h-3.5" />
-            </button>
-            <a
-              href="#"
-              className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded"
-            >
-              <MessageCircle className="w-3.5 h-3.5" />
-            </a>
-            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
-              <X className="w-3 h-3" />
-            </button>
-            <button className="text-gray-400 hover:text-white transition-colors cursor-pointer p-1 hover:bg-panel-elev rounded">
-              <FileText className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       {/* Search Modal */}
       <SearchModal
@@ -2159,8 +2232,7 @@ function TokenCard({
             <span
               className={`text-[10px] font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
             >
-              {isPositive ? "+" : ""}
-              {percentageChange.toFixed(2)}%
+              {formatPercent(percentageChange)}
             </span>
           </div>
         </div>
@@ -2180,7 +2252,7 @@ function TokenCard({
               ) : (
                 <ArrowDownRight className="w-3 h-3" />
               )}
-              {Math.abs(percentageChange).toFixed(2)}%
+              {formatPercentCompact(Math.abs(percentageChange), false)}
             </div>
           </div>
           <div className="text-base font-bold text-white">
@@ -2275,8 +2347,7 @@ function TokenCard({
                     <span
                       className={`font-medium ${pct > 0 ? "text-green-400" : pct < 0 ? "text-red-400" : "text-gray-400"}`}
                     >
-                      {pct > 0 ? "+" : ""}
-                      {pct.toFixed(1)}%
+                      {formatPercentCompact(pct)}
                     </span>
                   </div>
                 ))}

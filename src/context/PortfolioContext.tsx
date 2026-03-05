@@ -207,7 +207,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
       let tokenBalances = Object.values(balancesMap);
 
-      // Fetch token info (prices, logos) from Jupiter Tokens API V2
+      // Step 1: Fetch token info (prices, logos) from Jupiter Tokens API V2
       // Only for tokens that don't have Helius price_info
       const tokensNeedingInfo = tokenBalances.filter(
         (t) => t.priceUsd === undefined || !t.logoUrl
@@ -371,6 +371,74 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
               fallbackErr
             );
           }
+        }
+      }
+
+      // Step 2: Fetch additional data from DexScreener for tokens without prices
+      // DexScreener provides liquidity, volume, and more accurate prices for DEX-listed tokens
+      const tokensNeedingDexScreener = tokenBalances.filter(
+        (t) => t.priceUsd === undefined || t.priceUsd === 0
+      );
+
+      if (tokensNeedingDexScreener.length > 0) {
+        try {
+          // Batch fetch from DexScreener (limit 30 tokens per request)
+          const batchSize = 30;
+          for (let i = 0; i < tokensNeedingDexScreener.length; i += batchSize) {
+            const batch = tokensNeedingDexScreener.slice(i, i + batchSize);
+            const addresses = batch.map((t) => t.mint).join(",");
+            
+            try {
+              const dexResponse = await fetch(
+                `https://api.dexscreener.com/latest/dex/tokens/${addresses}`
+              );
+              
+              if (dexResponse.ok) {
+                const dexData = await dexResponse.json();
+                const pairs = dexData.pairs || [];
+                
+                // Create a map of token address to best pair (highest liquidity)
+                const tokenToBestPair: Record<string, any> = {};
+                for (const pair of pairs) {
+                  const baseToken = pair.baseToken?.address?.toLowerCase();
+                  if (baseToken) {
+                    const existing = tokenToBestPair[baseToken];
+                    const currentLiquidity = pair.liquidity?.usd || 0;
+                    const existingLiquidity = existing?.liquidity?.usd || 0;
+                    
+                    if (!existing || currentLiquidity > existingLiquidity) {
+                      tokenToBestPair[baseToken] = pair;
+                    }
+                  }
+                }
+                
+                // Update token balances with DexScreener data
+                tokenBalances = tokenBalances.map((token) => {
+                  const pair = tokenToBestPair[token.mint.toLowerCase()];
+                  if (pair && pair.priceUsd) {
+                    const priceUsd = parseFloat(pair.priceUsd);
+                    const valueUsd = priceUsd * token.amount;
+                    
+                    return {
+                      ...token,
+                      priceUsd: token.priceUsd || priceUsd, // Prefer existing price
+                      valueUsd: token.valueUsd || valueUsd,
+                    };
+                  }
+                  return token;
+                });
+              }
+              
+              // Rate limit: wait 1 second between batches
+              if (i + batchSize < tokensNeedingDexScreener.length) {
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+              }
+            } catch (batchErr) {
+              console.warn("Failed to fetch from DexScreener for batch:", batchErr);
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to fetch token data from DexScreener:", err);
         }
       }
 

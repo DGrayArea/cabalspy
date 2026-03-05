@@ -1036,7 +1036,7 @@ export class ProtocolService {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // Increased to 30 seconds
 
       const response = await fetch(
         `https://datapi.jup.ag/v1/assets/toptrending/24h?limit=${limit}`,
@@ -1094,7 +1094,7 @@ export class ProtocolService {
       return tokens;
     } catch (error: any) {
       if (error.name === 'AbortError') {
-        console.error('❌ Jupiter Top Trending API request timeout (15s)');
+        console.error('❌ Jupiter Top Trending API request timeout (30s)');
       } else {
         console.error('❌ Failed to fetch Jupiter top trending:', error.message || error);
       }
@@ -1327,15 +1327,16 @@ export class ProtocolService {
             bondingProgress = Math.min(Math.max(solReserves / SOL_TARGET, 0), 1.0);
           } else {
             // Fallback to market cap calculation (less accurate)
-            const bondingCurveTargetUSD = 69000; // Approximate at ~$1000 SOL
+            // 69 SOL at current price (~$137) = ~$9,453
+            const bondingCurveTargetUSD = 69 * 137; // ~$9,453
             bondingProgress = t.marketCap
               ? Math.min((t.marketCap || 0) / bondingCurveTargetUSD, 1.0)
               : 0;
           }
         }
 
-        // Final stretch: bonding progress between 90% and 100% (not migrated)
-        return bondingProgress >= 0.9 && bondingProgress < 1.0;
+        // Final stretch: bonding progress between 90% and 99% (not migrated, not graduated)
+        return bondingProgress >= 0.9 && bondingProgress < 0.9999;
       }).sort((a, b) => {
         // Sort by created timestamp (newest first)
         const aTime = a.createdTimestamp || 0;

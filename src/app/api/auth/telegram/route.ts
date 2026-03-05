@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { createHmac } from 'crypto';
+import { createHmac, randomBytes } from 'crypto';
+import { db } from '@/lib/db';
+import { syncUserWallets } from '@/lib/walletSync';
 
-/**
- * Verify Telegram authentication
- * POST /api/auth/telegram
- */
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -18,7 +16,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the hash
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     if (!botToken) {
       logger.error('Telegram bot token not configured');
@@ -28,24 +25,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create data check string
     const dataCheckString = Object.keys(body)
       .filter(key => key !== 'hash')
       .sort()
       .map(key => `${key}=${body[key]}`)
       .join('\n');
 
-    // Create secret key from bot token
     const secretKey = createHmac('sha256', 'WebAppData')
       .update(botToken)
       .digest();
 
-    // Calculate hash
     const calculatedHash = createHmac('sha256', secretKey)
       .update(dataCheckString)
       .digest('hex');
 
-    // Verify hash
     if (calculatedHash !== hash) {
       logger.warn('Invalid Telegram auth hash', { received: hash, calculated: calculatedHash });
       return NextResponse.json(
@@ -54,12 +47,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if auth_date is recent (within 24 hours)
     const authDate = parseInt(auth_date);
     const currentTime = Math.floor(Date.now() / 1000);
     const timeDiff = currentTime - authDate;
 
-    if (timeDiff > 86400) { // 24 hours
+    if (timeDiff > 86400) {
       logger.warn('Telegram auth expired', { authDate, currentTime, timeDiff });
       return NextResponse.json(
         { error: 'Authentication expired' },
@@ -67,20 +59,54 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Create Turnkey user and wallet here
-    // This would integrate with Turnkey to create a user account and wallet
+    let user = await db.user.findUnique({
+      where: { telegramId: id.toString() }
+    });
 
-    return NextResponse.json({
+    if (!user) {
+      user = await db.user.create({
+        data: {
+          telegramId: id.toString(),
+          name: `${first_name} ${last_name || ''}`.trim() || username || 'User',
+          avatar: photo_url,
+        }
+      });
+    }
+
+    // Sync all Turnkey wallets
+    await syncUserWallets(user.id, user.name);
+
+    const sessionToken = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
+
+    await db.session.create({
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        expiresAt
+      }
+    });
+
+    const response = NextResponse.json({
       success: true,
       user: {
-        id: id.toString(),
-        name: `${first_name} ${last_name || ''}`.trim(),
-        telegramId: id.toString(),
+        id: user.id,
+        name: user.name,
+        telegramId: user.telegramId,
         username,
-        avatar: photo_url,
+        avatar: user.avatar,
       },
-      // In production, return a secure session token instead
     });
+
+    response.cookies.set('session', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 86400 * 7,
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     logger.error('Telegram auth error', error);
     return NextResponse.json(

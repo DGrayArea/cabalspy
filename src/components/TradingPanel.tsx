@@ -31,7 +31,7 @@ export default function TradingPanel({
   initialTradeType = "buy",
 }: TradingPanelProps) {
   const { turnkeyUser } = useAuth();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
   const { address, connection, signSolanaTransaction } = useTurnkeySolana();
   const [tradeType, setTradeType] = useState<"buy" | "sell">(initialTradeType);
   const [amount, setAmount] = useState(initialAmount || "");
@@ -69,15 +69,16 @@ export default function TradingPanel({
         title: `${tradeType === "buy" ? "Buying" : "Selling"} ${token.symbol}...`,
         className: "loading",
       });
-
-      // Execute swap - use decimals from token data if available
+      // Execute swap - always pass explicit decimals
       const result = await executeJupiterSwap({
         inputMint,
         outputMint,
         amount: parseFloat(amount),
-        // Pass decimals from token data if available (for output token when buying, input token when selling)
-        inputDecimals: tradeType === "sell" ? token.decimals : undefined, // SOL has 9 decimals, handled in function
-        outputDecimals: tradeType === "buy" ? token.decimals : undefined, // SOL has 9 decimals, handled in function
+        // Always pass decimals explicitly:
+        // When selling: input is token (token.decimals or 6 default), output is SOL (9 decimals)
+        // When buying: input is SOL (9 decimals), output is token (token.decimals or 6 default)
+        inputDecimals: tradeType === "sell" ? token.decimals || 6 : 9, // SOL has 9 decimals
+        outputDecimals: tradeType === "buy" ? token.decimals || 6 : 9, // SOL has 9 decimals
         userPublicKey: address,
         slippageBps,
         connection,
@@ -85,7 +86,7 @@ export default function TradingPanel({
       });
 
       // Dismiss loading toast
-      toast.dismiss(loadingToast.id);
+      dismiss(loadingToast.id);
 
       if (result.success && result.signature) {
         toast({
@@ -241,11 +242,23 @@ export default function TradingPanel({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.0"
-                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
+                className="w-full px-3 py-2 pr-14 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-white"
               />
-              <div className="absolute right-3 top-2 text-gray-400 text-sm">
-                {tradeType === "buy" ? "SOL" : token.symbol}
-              </div>
+              <button
+                onClick={() => {
+                  // Set max amount (for sell, use full balance; for buy, reserve 0.01 SOL for fees)
+                  if (tradeType === "sell") {
+                    // TODO: Get actual token balance and set it here
+                    setAmount("0");
+                  } else {
+                    // TODO: Get SOL balance and set max minus 0.01 for fees
+                    setAmount("0");
+                  }
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-primary hover:text-primary/80 bg-primary/10 rounded cursor-pointer"
+              >
+                Max
+              </button>
             </div>
           </div>
 
