@@ -15,6 +15,11 @@ const PUMPFUN_APIS = {
 };
 
 export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+  const endpoint = searchParams.get("endpoint") || "";
+  const api = searchParams.get("api") || "v3";
+  console.log(`[Pump.fun API] GET ${endpoint} (API: ${api})`);
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const endpoint = searchParams.get("endpoint") || "";
@@ -57,6 +62,8 @@ export async function GET(request: NextRequest) {
       }
       throw new Error(`Pump.fun API returned ${response.status}`);
     }
+
+    console.log(`[Pump.fun API] SUCCESS ${endpoint}`);
 
     // Read body as text first to guard against empty responses
     const text = await response.text();

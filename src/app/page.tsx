@@ -341,6 +341,15 @@ export default function PulsePage() {
   const error = mobulaEnabled && mobulaError ? mobulaError : wsError;
   const source = mobulaEnabled && mobulaTokens.length > 0 && !mobulaError ? "mobula" : "websocket";
 
+  // Debug logging for token feeds
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log(`[Display] Source: ${source}, Filter: ${filter}`);
+      console.log(`[Display] Mobula: ${mobulaTokens.length} tokens, WS: ${wsTokens.length} tokens`);
+      console.log(`[Display] Current visible tokens: ${tokens.length}`);
+    }
+  }, [source, filter, mobulaTokens.length, wsTokens.length, tokens.length]);
+
 
   // Get user from auth context
   const { user, turnkeyUser, turnkeySession, isLoading: isAuthLoading } = useAuth();

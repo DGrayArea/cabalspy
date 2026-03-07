@@ -61,6 +61,7 @@ export async function GET(request: NextRequest) {
     });
 
     const url = `${MOBULA_GET_API}?${params.toString()}`;
+    console.log(`[Mobula API] GET ${url}`);
 
     const response = await retryRequest(
       () => axios.get(url, {

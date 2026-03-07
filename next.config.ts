@@ -32,6 +32,23 @@ const nextConfig: NextConfig = {
         hostname: '**',
         port: '*',
       },
+      {
+        protocol: 'https',
+        hostname: 'ipfs.io',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.ipfs.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'gateway.pinata.cloud',
+      },
+      {
+        protocol: 'http',
+        hostname: '93.205.10.67',
+        port: '4141',
+      },
     ],
   },
   
