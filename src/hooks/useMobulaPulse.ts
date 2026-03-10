@@ -1,16 +1,6 @@
-/**
- * Hook for Mobula Pulse - Clean Implementation
- *
- * Handles:
- * - Auto-refresh with smart merging
- * - GET endpoint (new, bonding, bonded)
- * - POST endpoint (trending, quality, high-volume, price-gainers)
- * - Infinite scroll / pagination
- */
-
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { TokenData } from "@/types/token";
 import {
   mobulaPulseManager,
@@ -31,12 +21,11 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
     marketCap: [],
     latest: [],
   });
+  // Start loading=true so skeletons stay until real data arrives
   const [isLoading, setIsLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
+  const startedRef = useRef(false);
 
-  /**
-   * Update tokens from manager cache
-   */
   const updateTokens = useCallback(() => {
     const updated: Record<FilterType, TokenData[]> = {
       new: mobulaPulseManager.getTokensForFilter("new"),
@@ -48,15 +37,12 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
       latest: mobulaPulseManager.getTokensForFilter("latest"),
     };
     setTokens(updated);
+    setIsLoading(false); // Loading done once we have actual data
   }, []);
 
-  /**
-   * Load more tokens for a specific filter
-   */
   const loadMore = useCallback(
     async (filter: FilterType) => {
       if (!enabled) return;
-
       try {
         await mobulaPulseManager.loadMore(filter, 100);
         updateTokens();
@@ -67,15 +53,16 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
     [enabled, updateTokens]
   );
 
-  /**
-   * Initialize and start auto-refresh
-   */
   useEffect(() => {
     if (!enabled) {
       setIsLoading(false);
       setError(null);
       return;
     }
+
+    // Prevent double-start in StrictMode
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     const apiKey = env.NEXT_PUBLIC_MOBULA_API_KEY;
     if (!apiKey || apiKey === "7b7ba456-f454-4a42-a80e-897319cb0ac1") {
@@ -86,8 +73,8 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
       return;
     }
 
-    setIsLoading(true);
     setError(null);
+    // isLoading stays true — set to false inside updateTokens on first data
 
     try {
       mobulaPulseManager.startAutoRefresh(
@@ -98,12 +85,10 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
         (err: any) => {
           const errorMessage = err?.message || err?.toString() || "Unknown error fetching Mobula data";
           setError(errorMessage);
+          setIsLoading(false); // Unblock UI on error too
           logger.error("Mobula Pulse refresh error:", err);
         }
       );
-
-      updateTokens();
-      setIsLoading(false);
     } catch (err: any) {
       const errorMessage = err?.message || err?.toString() || "Failed to initialize Mobula Pulse";
       setError(errorMessage);
@@ -113,6 +98,7 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
 
     return () => {
       mobulaPulseManager.stopAutoRefresh();
+      startedRef.current = false;
     };
   }, [enabled, updateTokens]);
 

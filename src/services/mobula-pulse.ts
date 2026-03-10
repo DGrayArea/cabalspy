@@ -23,6 +23,7 @@ const POST_API_URL = "/api/mobula";
 // Pool types for Solana
 const SOLANA_POOL_TYPES = [
   "pumpfun",
+  "pumpswap",   // Pump.fun's own DEX (successor to Raydium migration)
   "meteora",
   "moonshot",
   "jupiter",
@@ -575,8 +576,8 @@ export async function fetchCustomViews(
 ): Promise<{
   trending: TokenData[];
   "quality-tokens": TokenData[];
-  "high-volume": TokenData[];
-  "price-gainers": TokenData[];
+  "top-market-cap": TokenData[];
+  "latest-tokens": TokenData[];
 }> {
   try {
     const payload = {
@@ -606,24 +607,19 @@ export async function fetchCustomViews(
           },
         },
         {
-          name: "high-volume",
+          name: "top-market-cap",          // marketCap tab
           chainId: ["solana:solana"],
           poolTypes: SOLANA_POOL_TYPES,
-          sortBy: "volume_1h",
+          sortBy: "market_cap",
           sortOrder: "desc",
           limit,
           offset,
-          filters: {
-            volume_1h: { gte: 1000 },
-            market_cap: { gte: 5000, lte: 50000 },
-            trades_1h: { gte: 10 },
-          },
         },
         {
-          name: "price-gainers",
+          name: "latest-tokens",           // latest tab
           chainId: ["solana:solana"],
           poolTypes: SOLANA_POOL_TYPES,
-          sortBy: "price_change_24h",
+          sortBy: "created_at",
           sortOrder: "desc",
           limit,
           offset,
@@ -651,30 +647,24 @@ export async function fetchCustomViews(
 
     return {
       trending: (response.data.trending?.data || []).map(transformToken),
-      "quality-tokens": (response.data["quality-tokens"]?.data || []).map(
-        transformToken
-      ),
-      "high-volume": (response.data["high-volume"]?.data || []).map(
-        transformToken
-      ),
-      "price-gainers": (response.data["price-gainers"]?.data || []).map(
-        transformToken
-      ),
+      "quality-tokens": (response.data["quality-tokens"]?.data || []).map(transformToken),
+      "top-market-cap": (response.data["top-market-cap"]?.data || []).map(transformToken),
+      "latest-tokens": (response.data["latest-tokens"]?.data || []).map(transformToken),
     };
   } catch (error: any) {
     const errorMessage = error?.response?.data?.message || error?.message || "Unknown error";
     const statusCode = error?.response?.status;
-    
+
     if (statusCode === 502 || statusCode === 503) {
       logger.warn("Mobula API unavailable, returning empty data", { statusCode });
       return {
         trending: [],
         "quality-tokens": [],
-        "high-volume": [],
-        "price-gainers": [],
+        "top-market-cap": [],
+        "latest-tokens": [],
       };
     }
-    
+
     throw error;
   }
 }
@@ -686,75 +676,66 @@ export async function fetchCustomViews(
  * Use when user wants to paginate a specific filter
  */
 export async function fetchSingleView(
-  viewName: "trending" | "quality-tokens" | "high-volume" | "price-gainers",
+  viewName: "trending" | "quality-tokens" | "top-market-cap" | "latest-tokens",
   limit = 100,
   offset = 0
 ): Promise<TokenData[]> {
-  try {
-    const viewConfigs: Record<string, any> = {
-      trending: {
-        name: "trending",
-        chainId: ["solana:solana"],
-        poolTypes: SOLANA_POOL_TYPES,
-        sortBy: "volume_1h",
-        sortOrder: "desc",
-        limit,
-        offset,
+  const VIEW_CONFIGS: Record<string, any> = {
+    trending: {
+      name: "trending",
+      chainId: ["solana:solana"],
+      poolTypes: SOLANA_POOL_TYPES,
+      sortBy: "volume_1h",
+      sortOrder: "desc",
+      limit,
+      offset,
+    },
+    "quality-tokens": {
+      name: "quality-tokens",
+      chainId: ["solana:solana"],
+      poolTypes: SOLANA_POOL_TYPES,
+      sortBy: "volume_1h",
+      sortOrder: "desc",
+      limit,
+      offset,
+      filters: {
+        volume_24h: { gte: 5000 },
+        holders_count: { gte: 50 },
+        dexscreenerListed: true,
       },
-      "quality-tokens": {
-        name: "quality-tokens",
-        chainId: ["solana:solana"],
-        poolTypes: SOLANA_POOL_TYPES,
-        sortBy: "volume_1h",
-        sortOrder: "desc",
-        limit,
-        offset,
-        filters: {
-          volume_24h: { gte: 5000 },
-          holders_count: { gte: 50 },
-          dexscreenerListed: true,
-        },
-      },
-      "high-volume": {
-        name: "high-volume",
-        chainId: ["solana:solana"],
-        poolTypes: SOLANA_POOL_TYPES,
-        sortBy: "volume_1h",
-        sortOrder: "desc",
-        limit,
-        offset,
-        filters: {
-          volume_1h: { gte: 1000 },
-          market_cap: { gte: 5000, lte: 50000 },
-          trades_1h: { gte: 10 },
-        },
-      },
-      "price-gainers": {
-        name: "price-gainers",
-        chainId: ["solana:solana"],
-        poolTypes: SOLANA_POOL_TYPES,
-        sortBy: "price_change_24h",
-        sortOrder: "desc",
-        limit,
-        offset,
-      },
-    };
+    },
+    "top-market-cap": {
+      name: "top-market-cap",
+      chainId: ["solana:solana"],
+      poolTypes: SOLANA_POOL_TYPES,
+      sortBy: "market_cap",
+      sortOrder: "desc",
+      limit,
+      offset,
+    },
+    "latest-tokens": {
+      name: "latest-tokens",
+      chainId: ["solana:solana"],
+      poolTypes: SOLANA_POOL_TYPES,
+      sortBy: "created_at",
+      sortOrder: "desc",
+      limit,
+      offset,
+    },
+  };
 
+  try {
     const payload = {
       assetMode: true,
-      views: [viewConfigs[viewName]],
-    };
-
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
+      views: [VIEW_CONFIGS[viewName]],
     };
 
     const response: AxiosResponse<MobulaResponse> = await axios.post(
       POST_API_URL,
       payload,
       {
-        headers,
-        timeout: 30000, // Increased to 30 seconds
+        headers: { "Content-Type": "application/json" },
+        timeout: 30000,
       }
     );
 
@@ -864,15 +845,15 @@ export async function fetchTokenByAddress(
  */
 export const FILTER_TO_VIEW_MAPPING = {
   // GET endpoint views (basic)
-  new: "new", // GET endpoint -> new view
-  finalStretch: "bonding", // GET endpoint -> bonding view
-  graduated: "bonded", // GET endpoint -> bonded view
+  new: "new",                   // GET -> newest tokens by creation time
+  finalStretch: "bonding",      // GET -> tokens currently on the bonding curve
+  graduated: "bonded",          // GET -> tokens that completed bonding (migrated)
 
   // POST endpoint views (custom)
-  trending: "trending", // POST -> trending view
-  featured: "quality-tokens", // POST -> quality-tokens view
-  marketCap: "high-volume", // POST -> high-volume view
-  latest: "price-gainers", // POST -> price-gainers view (rename this filter)
+  trending: "trending",         // POST -> highest volume last 1h
+  featured: "quality-tokens",   // POST -> quality tokens (dexscreener listed, 50+ holders)
+  marketCap: "top-market-cap",  // POST -> sorted by market cap descending
+  latest: "latest-tokens",      // POST -> most recently created tokens across all pools
 };
 
 /**
@@ -895,14 +876,19 @@ export class MobulaPulseManager {
   private customViewsCache: {
     trending: TokenData[];
     "quality-tokens": TokenData[];
-    "high-volume": TokenData[];
-    "price-gainers": TokenData[];
+    "top-market-cap": TokenData[];
+    "latest-tokens": TokenData[];
   } = {
     trending: [],
     "quality-tokens": [],
-    "high-volume": [],
-    "price-gainers": [],
+    "top-market-cap": [],
+    "latest-tokens": [],
   };
+
+  private _initialLoadDone = false;
+  get isInitialLoadDone() { return this._initialLoadDone; }
+
+  private _pendingRefresh: Promise<void> | null = null;
 
   private refreshInterval: NodeJS.Timeout | null = null;
   private readonly REFRESH_INTERVAL_MS = 30000; // 30 seconds
@@ -914,17 +900,23 @@ export class MobulaPulseManager {
     onUpdate: () => void,
     onError?: (error: any) => void
   ): void {
-    // Initial fetch with error handling
-    this.refreshAll().catch((err) => {
-      logger.error("Mobula Pulse: Initial refresh error:", err);
-      if (onError) onError(err);
-    });
+    // Initial fetch — call onUpdate when done so UI re-renders with real data
+    this.refreshAll()
+      .then(() => {
+        this._initialLoadDone = true;
+        onUpdate(); // ← CRITICAL: notify UI after initial data is ready
+      })
+      .catch((err) => {
+        logger.error("Mobula Pulse: Initial refresh error:", err);
+        this._initialLoadDone = true; // Mark done even on error so UI unblocks
+        if (onError) onError(err);
+      });
 
-    // Set up interval
+    // Set up periodic refresh
     this.refreshInterval = setInterval(async () => {
       try {
         await this.refreshAll();
-        onUpdate(); // Notify caller of updates
+        onUpdate();
       } catch (err) {
         logger.error("Mobula Pulse: Interval refresh error:", err);
         if (onError) onError(err);
@@ -946,52 +938,41 @@ export class MobulaPulseManager {
    * Refresh all views (both GET and POST)
    */
   private async refreshAll(): Promise<void> {
+    // Deduplicate: if a refresh is already in-flight, share the same promise
+    if (this._pendingRefresh) {
+      return this._pendingRefresh;
+    }
+
+    this._pendingRefresh = this._doRefresh().finally(() => {
+      this._pendingRefresh = null;
+    });
+
+    return this._pendingRefresh;
+  }
+
+  private async _doRefresh(): Promise<void> {
     // Fetch GET endpoint (basic views) - handle errors independently
     try {
       const basicViews = await fetchBasicViews(100, 0);
 
       // Smart merge - add new tokens, keep existing ones
-      this.basicViewsCache.new = mergeTokens(
-        this.basicViewsCache.new,
-        basicViews.new
-      );
-      this.basicViewsCache.bonding = mergeTokens(
-        this.basicViewsCache.bonding,
-        basicViews.bonding
-      );
-      this.basicViewsCache.bonded = mergeTokens(
-        this.basicViewsCache.bonded,
-        basicViews.bonded
-      );
+      this.basicViewsCache.new = mergeTokens(this.basicViewsCache.new, basicViews.new);
+      this.basicViewsCache.bonding = mergeTokens(this.basicViewsCache.bonding, basicViews.bonding);
+      this.basicViewsCache.bonded = mergeTokens(this.basicViewsCache.bonded, basicViews.bonded);
     } catch (error) {
       logger.error("Error fetching basic views from Mobula:", error);
-      // Continue even if basic views fail
     }
 
     // Fetch POST endpoint (custom views) - handle errors independently
     try {
       const customViews = await fetchCustomViews(100, 0);
 
-      // Smart merge - add new tokens, keep existing ones
-      this.customViewsCache.trending = mergeTokens(
-        this.customViewsCache.trending,
-        customViews.trending
-      );
-      this.customViewsCache["quality-tokens"] = mergeTokens(
-        this.customViewsCache["quality-tokens"],
-        customViews["quality-tokens"]
-      );
-      this.customViewsCache["high-volume"] = mergeTokens(
-        this.customViewsCache["high-volume"],
-        customViews["high-volume"]
-      );
-      this.customViewsCache["price-gainers"] = mergeTokens(
-        this.customViewsCache["price-gainers"],
-        customViews["price-gainers"]
-      );
+      this.customViewsCache.trending = mergeTokens(this.customViewsCache.trending, customViews.trending);
+      this.customViewsCache["quality-tokens"] = mergeTokens(this.customViewsCache["quality-tokens"], customViews["quality-tokens"]);
+      this.customViewsCache["top-market-cap"] = mergeTokens(this.customViewsCache["top-market-cap"], customViews["top-market-cap"]);
+      this.customViewsCache["latest-tokens"] = mergeTokens(this.customViewsCache["latest-tokens"], customViews["latest-tokens"]);
     } catch (error) {
       logger.error("Error fetching custom views from Mobula:", error);
-      // Continue even if custom views fail
     }
 
     logger.info("Mobula auto-refresh completed", {
@@ -1000,8 +981,8 @@ export class MobulaPulseManager {
       bonded: this.basicViewsCache.bonded.length,
       trending: this.customViewsCache.trending.length,
       quality: this.customViewsCache["quality-tokens"].length,
-      highVolume: this.customViewsCache["high-volume"].length,
-      priceGainers: this.customViewsCache["price-gainers"].length,
+      topMarketCap: this.customViewsCache["top-market-cap"].length,
+      latestTokens: this.customViewsCache["latest-tokens"].length,
     });
   }
 
@@ -1018,11 +999,9 @@ export class MobulaPulseManager {
 
     // Custom views (from POST endpoint)
     if (viewName === "trending") return this.customViewsCache.trending;
-    if (viewName === "quality-tokens")
-      return this.customViewsCache["quality-tokens"];
-    if (viewName === "high-volume") return this.customViewsCache["high-volume"];
-    if (viewName === "price-gainers")
-      return this.customViewsCache["price-gainers"];
+    if (viewName === "quality-tokens") return this.customViewsCache["quality-tokens"];
+    if (viewName === "top-market-cap") return this.customViewsCache["top-market-cap"];
+    if (viewName === "latest-tokens") return this.customViewsCache["latest-tokens"];
 
     return [];
   }
@@ -1073,36 +1052,20 @@ export class MobulaPulseManager {
 
       // For custom views, use POST endpoint with single view
       const newTokens = await fetchSingleView(
-        viewName as
-          | "trending"
-          | "quality-tokens"
-          | "high-volume"
-          | "price-gainers",
+        viewName as "trending" | "quality-tokens" | "top-market-cap" | "latest-tokens",
         limit,
         offset
       );
 
       // Merge with existing
       if (viewName === "trending") {
-        this.customViewsCache.trending = mergeTokens(
-          this.customViewsCache.trending,
-          newTokens
-        );
+        this.customViewsCache.trending = mergeTokens(this.customViewsCache.trending, newTokens);
       } else if (viewName === "quality-tokens") {
-        this.customViewsCache["quality-tokens"] = mergeTokens(
-          this.customViewsCache["quality-tokens"],
-          newTokens
-        );
-      } else if (viewName === "high-volume") {
-        this.customViewsCache["high-volume"] = mergeTokens(
-          this.customViewsCache["high-volume"],
-          newTokens
-        );
-      } else if (viewName === "price-gainers") {
-        this.customViewsCache["price-gainers"] = mergeTokens(
-          this.customViewsCache["price-gainers"],
-          newTokens
-        );
+        this.customViewsCache["quality-tokens"] = mergeTokens(this.customViewsCache["quality-tokens"], newTokens);
+      } else if (viewName === "top-market-cap") {
+        this.customViewsCache["top-market-cap"] = mergeTokens(this.customViewsCache["top-market-cap"], newTokens);
+      } else if (viewName === "latest-tokens") {
+        this.customViewsCache["latest-tokens"] = mergeTokens(this.customViewsCache["latest-tokens"], newTokens);
       }
 
       return this.getTokensForFilter(filter);
@@ -1122,12 +1085,9 @@ export class MobulaPulseManager {
     else if (viewName === "bonding") this.basicViewsCache.bonding = [];
     else if (viewName === "bonded") this.basicViewsCache.bonded = [];
     else if (viewName === "trending") this.customViewsCache.trending = [];
-    else if (viewName === "quality-tokens")
-      this.customViewsCache["quality-tokens"] = [];
-    else if (viewName === "high-volume")
-      this.customViewsCache["high-volume"] = [];
-    else if (viewName === "price-gainers")
-      this.customViewsCache["price-gainers"] = [];
+    else if (viewName === "quality-tokens") this.customViewsCache["quality-tokens"] = [];
+    else if (viewName === "top-market-cap") this.customViewsCache["top-market-cap"] = [];
+    else if (viewName === "latest-tokens") this.customViewsCache["latest-tokens"] = [];
   }
 
   /**
@@ -1138,9 +1098,10 @@ export class MobulaPulseManager {
     this.customViewsCache = {
       trending: [],
       "quality-tokens": [],
-      "high-volume": [],
-      "price-gainers": [],
+      "top-market-cap": [],
+      "latest-tokens": [],
     };
+    this._initialLoadDone = false;
   }
 }
 

@@ -508,24 +508,28 @@ function TokenDetailContent() {
     baseToken?.symbol ||
     "UNKNOWN";
   // Get token image with proper validation - ensure it's a valid URL
-  const getTokenImage = () => {
-    const imageUrl = 
-      tokenLogoFromParams ||
-      dexscreenerData?.logo ||
-      geckoTerminalData?.logo ||
-      pumpfunData?.logo ||
-      baseToken?.image ||
-      baseToken?.icon;
-    
-    // If it's a valid URL string, return it; otherwise return null to show fallback
-    if (!imageUrl) return null;
-    if (typeof imageUrl === 'string' && (imageUrl.startsWith('http') || imageUrl.startsWith('data:') || imageUrl.startsWith('/'))) {
-      return imageUrl;
+  const getTokenImage = (): string | null => {
+    const candidates = [
+      tokenLogoFromParams,
+      dexscreenerData?.logo,
+      geckoTerminalData?.logo,
+      pumpfunData?.logo,
+      baseToken?.image,
+      // Explicitly exclude baseToken.icon — it may be a single emoji char like "K"
+    ];
+    for (const url of candidates) {
+      if (!url || typeof url !== "string") continue;
+      // Only accept proper URLs — reject single chars, emojis, or relative paths without /
+      if (
+        (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("/")) &&
+        url.length > 4
+      ) {
+        return url;
+      }
     }
-    // If it's not a valid URL (e.g., just text), return null
     return null;
   };
-  
+
   const tokenImage = getTokenImage();
   const tokenDecimals = tokenDecimalsFromParams
     ? parseInt(tokenDecimalsFromParams)
@@ -1141,6 +1145,8 @@ function TokenDetailContent() {
                   createdTimestamp={createdTimestamp}
                   chainId={chain}
                   isMigrated={isMigrated}
+                  pairAddress={dexscreenerData?.pairAddress}
+                  geckoTerminalPairAddress={geckoTerminalData?.pairAddress}
                 />
               </div>
             </div>
