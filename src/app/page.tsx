@@ -1621,16 +1621,18 @@ export default function PulsePage() {
         onWalletSettingsClick={() => setShowWalletSettings(!showWalletSettings)}
       />
 
+      <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
+
       {/* Main Content */}
-      <div className="w-full max-w-7xl mx-auto px-4 py-8">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-8">
         <Hero />
         
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12">
-          <div className="flex-1 w-full">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
+          <div className="flex-1 w-full animate-fade-in">
             <LaunchpadStatsCard />
           </div>
           
-          <div className="w-full md:w-auto flex items-center gap-3 p-1 rounded-[1.5rem] glass border border-white/10 shrink-0">
+          <div className="w-full md:w-auto flex items-center gap-3 p-1.5 rounded-[2rem] glass border border-white/10 shrink-0 animate-fade-in">
             {[
               { id: "all", label: "ALL", logo: null },
               { id: "sol", label: "SOL", logo: "solana" },
@@ -1639,9 +1641,9 @@ export default function PulsePage() {
               <button
                 key={c.id}
                 onClick={() => setChain(c.id as any)}
-                className={`px-6 py-2.5 rounded-2xl text-[10px] font-black tracking-widest transition-all flex items-center gap-2 ${
+                className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black tracking-widest transition-all flex items-center gap-2 ${
                   chain === c.id
-                    ? "bg-primary text-black shadow-neon"
+                    ? "bg-primary text-black shadow-neon scale-105"
                     : "text-muted hover:text-white hover:bg-white/5"
                 }`}
               >
@@ -1649,7 +1651,7 @@ export default function PulsePage() {
                   <img
                     src={getChainLogo(c.logo as any)}
                     alt={c.label}
-                    className="w-4 h-4 rounded-full"
+                    className="w-4 h-4 rounded-full ring-1 ring-white/20"
                   />
                 )}
                 {c.label}
@@ -1657,90 +1659,22 @@ export default function PulsePage() {
             ))}
           </div>
         </div>
-        {/* Page Header */}
-        <div className="mb-4 sm:mb-6 px-3 sm:px-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3 sm:gap-4">
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-              {/* Chain Tabs */}
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setChain("all")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
-                    chain === "all"
-                      ? "bg-primary-dark text-white"
-                      : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
-                  }`}
-                >
-                  <span>ALL</span>
-                </button>
-                <button
-                  onClick={() => setChain("sol")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
-                    chain === "sol"
-                      ? "bg-primary-dark text-white"
-                      : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
-                  }`}
-                >
-                  <img
-                    src={getChainLogo("solana")}
-                    alt="SOL"
-                    className="w-5 h-5 rounded-full flex-shrink-0 object-cover"
-                    onError={(e) => {
-                      // Fallback to gradient if logo fails
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none";
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold flex-shrink-0 hidden">
-                    S
-                  </div>
-                </button>
-                <button
-                  onClick={() => setChain("bsc")}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 ${
-                    chain === "bsc"
-                      ? "bg-primary-dark text-white"
-                      : "bg-panel text-gray-400 hover:bg-panel-elev border border-gray-800/50"
-                  }`}
-                >
-                  <img
-                    src={getChainLogo("bsc")}
-                    alt="BNB"
-                    className="w-5 h-5 rounded-full flex-shrink-0 object-cover"
-                    onError={(e) => {
-                      // Fallback to gradient if logo fails
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none";
-                      const fallback = target.nextElementSibling as HTMLElement;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
-                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-xs font-bold flex-shrink-0 hidden">
-                    B
-                  </div>
-                </button>
-              </div>
-            </div>
-          </div>
+        </div>
 
-          {/* Launchpad Statistics Card */}
-          <div className="mb-6 px-3 sm:px-4">
-            <LaunchpadStatsCard />
+        {/* Top Featured Tokens Marquee */}
+        <div className="mb-16 animate-fade-in">
+          <div className="px-4 mb-4 flex items-center gap-3">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-black italic tracking-tight">TOP FEATURED</h2>
           </div>
-
-          {/* Top Featured Tokens Marquee — show skeleton until tokens arrive */}
-          <div className="mb-6">
-            <div className="px-3 sm:px-4 mb-2">
-              <h2 className="text-lg font-bold text-white">Top Featured</h2>
-            </div>
-            {featuredTokens.length > 0 ? (
+          {featuredTokens.length > 0 ? (
+            <div className="glass rounded-[2rem] p-4 border-white/5">
               <TokenMarquee tokens={featuredTokens} speed="normal" />
-            ) : (
-              <MarqueeSkeleton />
-            )}
-          </div>
+            </div>
+          ) : (
+            <MarqueeSkeleton />
+          )}
+        </div>
 
           {/* Filter Tabs with Counts */}
           <div className="mb-8 w-full sticky top-[72px] bg-app/80 backdrop-blur-xl z-40 py-4 -mx-4 px-4 border-y border-white/5 shadow-2xl">
@@ -1835,72 +1769,68 @@ export default function PulsePage() {
             </div>
           </div>
 
-          {/* Icons and Display dropdown - Always visible */}
-          <div className="mb-4 flex items-center gap-2 justify-end px-3 sm:px-4">
-            {/* Icons */}
-            <button
-              className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-              title="Notifications"
-            >
-              <Bell className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
-            </button>
-            <button
-              className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-              title="Sound"
-            >
-              <Volume2 className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
-            </button>
-            <button
-              className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer"
-              title="Calendar"
-            >
-              <Calendar className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
-            </button>
-            {/* Display dropdown */}
+          {/* Icons and Display dropdown */}
+          <div className="mb-8 flex items-center gap-4 justify-end px-4">
+            <div className="flex items-center gap-2 glass p-1.5 rounded-2xl border-white/5">
+              {[
+                { icon: Bell, title: "Notifications" },
+                { icon: Volume2, title: "Sound" },
+                { icon: Calendar, title: "Calendar" }
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  className="p-2.5 hover:bg-white/5 rounded-xl transition-all group"
+                  title={item.title}
+                >
+                  <item.icon className="w-4 h-4 text-muted group-hover:text-white" />
+                </button>
+              ))}
+            </div>
+
             <div className="relative">
               <button
                 onClick={() => setShowDisplaySettings(!showDisplaySettings)}
-                className={`px-4 py-2.5 bg-panel border-2 rounded-xl text-sm font-medium transition-all cursor-pointer flex items-center gap-2 ${
+                className={`px-6 py-3 bg-panel border rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${
                   showDisplaySettings
-                    ? "border-primary text-white bg-panel-elev"
-                    : "border-gray-700/50 text-gray-300 hover:bg-panel-elev hover:border-gray-600"
+                    ? "border-primary text-primary bg-primary/5 shadow-neon"
+                    : "border-white/10 text-muted hover:border-white/20 hover:text-white"
                 }`}
               >
-                Display
-                <ChevronDownIcon
-                  className={`w-3 h-3 transition-transform ${
-                    showDisplaySettings ? "rotate-180" : ""
-                  }`}
-                />
+                Terminal Settings
+                <ChevronDownIcon className={`w-3 h-3 transition-transform duration-300 ${showDisplaySettings ? "rotate-180" : ""}`} />
               </button>
               {showDisplaySettings && (
                 <Suspense fallback={null}>
-                  <DisplaySettingsModal
-                    onClose={() => setShowDisplaySettings(false)}
-                    displaySettings={displaySettings}
-                    setDisplaySettings={setDisplaySettings}
-                  />
+                  <div className="absolute top-full right-0 mt-4 z-50 animate-fade-in">
+                    <DisplaySettingsModal
+                      onClose={() => setShowDisplaySettings(false)}
+                      displaySettings={displaySettings}
+                      setDisplaySettings={setDisplaySettings}
+                    />
+                  </div>
                 </Suspense>
               )}
             </div>
           </div>
         </div>
 
-        {/* Responsive Grid Layout - Shows tokens based on selected filter */}
-        <div className="pb-24 px-3 sm:px-4">
-          {/* Show skeleton loaders during initial load or filter switch */}
+        {/* Responsive Grid Layout */}
+        <div className="pb-32">
           {showSkeleton ? (
-            <TokenListSkeleton count={12} />
+            <div className="px-4">
+               <TokenListSkeleton count={12} />
+            </div>
           ) : tokensToDisplay.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-500 gap-3">
-              <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center">
-                <Activity className="w-6 h-6 text-gray-600" />
+            <div className="flex flex-col items-center justify-center py-32 glass rounded-[3rem] border-white/5 mx-4">
+              <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-6">
+                <Activity className="w-10 h-10 text-muted" />
               </div>
-              <p className="text-sm">No tokens found</p>
+              <h3 className="text-xl font-black italic text-muted">NO SIGNALS DETECTED</h3>
+              <p className="text-xs font-bold text-muted/50 uppercase tracking-widest mt-2">Adjust your filters or wait for new data</p>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <div className="px-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {tokensToDisplay.map((token: TokenData) => (
                   <CompactTokenCard
                     key={token.id}
