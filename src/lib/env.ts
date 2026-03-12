@@ -50,7 +50,7 @@ const optionalEnvVars = {
     process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
     "7b7ba456-f454-4a42-a80e-897319cb0ac1",
   NEXT_PUBLIC_USE_MOBULA:
-    process.env.NEXT_PUBLIC_USE_MOBULA === "true" || false, // Set to "true" to enable Mobula
+    process.env.NEXT_PUBLIC_USE_MOBULA === "false" ? false : true, // Enabled by default as requested
 } as const;
 
 export function validateEnv() {
