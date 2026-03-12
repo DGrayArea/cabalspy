@@ -98,6 +98,7 @@ import { getChainLogo } from "@/utils/platformLogos";
 import { formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil, formatPercent, formatPercentCompact } from "@/utils/format";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { Hero } from "@/components/Hero";
 import axios from "axios";
 
 // Lazy load TradingPanel
@@ -1621,7 +1622,41 @@ export default function PulsePage() {
       />
 
       {/* Main Content */}
-      <div className="w-full py-4 sm:py-6">
+      <div className="w-full max-w-7xl mx-auto px-4 py-8">
+        <Hero />
+        
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-12">
+          <div className="flex-1 w-full">
+            <LaunchpadStatsCard />
+          </div>
+          
+          <div className="w-full md:w-auto flex items-center gap-3 p-1 rounded-[1.5rem] glass border border-white/10 shrink-0">
+            {[
+              { id: "all", label: "ALL", logo: null },
+              { id: "sol", label: "SOL", logo: "solana" },
+              { id: "bsc", label: "BSC", logo: "bsc" }
+            ].map((c) => (
+              <button
+                key={c.id}
+                onClick={() => setChain(c.id as any)}
+                className={`px-6 py-2.5 rounded-2xl text-[10px] font-black tracking-widest transition-all flex items-center gap-2 ${
+                  chain === c.id
+                    ? "bg-primary text-black shadow-neon"
+                    : "text-muted hover:text-white hover:bg-white/5"
+                }`}
+              >
+                {c.logo && (
+                  <img
+                    src={getChainLogo(c.logo as any)}
+                    alt={c.label}
+                    className="w-4 h-4 rounded-full"
+                  />
+                )}
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </div>
         {/* Page Header */}
         <div className="mb-4 sm:mb-6 px-3 sm:px-4">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3 sm:gap-4">
@@ -1708,83 +1743,93 @@ export default function PulsePage() {
           </div>
 
           {/* Filter Tabs with Counts */}
-          <div className="mb-4 w-full sticky top-[64px] bg-app/98 backdrop-blur-md z-40 py-3 border-b border-gray-800/50 overflow-x-auto scrollbar-hide scroll-smooth shadow-lg -mx-3 sm:-mx-4 px-3 sm:px-4">
-            <div className="min-w-max">
-              <div className="flex items-center justify-between gap-4">
-                {/* Filter Tabs */}
-                <div className="flex items-center gap-2 sm:gap-3 flex-nowrap">
-                  {[
-                    {
-                      id: "trending",
-                      label: "Trending",
-                      count: filterCounts.trending ?? 0,
-                      icon: TrendingUpIcon,
-                    },
-                    {
-                      id: "new",
-                      label: "New Pairs",
-                      count: filterCounts.new ?? 0,
-                      icon: Sparkles,
-                    },
-                    {
-                      id: "finalStretch",
-                      label: "Final Stretch",
-                      count: filterCounts.finalStretch ?? 0,
-                      icon: Zap,
-                    },
-                    {
-                      id: "graduated",
-                      label: "Graduated",
-                      count: filterCounts.graduated ?? 0,
-                      icon: CheckCircle2,
-                    },
-                    {
-                      id: "latest",
-                      label: "Latest",
-                      count: filterCounts.latest ?? 0,
-                      icon: Clock,
-                    },
-                    {
-                      id: "featured",
-                      label: "Featured",
-                      count: filterCounts.featured ?? 0,
-                      icon: Star,
-                    },
-                    {
-                      id: "marketCap",
-                      label: "Top MC",
-                      count: filterCounts.marketCap ?? 0,
-                    },
-                  ].map(({ id, label, count, icon: Icon, live }: {id: string, label: string, count: number, icon?: any, live?: boolean}) => (
-                    <button
-                      key={id}
-                      onClick={() => setFilter(id as typeof filter)}
-                      className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 border-2 whitespace-nowrap relative ${
-                        filter === id
-                          ? "bg-primary-dark text-white border-primary shadow-lg shadow-primary/20"
-                          : "bg-panel text-gray-400 hover:text-white hover:bg-panel-elev border-gray-700/50 hover:border-gray-600"
-                      }`}
-                    >
-                      {Icon && <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                      <span className="hidden xs:inline">{label}</span>
-                      <span className="xs:hidden">{label.split(" ")[0]}</span>
-                      {live && (
-                        <span className="px-1 py-0.5 rounded bg-red-500 text-white text-[8px] font-bold flex items-center gap-0.5 animate-pulse">
-                          <Circle className="w-1 h-1 fill-white" />
-                          LIVE
-                        </span>
-                      )}
-                    </button>
-                  ))}
-                </div>
+          <div className="mb-8 w-full sticky top-[72px] bg-app/80 backdrop-blur-xl z-40 py-4 -mx-4 px-4 border-y border-white/5 shadow-2xl">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-1">
+                {[
+                  {
+                    id: "trending",
+                    label: "TRENDING",
+                    count: filterCounts.trending ?? 0,
+                    icon: TrendingUpIcon,
+                    accent: "primary"
+                  },
+                  {
+                    id: "new",
+                    label: "NEW PAIRS",
+                    count: filterCounts.new ?? 0,
+                    icon: Sparkles,
+                    accent: "secondary"
+                  },
+                  {
+                    id: "finalStretch",
+                    label: "FINAL STRETCH",
+                    count: filterCounts.finalStretch ?? 0,
+                    icon: Zap,
+                    accent: "accent"
+                  },
+                  {
+                    id: "graduated",
+                    label: "GRADUATED",
+                    count: filterCounts.graduated ?? 0,
+                    icon: CheckCircle2,
+                    accent: "primary"
+                  },
+                  {
+                    id: "latest",
+                    label: "LATEST",
+                    count: filterCounts.latest ?? 0,
+                    icon: Clock,
+                    accent: "muted"
+                  },
+                  {
+                    id: "marketCap",
+                    label: "TOP MC",
+                    count: filterCounts.marketCap ?? 0,
+                    icon: BarChart3,
+                    accent: "muted"
+                  },
+                ].map(({ id, label, count, icon: Icon, accent }) => (
+                  <button
+                    key={id}
+                    onClick={() => setFilter(id as typeof filter)}
+                    className={`group relative px-5 py-3 rounded-2xl transition-all flex items-center gap-3 whitespace-nowrap overflow-hidden ${
+                      filter === id
+                        ? "text-white"
+                        : "text-muted hover:text-white"
+                    }`}
+                  >
+                    {filter === id && (
+                      <div className={`absolute inset-0 bg-${accent}/10 border border-${accent}/20 animate-fade-in`} />
+                    )}
+                    <Icon className={`w-4 h-4 relative z-10 ${filter === id ? `text-${accent}` : "opacity-50"}`} />
+                    <div className="flex flex-col items-start relative z-10">
+                      <span className="text-[10px] font-black tracking-[0.1em]">{label}</span>
+                      <span className="text-[9px] font-bold opacity-40 group-hover:opacity-60 transition-opacity">
+                        {count.toLocaleString()} ITEMS
+                      </span>
+                    </div>
+                    {filter === id && (
+                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${accent} shadow-neon`} />
+                    )}
+                  </button>
+                ))}
+              </div>
 
-                {/* Equalizer Icon - Protocol Selector */}
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowProtocolModal(true)}
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer flex items-center gap-2"
+                  className="p-3 glass rounded-2xl hover:border-primary/40 transition-all group"
                   title="Protocol Filters"
                 >
-                  <Sliders className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
+                  <Sliders className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
+                </button>
+                <div className="h-8 w-px bg-white/5 mx-1" />
+                <button
+                  className="p-3 glass rounded-2xl hover:border-white/20 transition-all opacity-50 hover:opacity-100"
+                  title="Notifications"
+                >
+                  <Bell className="w-4 h-4 text-muted" />
                 </button>
               </div>
             </div>

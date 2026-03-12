@@ -507,119 +507,94 @@ export function CompactTokenCard({
   }, [token.time, token.createdTimestamp]);
 
   return (
-    <>
-      <Link
+         <Link
         href={`/${chainRoute}/${tokenAddress}`}
-        className={`block bg-panel ${
+        className={`block group relative transition-all duration-300 ${
           connectedGrid
-            ? "border-b border-r border-gray-700/50 rounded-none p-3"
-            : `border-2 border-gray-800/50 mb-2 rounded-xl p-3`
-        } hover:border-[var(--primary-border)] transition-all group cursor-pointer ${connectedGrid ? "" : "shadow-sm hover:shadow-md"}`}
-        style={{ visibility: "visible", opacity: 1 }}
+            ? "border-b border-r border-white/5 rounded-none p-4"
+            : "mb-3 rounded-[2rem] p-5 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl"
+        }`}
       >
-        <div className="flex items-start gap-2.5">
+        {/* Animated Background Glow on Hover */}
+        <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-500 rounded-[2rem]" />
+        
+        <div className="relative z-10 flex items-start gap-4">
           {/* Left: Token Icon with Circular Bonding Progress */}
           <TooltipProvider delayDuration={200}>
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex-shrink-0 relative cursor-help">
-                  {/* Bonding Progress Border - single clean border matching logo shape */}
+                <div className="flex-shrink-0 relative">
+                  {/* Bonding Progress Ring */}
                   {!isTokenMigrated && bondingProgress < 1 && bondingProgress > 0 && (
                     <svg
-                      className={`absolute -inset-1 w-12 h-12 pointer-events-none z-0 transform -rotate-90`}
-                      viewBox="0 0 48 48"
-                      style={{ overflow: 'visible' }}
+                      className="absolute -inset-2 w-14 h-14 pointer-events-none z-0 transform -rotate-90"
+                      viewBox="0 0 56 56"
                     >
-                      {(() => {
-                        const isCircle = displaySettings?.circleImages;
-                        const radius = isCircle ? 22 : 7;
-                        const width = 48;
-                        const height = 48;
-                        // Calculate perimeter
-                        const perimeter = isCircle 
-                          ? 2 * Math.PI * radius
-                          : (width - 2 * radius) * 2 + (height - 2 * radius) * 2 + 2 * Math.PI * radius;
-                        const progressLength = perimeter * bondingProgress;
-                        const totalLength = perimeter;
-                        
-                        return (
-                          <rect
-                            x="0"
-                            y="0"
-                            width="48"
-                            height="48"
-                            rx={isCircle ? "24" : "7"}
-                            ry={isCircle ? "24" : "7"}
-                            fill="none"
-                            stroke={bondingColor}
-                            strokeWidth="2"
-                            strokeDasharray={`${progressLength} ${totalLength}`}
-                            strokeDashoffset="0"
-                            strokeLinecap="round"
-                            className="transition-all duration-500 ease-out"
-                          />
-                        );
-                      })()}
+                      <circle
+                        cx="28"
+                        cy="28"
+                        r="26"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="text-white/5"
+                      />
+                      <circle
+                        cx="28"
+                        cy="28"
+                        r="26"
+                        fill="none"
+                        stroke={bondingColor}
+                        strokeWidth="2.5"
+                        strokeDasharray={2 * Math.PI * 26}
+                        strokeDashoffset={2 * Math.PI * 26 * (1 - bondingProgress)}
+                        strokeLinecap="round"
+                        className="transition-all duration-700 ease-out shadow-neon"
+                      />
                     </svg>
                   )}
-                  {/* Full colored border for graduated tokens */}
+                  
+                  {/* Graduated Ring */}
                   {(isTokenMigrated || bondingProgress >= 1) && (
-                    <div
-                      className={`absolute -inset-1 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} pointer-events-none z-0`}
-                      style={{
-                        border: `2px solid ${bondingColor}`,
-                        borderRadius: displaySettings?.circleImages ? "50%" : "0.5rem",
-                      }}
-                    />
+                    <div className="absolute -inset-2 rounded-full border-2 border-primary/40 shadow-neon-strong animate-pulse" />
                   )}
-            <div className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-lg"} overflow-hidden relative group/token bg-panel-elev z-10 flex-shrink-0 border-2 border-gray-800/50`}>
-              {/* Fallback Gradient / Icon (Underneath) */}
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg z-0">
-                {token.icon && !token.icon.startsWith('http') && !token.icon.startsWith('data:') && !token.icon.startsWith('/')
-                  ? token.icon
-                  : token.symbol?.charAt(0).toUpperCase() || "🪙"}
-              </div>
 
-              {/* Token Image */}
-              {token.image && !imageError && (
-                <div className="absolute inset-0 z-10">
-                  <Image
-                    src={token.image}
-                    alt={token.symbol}
-                    fill
-                    className="object-cover"
-                    onError={() => setImageError(true)}
-                    sizes="40px"
-                    unoptimized={token.image?.startsWith('data:')}
-                  />
-                </div>
-              )}
+                  <div className={`w-10 h-10 ${displaySettings?.circleImages ? "rounded-full" : "rounded-2xl"} overflow-hidden relative bg-black/40 border border-white/10 shadow-inner group-hover:scale-110 transition-transform duration-500`}>
+                    {token.image ? (
+                      <Image
+                        src={token.image}
+                        alt={token.symbol}
+                        fill
+                        className="object-cover"
+                        onError={() => setImageError(true)}
+                        unoptimized={token.image?.startsWith('data:')}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-lg font-black bg-gradient-to-br from-primary/20 to-secondary/20 italic">
+                        {token.symbol?.charAt(0)}
+                      </div>
+                    )}
+                  </div>
 
-              {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100 cursor-pointer z-20">
-                <ExternalLink className="w-3 h-3 text-[var(--primary-text)] cursor-pointer" />
-              </div>
-
-              {/* Platform logo overlay - bottom right */}
-              {platformLogo && !platformLogoError ? (
-                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border border-panel flex items-center justify-center overflow-hidden z-30">
-                  <Image
-                    src={platformLogo}
-                    alt={platformName || "Platform"}
-                    fill
-                    className="object-cover"
-                    sizes="14px"
-                    onError={() => setPlatformLogoError(true)}
-                    unoptimized
-                  />
+                  {/* Platform logo overlay - bottom right */}
+                  {platformLogo && !platformLogoError ? (
+                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-black rounded-lg border border-white/10 flex items-center justify-center overflow-hidden z-30 shadow-lg">
+                      <Image
+                        src={platformLogo}
+                        alt={platformName || "Platform"}
+                        fill
+                        className="object-cover p-0.5"
+                        sizes="16px"
+                        onError={() => setPlatformLogoError(true)}
+                        unoptimized
+                      />
+                    </div>
+                  ) : (
+                    <div className="absolute bottom-0 right-0 w-4 h-4 bg-black rounded-lg border border-white/10 flex items-center justify-center text-[8px] z-30 shadow-lg">
+                      {platformIcon}
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border border-panel flex items-center justify-center text-[8px] z-30">
-                  {platformIcon}
-                </div>
-              )}
-            </div>
-          </div>
               </TooltipTrigger>
               <TooltipContent
                 side="right"
@@ -704,502 +679,93 @@ export function CompactTokenCard({
           {/* Middle: Token Info */}
           <div className="flex-1 min-w-0">
             {/* Token Name and Time */}
-            <div className="flex items-center gap-1.5 mb-1">
-              <h3 className="font-semibold text-xs truncate">{token.name}</h3>
-              {/* Graduated Badge for 100% bonded tokens */}
-              {(isTokenMigrated || bondingProgress >= 1) && (
-                <span className="px-1.5 py-0.5 bg-green-500/20 border border-green-500/50 rounded text-[8px] font-semibold text-green-400 flex items-center gap-0.5 flex-shrink-0">
-                  <Zap className="w-2.5 h-2.5" />
-                  Graduated
-                </span>
-              )}
-              <span className="text-[10px] text-gray-500 flex items-center gap-0.5 flex-shrink-0">
-                <Clock className="w-2.5 h-2.5 cursor-pointer" />
-                {typeof currentTime === "object"
-                  ? currentTime.display
-                  : currentTime}
+            <div className="flex items-center gap-2 mb-2">
+              <h3 className="font-black text-sm tracking-tighter text-white truncate italic uppercase">
+                {token.symbol}
+              </h3>
+              <div className="h-3 w-px bg-white/10" />
+              <span className="text-[10px] text-muted font-bold flex items-center gap-1 uppercase tracking-widest bg-white/5 px-2 py-0.5 rounded-full">
+                <Clock className="w-3 h-3 text-primary" />
+                {typeof currentTime === "object" ? currentTime.display : currentTime}
               </span>
               {isTrending && (
-                <Flame className="w-3 h-3 text-orange-400 cursor-pointer flex-shrink-0" />
+                <div className="flex h-2 w-2 rounded-full bg-accent shadow-neon animate-pulse" />
               )}
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-3 h-3 text-gray-500 hover:text-[var(--primary-text)] cursor-help flex-shrink-0" />
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm">Token Info</div>
-                      <div className="text-xs text-gray-300 space-y-1">
-                        <div>Symbol: {token.symbol}</div>
-                        <div>Price: {formatCurrency(token.price)}</div>
-                        {hasMobulaData && (
-                          <>
-                            {mobulaData.priceChange1h !== undefined && (
-                              <div className="pt-1 border-t border-gray-700">
-                                Price Change (1h):{" "}
-                                <span
-                                  className={
-                                    mobulaData.priceChange1h >= 0
-                                      ? "text-green-400"
-                                      : "text-red-400"
-                                  }
-                                >
-                                  {formatPercent(mobulaData.priceChange1h)}
-                                </span>
-                              </div>
-                            )}
-                            {mobulaData.trendingScore1h > 0 && (
-                              <div className="flex items-center gap-1.5">
-                                <Flame className="w-3 h-3 text-orange-400" />
-                                Trending Score: {mobulaData.trendingScore1h.toLocaleString()}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
 
-            {/* Activity Icons Row - With Text Labels and Tooltips */}
-            <TooltipProvider delayDuration={200}>
-            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                {/* Views Icon with Label and Tooltip */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-0.5 bg-cyan-500/10 px-1.5 py-0.5 rounded border border-cyan-500/20 cursor-help">
-                <User className="w-2.5 h-2.5 text-cyan-400" />
-                <span className="text-[9px] text-cyan-400 font-medium">
+            {/* Activity Icons Row - Premium Terminal Density */}
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">Views</span>
+                <span className="text-[10px] font-bold text-cyan-400 font-mono italic">
                   {formatNumber(token.activity.views)}
                 </span>
               </div>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm flex items-center gap-1.5">
-                        <User className="w-4 h-4 text-cyan-400" />
-                        Views
-                      </div>
-                      <div className="text-xs text-gray-300">
-                        {formatNumber(token.activity.views)} total views
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Holders Icon with Label and Tooltip */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-0.5 bg-indigo-500/10 px-1.5 py-0.5 rounded border border-indigo-500/20 cursor-help">
-                <Users className="w-2.5 h-2.5 text-indigo-400" />
-                <span className="text-[9px] text-indigo-400 font-medium">
+              <div className="w-px h-6 bg-white/5" />
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">Holders</span>
+                <span className="text-[10px] font-bold text-indigo-400 font-mono italic">
                   {formatNumber(token.activity.holders)}
                 </span>
               </div>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm flex items-center gap-1.5">
-                        <Users className="w-4 h-4 text-indigo-400" />
-                        Holders
-                      </div>
-                      <div className="text-xs text-gray-300 space-y-1">
-                        <div>{formatNumber(token.activity.holders)} total holders</div>
-                        {mobulaData?.top10Holdings > 0 && (
-                          <div className="pt-1 border-t border-gray-700">
-                            Top 10 Holdings: {mobulaData.top10Holdings.toFixed(1)}%
-                            {mobulaData.top10Holdings > 50 && (
-                              <span className="text-yellow-400 ml-1">⚠️ High concentration</span>
-                            )}
-                          </div>
-                        )}
-                        {mobulaData?.devHoldings > 0 && (
-                          <div>
-                            Dev Holdings: {mobulaData.devHoldings.toFixed(1)}%
-                            {mobulaData.devHoldings > 20 && (
-                              <span className="text-red-400 ml-1">⚠️ High risk</span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Trades Icon with Label and Tooltip */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-0.5 bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/20 cursor-help">
-                <Activity className="w-2.5 h-2.5 text-pink-400" />
-                <span className="text-[9px] text-pink-400 font-medium">
-                  {formatNumber(token.activity.trades)}
-                </span>
+              <div className="w-px h-6 bg-white/5" />
+              <div className="flex flex-col">
+                <span className="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">MCap</span>
+                <span className="text-[10px] font-black text-primary font-mono italic">
+                  {formatCurrency(token.marketCap)}
               </div>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm flex items-center gap-1.5">
-                        <Activity className="w-4 h-4 text-pink-400" />
-                        Trades
-                      </div>
-                      <div className="text-xs text-gray-300 space-y-1">
-                        <div>{formatNumber(token.activity.trades)} total trades</div>
-                        {mobulaData?.trades1h > 0 && (
-                          <div className="pt-1 border-t border-gray-700">
-                            Trades (1h): {formatNumber(mobulaData.trades1h)}
-                          </div>
-                        )}
-                        {mobulaData?.traders1h > 0 && (
-                          <div>
-                            Unique Traders (1h): {formatNumber(mobulaData.traders1h)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Quality Score - Smaller badge */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-0.5 bg-yellow-500/10 px-1 py-0.5 rounded border border-yellow-500/20 cursor-help">
-                      <Star className="w-2 h-2 text-yellow-400" />
-                      <span className="text-[9px] text-yellow-400 font-bold">
-                  {token.activity.Q}
-                </span>
-              </div>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm flex items-center gap-1.5">
-                        <Star className="w-4 h-4 text-yellow-400" />
-                        Quality Score
             </div>
-                      <div className="text-xs text-gray-300">
-                        Quality score: {token.activity.Q}
-                        {hasMobulaData && (
-                          <div className="mt-1 pt-1 border-t border-gray-700 space-y-0.5">
-                            {mobulaData.smartTradersCount > 0 && (
-                              <div className="flex items-center gap-1.5">
-                                <Brain className="w-3 h-3 text-blue-400" />
-                                Smart Traders: {mobulaData.smartTradersCount}
-                              </div>
-                            )}
-                            {mobulaData.proTradersCount > 0 && (
-                              <div className="flex items-center gap-1.5">
-                                <Star className="w-3 h-3 text-purple-400" />
-                                Pro Traders: {mobulaData.proTradersCount}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </TooltipProvider>
+          </div>
 
-            {/* Price change + Bonding curve / Migrated tag */}
-            <TooltipProvider delayDuration={200}>
-              <div className="mb-1.5 space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex flex-col gap-0.5 cursor-help min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[9px] text-gray-500 font-medium whitespace-nowrap">
-                            24h Change
-                  </span>
-                  <span
-                            className={`text-[11px] font-semibold whitespace-nowrap ${
-                      isPositive ? "text-green-400" : "text-red-400"
-                    }`}
-                  >
-                    {formatPercent(priceChange24h)}
-                  </span>
-                </div>
-                        {hasMobulaData && mobulaData.priceChange1h !== undefined && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[8px] text-gray-500 whitespace-nowrap">
-                              1h:
-                            </span>
-                            <span
-                              className={`text-[9px] font-medium whitespace-nowrap ${
-                                mobulaData.priceChange1h >= 0
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
-                            >
-                              {formatPercentCompact(mobulaData.priceChange1h)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                    >
-                      <div className="space-y-1">
-                        <div className="font-semibold text-sm flex items-center gap-1.5">
-                          {isPositive ? (
-                            <TrendingUp className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-400" />
-                          )}
-                          Price Changes
-                        </div>
-                        <div className="text-xs text-gray-300 space-y-1">
-                          <div>
-                            24h:{" "}
-                            <span
-                              className={
-                                isPositive ? "text-green-400" : "text-red-400"
-                              }
-                            >
-                              {formatPercent(priceChange24h)}
-                            </span>
-                          </div>
-                          {hasMobulaData && (
-                            <div className="pt-1 border-t border-gray-700 space-y-0.5">
-                              {mobulaData.priceChange1h !== undefined && (
-                                <div>
-                                  1h:{" "}
-                                  <span
-                                    className={
-                                      mobulaData.priceChange1h >= 0
-                                        ? "text-green-400"
-                                        : "text-red-400"
-                                    }
-                                  >
-                                    {formatPercent(mobulaData.priceChange1h)}
-                                  </span>
-                                </div>
-                              )}
-                              {mobulaData.priceChange5min !== undefined && (
-                                <div>
-                                  5m:{" "}
-                                  <span
-                                    className={
-                                      mobulaData.priceChange5min >= 0
-                                        ? "text-green-400"
-                                        : "text-red-400"
-                                    }
-                                  >
-                                    {formatPercent(mobulaData.priceChange5min)}
-                                  </span>
-                                </div>
-                              )}
-                              {mobulaData.ath && mobulaData.ath > token.price && (
-                                <div className="pt-1 border-t border-gray-700">
-                                  ATH: {formatCurrency(mobulaData.ath)}
-                                  <span className="text-red-400 ml-1">
-                                    (-
-                                    {(
-                                      ((mobulaData.ath - token.price) /
-                                        mobulaData.ath) *
-                                      100
-                                    ).toFixed(1)}
-                                    %)
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex flex-col items-end gap-0.5 cursor-help">
-                        <span className="text-[9px] text-gray-500 font-medium whitespace-nowrap">
-                          Price
-                        </span>
-                        <span className="text-[11px] text-gray-300 font-semibold whitespace-nowrap">
-                  {formatCurrency(token.price)}
-                </span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                    >
-                      <div className="space-y-1">
-                        <div className="font-semibold text-sm flex items-center gap-1.5">
-                          <DollarSign className="w-4 h-4" />
-                          Current Price
-                        </div>
-                        <div className="text-xs text-gray-300">
-                          {formatCurrency(token.price)} per token
-                          {hasMobulaData && mobulaData.latest_price && (
-                            <div className="mt-1 pt-1 border-t border-gray-700">
-                              Latest: {formatCurrency(mobulaData.latest_price)}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-              </div>
-              {/* Bonding curve bar — commented out
-              {isTokenMigrated ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="flex items-center justify-between cursor-help">
-                  <span className="text-[9px] text-gray-500 font-medium">
-                    Status
-                  </span>
-                        <span className="px-2 py-0.5 rounded-md bg-green-500/20 border border-green-500/50 text-[9px] font-semibold text-green-400 flex items-center gap-1">
-                          <Zap className="w-2.5 h-2.5" />
-                    Migrated
-                  </span>
-                </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                    >
-                      <div className="space-y-1">
-                        <div className="font-semibold text-sm flex items-center gap-1.5">
-                          <Zap className="w-4 h-4 text-green-400" />
-                          Token Graduated
-                        </div>
-                        <div className="text-xs text-gray-300">
-                          ✅ Token has graduated from bonding curve
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="cursor-help">
-                        <div className="flex items-center justify-between text-[9px] text-gray-500 mb-1">
-                          <span className="flex items-center gap-1">
-                            <Target className="w-2.5 h-2.5" />
-                            Bonding Progress
-                          </span>
-                    <span className="text-gray-300 font-semibold">
-                      {Math.round(bondingProgress * 100)}%
-                    </span>
-                  </div>
-                        <div className="h-1.5 rounded-full bg-gray-800/60 overflow-hidden">
-                          <div
-                            className="h-full transition-all"
-                            style={{
-                              width: `${bondingProgress * 100}%`,
-                              backgroundColor: bondingColor
-                            }}
-                    />
-                  </div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                    >
-                      <div className="space-y-1">
-                        <div className="font-semibold text-sm flex items-center gap-1.5">
-                          <Target className="w-4 h-4 text-orange-400" />
-                          Bonding Curve Progress
-                        </div>
-                        <div className="text-xs text-gray-300">
-                          {Math.round(bondingProgress * 100)}% complete
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                )}
-              */}
-              </div>
-            </TooltipProvider>
+          {/* Right: Price & Activity Stats */}
+          <div className="flex flex-col items-end gap-1 text-right min-w-[80px]">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-black text-muted uppercase tracking-widest mb-0.5">Price</span>
+              <span className="text-sm font-black text-white italic tracking-tighter">
+                {formatCurrency(token.price)}
+              </span>
+            </div>
+            
+            <div className={`text-[10px] font-black px-2 py-0.5 rounded-md italic ${isPositive ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}>
+              {isPositive ? "+" : ""}{formatPercent(priceChange24h)}
+            </div>
+          </div>
+        </div>
 
-            {/* Metrics Row - More Colorful with Tooltips */}
-            <TooltipProvider delayDuration={200}>
-            <div
-              className={`flex items-center gap-2 ${displaySettings?.metricsSize === "large" ? "text-xs" : "text-[10px]"} flex-wrap ${displaySettings?.grey ? "text-gray-400" : ""}`}
+        {/* Action Buttons & Bonding Curve */}
+        <div className="mt-6 pt-6 border-t border-white/5 flex items-center justify-between gap-4">
+          <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden relative group/bonding">
+            <div 
+              className="h-full bg-primary shadow-neon transition-all duration-1000 ease-out"
+              style={{ width: `${bondingProgress * 100}%` }}
+            />
+            {/* Bonding Tooltip Info */}
+            <div className="absolute top-[-24px] right-0 text-[8px] font-black text-primary uppercase tracking-widest opacity-0 group-hover/bonding:opacity-100 transition-opacity">
+              Progress: {Math.round(bondingProgress * 100)}%
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setShowTradingPanel(true);
+              }}
+              className="px-6 py-2 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-colors italic"
             >
-                {/* Market Cap with Tooltip */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-              <span
-                      className={`flex items-center gap-0.5 cursor-help ${displaySettings?.grey ? "text-gray-400" : "text-green-400"}`}
-              >
-                      <DollarSign className="w-2.5 h-2.5" />
-                <span className="font-medium">MC:</span>{" "}
-                {displaySettings?.noDecimals
-                  ? formatCurrency(token.marketCap).replace(/\.\d+/g, "")
-                  : formatCurrency(token.marketCap)}
-              </span>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm flex items-center gap-1.5">
-                        <DollarSign className="w-4 h-4" />
-                        Market Cap
-                      </div>
-                      <div className="text-xs text-gray-300">
-                        Total value of all tokens: {formatCurrency(token.marketCap)}
-                        {mobulaData?.liquidity && (
-                          <div className="mt-1 pt-1 border-t border-gray-700">
-                            Liquidity: {formatCurrency(mobulaData.liquidity)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-
-                {/* Volume with Tooltip */}
-                <Tooltip>
-                  <TooltipTrigger asChild>
-              <span
-                      className={`flex items-center gap-0.5 cursor-help ${displaySettings?.grey ? "text-gray-400" : "text-blue-400"}`}
-              >
-                      <BarChart3 className="w-2.5 h-2.5" />
-                <span className="font-medium">V:</span>{" "}
-                {displaySettings?.noDecimals
-                  ? formatCurrency(token.volume).replace(/\.\d+/g, "")
-                  : formatCurrency(token.volume)}
-              </span>
-                  </TooltipTrigger>
-                  <TooltipContent
-                    side="top"
-                    className="max-w-xs bg-panel border border-gray-700 text-white z-50"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-semibold text-sm flex items-center gap-1.5">
-                        <BarChart3 className="w-4 h-4" />
-                        Volume (24h)
-                      </div>
-                      <div className="text-xs text-gray-300 space-y-1">
-                        <div>Total: {formatCurrency(token.volume)}</div>
-                        {mobulaData?.volumeBuy24h && mobulaData?.volumeSell24h && (
-                          <>
-                            <div className="pt-1 border-t border-gray-700 space-y-0.5">
+              TRADE
+            </button>
+            <button 
+              onClick={copyAddress}
+              className="p-2 rounded-full glass border border-white/10 hover:border-white/20 transition-all"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-muted" />}
+            </button>
+          </div>
+        </div>
+        </div>
+      </Link>
                               <div className="flex items-center gap-1.5 text-green-400">
                                 <ArrowUpRight className="w-3 h-3" />
                                 Buy: {formatCurrency(mobulaData.volumeBuy24h)}

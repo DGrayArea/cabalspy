@@ -62,38 +62,37 @@ export default function Navbar({
             )}
             <Link
               href="/"
-              className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer group"
             >
-              <Image
-                src="/logo.jpg"
-                alt="Cabalspy Logo"
-                width={32}
-                height={32}
-                className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-gray-800/50 flex-shrink-0"
-                unoptimized
-              />
-              <span className="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent text-base sm:text-xl font-bold whitespace-nowrap">
+              <div className="relative">
+                <Image
+                  src="/logo.jpg"
+                  alt="Cabalspy Logo"
+                  width={32}
+                  height={32}
+                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-primary/20 flex-shrink-0 transition-all group-hover:ring-primary/50"
+                  unoptimized
+                />
+                <div className="absolute inset-0 rounded-full bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-xl font-black tracking-tight whitespace-nowrap">
                 CABALSPY
               </span>
             </Link>
             {/* Desktop Navigation - Show on lg and above */}
-            <nav className="hidden lg:flex items-center gap-4">
+            <nav className="hidden lg:flex items-center gap-6">
               <Link
                 href="/"
-                className={`text-sm transition-colors cursor-pointer ${
-                  pathname === "/"
-                    ? "text-white font-medium"
-                    : "text-gray-400 hover:text-white"
+                className={`text-sm font-semibold transition-all hover:text-primary cursor-pointer ${
+                  pathname === "/" ? "text-primary" : "text-muted"
                 }`}
               >
                 Home
               </Link>
               <Link
                 href="/portfolio"
-                className={`text-sm transition-colors cursor-pointer ${
-                  pathname === "/portfolio"
-                    ? "text-white font-medium"
-                    : "text-gray-400 hover:text-white"
+                className={`text-sm font-semibold transition-all hover:text-primary cursor-pointer ${
+                  pathname === "/portfolio" ? "text-primary" : "text-muted"
                 }`}
               >
                 Portfolio
@@ -106,14 +105,14 @@ export default function Navbar({
             style={{
               display: isDesktop ? "flex" : "none",
               alignItems: "center",
-              gap: "0.5rem",
+              gap: "0.75rem",
               flexShrink: 0,
             }}
           >
             {showSearch && onSearchClick && (
               <button
                 onClick={onSearchClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-all cursor-pointer active:scale-95 text-muted hover:text-primary border border-transparent hover:border-primary/20"
                 title="Search Token"
               >
                 <Search className="w-4 h-4 cursor-pointer" />
@@ -122,7 +121,7 @@ export default function Navbar({
             {showRefresh && onRefreshClick && (
               <button
                 onClick={onRefreshClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-all cursor-pointer active:scale-95 text-muted hover:text-primary border border-transparent hover:border-primary/20"
                 title="Refresh"
               >
                 <RefreshCw
@@ -134,7 +133,7 @@ export default function Navbar({
             {showWalletSettings && onWalletSettingsClick && isAuthenticated && (
               <button
                 onClick={onWalletSettingsClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors flex items-center gap-1 cursor-pointer active:scale-95"
+                className="p-2 hover:bg-panel-elev rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 text-muted hover:text-primary border border-transparent hover:border-primary/20"
                 title="Wallet Settings"
               >
                 <Wallet className="w-4 h-4 cursor-pointer" />
@@ -152,32 +151,22 @@ export default function Navbar({
               gap: "0.5rem",
             }}
           >
-            {/* Wallet Settings - Only show when authenticated */}
-            {showWalletSettings && onWalletSettingsClick && isAuthenticated && (
-              <button
-                onClick={onWalletSettingsClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
-                title="Wallet Settings"
-              >
-                <Wallet className="w-5 h-5 cursor-pointer" />
-              </button>
-            )}
             <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
               <DialogTrigger asChild>
                 <button
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95"
+                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95 text-muted hover:text-primary"
                   title="Menu"
                 >
                   <Menu className="w-5 h-5 cursor-pointer" />
                 </button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md bg-transparent backdrop-blur-xl border-0 rounded-none shadow-none p-0 top-[5%] translate-y-0 max-h-[90vh] overflow-y-auto">
+              <DialogContent className="sm:max-w-md glass border-0 rounded-3xl shadow-2xl p-0 top-[5%] translate-y-0 max-h-[90vh] overflow-y-auto">
                 <div className="flex flex-col">
                   {/* Header */}
                   <div className="px-6 pt-6 pb-4">
                     <DialogHeader className="text-left">
-                      <DialogTitle className="text-white text-2xl font-bold">
-                        Menu
+                      <DialogTitle className="text-white text-2xl font-black tracking-tight">
+                        MENU
                       </DialogTitle>
                     </DialogHeader>
                   </div>

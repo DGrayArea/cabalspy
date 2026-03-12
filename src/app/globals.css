@@ -3,53 +3,42 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Ash + Black palette */
-  --background: #0b0b0c;     /* app background - deep black */
-  --foreground: #f3f4f6;     /* text - ash */
-  --panel: #121214;          /* panel base */
-  --panel-elev: #17181a;     /* elevated hover/inner */
-  --muted: #9aa0a6;          /* muted ash */
-
-  /* Primary color - easily changeable */
-  /* To change the primary color, update these values:
-   * Example for purple: --primary: #a855f7; --primary-dark: #9333ea; etc.
-   * Example for green: --primary: #10b981; --primary-dark: #059669; etc.
-   * Example for orange: --primary: #f97316; --primary-dark: #ea580c; etc.
-   */
-  --primary: #3b82f6;        /* blue-500 - main primary color */
-  --primary-dark: #2563eb;   /* blue-600 - darker shade for buttons */
-  --primary-darker: #1d4ed8;  /* blue-700 - darkest shade for hover */
-  --primary-light: #60a5fa;   /* blue-400 - lighter shade */
-  --primary-lighter: #93c5fd; /* blue-300 - lightest shade */
-  --primary-bg: rgba(59, 130, 246, 0.1);     /* blue-500/10 - subtle background */
-  --primary-border: rgba(59, 130, 246, 0.2); /* blue-500/20 - border color */
-  --primary-text: #60a5fa;    /* blue-400 - text color */
-
-  /* shadcn/ui CSS Variables */
+  /* Midnight Neon Palette - Premium Dark Theme */
+  --background: #050505;     /* Purest black for deep contrast */
+  --foreground: #ececec;     /* Clean ash for primary text */
+  --panel: #0d0d0e;          /* Base panel color */
+  --panel-elev: #161618;     /* Elevated panel (hover/inner) */
+  --muted: #888888;          /* Muted ash for secondary info */
+  
+  /* Vibrant Neon Accents */
+  --primary: #00ff9d;        /* Neon Mint - feels fast and fresh */
+  --primary-dark: #00cc7d;
+  --primary-darker: #00995e;
+  --primary-light: #66ffc2;
+  --primary-bg: rgba(0, 255, 157, 0.05);
+  --primary-border: rgba(0, 255, 157, 0.2);
+  
+  --secondary: #bd00ff;      /* Neon Purple - for variety/accents */
+  --secondary-dark: #9600cc;
+  --secondary-bg: rgba(189, 0, 255, 0.05);
+  
+  --accent: #ff007a;         /* Neon Pink - for critical alerts/hotness */
+  
+  /* shadcn/ui Overrides */
   --card: var(--panel);
   --card-foreground: var(--foreground);
   --popover: var(--panel);
   --popover-foreground: var(--foreground);
-  --secondary: var(--panel-elev);
-  --secondary-foreground: var(--foreground);
   --muted: var(--panel-elev);
   --muted-foreground: var(--muted);
-  --accent: var(--panel-elev);
-  --accent-foreground: var(--foreground);
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.06);
   --input: var(--panel-elev);
   --ring: var(--primary);
-  --radius: 0.5rem;
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
+  --radius: 0.75rem;         /* Slightly more rounded for premium feel */
+  
+  /* Glassmorphism Defaults */
+  --glass-bg: rgba(13, 13, 14, 0.7);
+  --glass-border: rgba(255, 255, 255, 0.1);
 }
 
 @theme inline {
@@ -136,52 +125,84 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
 }
 
+/* Premium Glassmorphism */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-pill {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 9999px;
+}
+
+/* Neon Glows */
+.shadow-neon {
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.15);
+}
+
+.shadow-neon-strong {
+  box-shadow: 0 0 30px rgba(0, 255, 157, 0.3);
+}
+
+/* Typography Improvements */
+h1, h2, h3, h4 {
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
 /* Theme utility classes */
 .bg-app { background-color: var(--background); }
 .bg-panel { background-color: var(--panel); }
 .bg-panel-elev { background-color: var(--panel-elev); }
 .text-muted { color: var(--muted); }
-.border-panel { border-color: #222326; }
+.border-panel { border-color: var(--border); }
 
-/* Primary color utility classes */
+/* Primary Accents */
+.text-primary { color: var(--primary); }
 .bg-primary { background-color: var(--primary); }
-.bg-primary-dark { background-color: var(--primary-dark); }
-.bg-primary-darker { background-color: var(--primary-darker); }
-.text-primary { color: var(--primary-text); }
 .border-primary { border-color: var(--primary-border); }
 .bg-primary-subtle { background-color: var(--primary-bg); }
 
-/* Custom scrollbar */
+/* Custom scrollbar - Slim & Modern */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
+  height: 5px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4b5563;
-  border-radius: 3px;
+  background: #2a2a2d;
+  border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #6b7280;
+  background: #3a3a3d;
 }
 
-/* Hide scrollbar but keep scrolling functionality */
-.scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+/* Global Animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;  /* Chrome, Safari and Opera */
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
 }
 
-/* Smooth scrolling */
-.scroll-smooth {
-  scroll-behavior: smooth;
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
 }
 
 .dark {
