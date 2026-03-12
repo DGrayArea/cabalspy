@@ -1659,7 +1659,7 @@ export default function PulsePage() {
             ))}
           </div>
         </div>
-        </div>
+      </div>
 
         {/* Top Featured Tokens Marquee */}
         <div className="mb-16 animate-fade-in">
@@ -1810,7 +1810,6 @@ export default function PulsePage() {
                   </div>
                 </Suspense>
               )}
-            </div>
           </div>
         </div>
 
@@ -1854,10 +1853,9 @@ export default function PulsePage() {
                   )}
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
-      </div>
 
       <Footer />
 
