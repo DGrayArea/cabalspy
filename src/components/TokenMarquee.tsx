@@ -146,7 +146,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                   </div>
                 ) : (
                   <div className="relative w-10 h-10 flex-shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg">
+                    <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg">
                       {token.icon || "🪙"}
                     </div>
                     {/* Platform logo overlay - bottom right */}

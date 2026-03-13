@@ -318,8 +318,26 @@ function transformToken(mobulaToken: MobulaToken): TokenData {
     return firstChar || "🪙";
   };
 
+  const bondingPercentage = mobulaToken.bondingPercentage || 0;
+  const bondingProgress = bondingPercentage / 100;
+
   const symbol = mobulaToken.symbol || "UNKNOWN";
   const fallbackIcon = getFallbackIcon(symbol);
+  
+  // A token is migrated if:
+  // 1. Explicitly marked as bonded by Mobula
+  // 2. Bonding percentage is 100% or very close (99.9%+)
+  // 3. It's on a recognized DEX pool (Raydium, Meteora, etc.) and NOT a launchpad pool (pumpfun, moonit, etc.)
+  // 4. Fallback: Market cap is high enough that it must have graduated (e.g. > $100k)
+  const poolType = (mobulaToken.type || "").toLowerCase();
+  const isDexPool = poolType && 
+                   !poolType.includes('pumpfun') && 
+                   !poolType.includes('moonit') && 
+                   !poolType.includes('moonshot') &&
+                   (poolType.includes('raydium') || poolType.includes('meteora') || poolType.includes('orca') || poolType.includes('jupiter'));
+                   
+  const isHighMCap = marketCap > 100000;
+  const isBonded = mobulaToken.bonded || bondingPercentage >= 99.9 || isDexPool || isHighMCap;
 
   return {
     id: `${chain}:${mobulaToken.address}`,
@@ -336,6 +354,11 @@ function transformToken(mobulaToken: MobulaToken): TokenData {
     percentages,
     price,
     decimals: mobulaToken.decimals,
+    // Add these fields to the root for easier access in UI components
+    bondingProgress: isBonded ? 1.0 : bondingProgress,
+    isMigrated: isBonded,
+    raydiumPool: isBonded ? (mobulaToken.poolAddress || "0x0") : undefined,
+    protocol: poolType,
     activity: {
       Q: 0,
       views: 0,

@@ -3,7 +3,10 @@
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import WalletManager from "@/components/WalletManager";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   User,
   Mail,
@@ -19,19 +22,22 @@ import {
   Clock,
   Shield,
   ExternalLink,
+  Zap,
+  Lock,
 } from "lucide-react";
 
 export default function ProfilePage() {
   const { user, turnkeyUser, turnkeySession, isLoading } = useAuth();
   const { wallets: turnkeyWallets } = useTurnkey();
+  const router = useRouter();
   const isAuthenticated = user || turnkeyUser || turnkeySession;
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-app text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-gray-400">Loading profile...</p>
+        <div className="relative">
+          <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse" />
+          <div className="relative animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
         </div>
       </div>
     );
@@ -39,26 +45,28 @@ export default function ProfilePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-app text-white flex items-center justify-center">
-        <div className="text-center max-w-md">
-          <Shield className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Access Denied</h1>
-          <p className="text-gray-400 mb-6">
-            Please sign in to view your profile
+      <div className="min-h-screen bg-app text-white flex items-center justify-center p-4">
+        <div className="glass rounded-[3rem] p-12 text-center max-w-lg border border-white/10 shadow-neon">
+          <div className="relative mb-8 inline-block">
+             <div className="absolute inset-[-10px] bg-accent/20 blur-2xl rounded-full" />
+             <Lock className="relative w-20 h-20 text-accent animate-pulse" />
+          </div>
+          <h1 className="text-4xl font-black italic mb-6 tracking-tighter">ACCESS DENIED</h1>
+          <p className="text-muted font-medium mb-10 leading-relaxed uppercase tracking-widest text-xs">
+            Connect your terminal to access your private trading portfolio and secure vault.
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-black font-black italic rounded-2xl shadow-neon transition-all hover:scale-105 active:scale-95"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Go to Home
+            <Zap className="w-5 h-5" />
+            INITIALIZE TERMINAL
           </Link>
         </div>
       </div>
     );
   }
 
-  // Use Turnkey user if available, otherwise use custom user
   const displayUser = turnkeyUser
     ? {
         id: turnkeyUser.userId,
@@ -75,301 +83,218 @@ export default function ProfilePage() {
     (turnkeyWallets && turnkeyWallets.length > 0) ||
     (user?.wallets && Object.keys(user.wallets).length > 0);
 
-  // Format session expiry
   const sessionExpiry = turnkeySession?.expiry
     ? new Date(turnkeySession.expiry * 1000).toLocaleString()
     : null;
 
   return (
-    <div className="min-h-screen bg-app text-white">
-      {/* Header */}
-      <div className="border-b border-gray-800/50 bg-panel/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link
-                href="/"
-                className="p-2 hover:bg-panel-elev rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold">Profile</h1>
-            </div>
-            <Link
-              href="/"
-              className="text-sm text-gray-400 hover:text-white transition-colors"
-            >
-              Back to Home
-            </Link>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen bg-app text-white pb-24 selection:bg-primary/30">
+      <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
+      
+      <Navbar
+        showBackButton={true}
+        onBackClick={() => router.back()}
+      />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Profile Header */}
-          <div className="bg-panel border border-gray-800/50 rounded-xl p-6 mb-6">
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-              <div className="flex-shrink-0">
-                {displayUser.avatar ? (
-                  <img
-                    src={displayUser.avatar}
-                    alt={displayUser.name}
-                    className="w-20 h-20 rounded-full object-cover border-2 border-primary"
-                  />
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center text-white text-2xl font-bold border-2 border-primary">
-                    {displayUser.name.charAt(0).toUpperCase()}
-                  </div>
-                )}
+      <main className="relative z-10 max-w-7xl mx-auto px-4 py-12">
+        <div className="flex flex-col gap-12">
+          {/* Profile Hero Section */}
+          <section className="glass rounded-[3rem] p-10 md:p-16 relative overflow-hidden group">
+            <div className="absolute top-[-20%] right-[-10%] w-96 h-96 bg-primary/10 blur-[120px] rounded-full animate-pulse" />
+            <div className="absolute bottom-[-10%] left-[-5%] w-64 h-64 bg-secondary/10 blur-[100px] rounded-full" />
+
+            <div className="flex flex-col md:flex-row items-center gap-12 relative z-10">
+              <div className="relative group/avatar">
+                <div className="absolute inset-[-4px] bg-linear-to-tr from-primary via-secondary to-accent rounded-[3.5rem] opacity-40 blur-lg group-hover/avatar:opacity-100 transition-opacity" />
+                <div className="relative w-32 h-32 md:w-48 md:h-48 rounded-[3.5rem] overflow-hidden border-4 border-black ring-1 ring-white/20 bg-panel-elev">
+                  {displayUser.avatar ? (
+                    <img src={displayUser.avatar} alt={displayUser.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-linear-to-br from-primary/30 to-accent/30 flex items-center justify-center text-6xl font-black italic text-gradient">
+                      {displayUser.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="flex-1">
-                <h2 className="text-3xl font-bold mb-2">{displayUser.name}</h2>
-                {displayUser.email && (
-                  <div className="flex items-center gap-2 text-gray-400 mb-2">
-                    <Mail className="w-4 h-4" />
-                    <span>{displayUser.email}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-4 flex-wrap">
-                  <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      Joined{" "}
-                      {displayUser.createdAt.toLocaleDateString("en-US", {
-                        month: "long",
-                        year: "numeric",
-                      })}
+
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
+                  <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter leading-[0.8]">{displayUser.name}</h1>
+                  {turnkeySession && (
+                    <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-500/10 border border-green-500/20 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.1)]">
+                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
+                      <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">SECURE LINK ACTIVE</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-8">
+                  {displayUser.email && (
+                    <div className="flex items-center gap-3 text-muted">
+                      <Mail className="w-5 h-5 text-primary" />
+                      <span className="text-sm font-bold">{displayUser.email}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 text-muted">
+                    <Calendar className="w-5 h-5 text-secondary" />
+                    <span className="text-sm font-bold uppercase tracking-widest">
+                       EST. {displayUser.createdAt.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
                     </span>
                   </div>
-                  {turnkeySession && (
-                    <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 border border-green-500/20 rounded-full">
-                      <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-                      <span className="text-sm text-green-400 font-medium">
-                        Turnkey Authenticated
-                      </span>
-                    </div>
-                  )}
                   {sessionExpiry && (
-                    <div className="flex items-center gap-2 text-sm text-gray-400">
-                      <Clock className="w-4 h-4" />
-                      <span>Session expires: {sessionExpiry}</span>
+                    <div className="flex items-center gap-3 text-muted">
+                      <Clock className="w-5 h-5 text-accent" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">EXP: {sessionExpiry}</span>
                     </div>
                   )}
                 </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-panel border border-gray-800/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Wallets</span>
-                <Wallet className="w-4 h-4 text-gray-400" />
+          {/* Key Stats */}
+          <section className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { label: "CONNECTED WALLETS", value: hasWallets ? (turnkeyWallets?.length || Object.keys(user?.wallets || {}).length) : 0, icon: Wallet, color: "text-primary", shadow: "shadow-neon" },
+              { label: "LIFETIME TRADES", value: "0", icon: Activity, color: "text-secondary", shadow: "shadow-secondary-neon" },
+              { label: "PORTFOLIO VALUE", value: "$0.00", icon: DollarSign, color: "text-accent", shadow: "shadow-accent-neon" },
+              { label: "PERFORMANCE", value: "0%", icon: TrendingUp, color: "text-white", shadow: "shadow-white-neon" }
+            ].map((stat, i) => (
+              <div key={i} className="glass rounded-[2rem] p-8 border border-white/10 group hover:border-white/20 transition-all">
+                <div className="flex items-center justify-between mb-6">
+                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">{stat.label}</span>
+                  <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                </div>
+                <div className={`text-4xl font-black italic tracking-tighter ${stat.color} ${stat.shadow}-sm`}>{stat.value}</div>
               </div>
-              <div className="text-2xl font-bold">
-                {hasWallets
-                  ? turnkeyWallets?.length ||
-                    Object.keys(user?.wallets || {}).length
-                  : 0}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">Connected</div>
-            </div>
-            <div className="bg-panel border border-gray-800/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Total Trades</span>
-                <Activity className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="text-2xl font-bold">0</div>
-              <div className="text-xs text-gray-500 mt-1">All time</div>
-            </div>
-            <div className="bg-panel border border-gray-800/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Portfolio Value</span>
-                <DollarSign className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="text-2xl font-bold">$0.00</div>
-              <div className="text-xs text-gray-500 mt-1">Current</div>
-            </div>
-            <div className="bg-panel border border-gray-800/50 rounded-lg p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Win Rate</span>
-                <TrendingUp className="w-4 h-4 text-gray-400" />
-              </div>
-              <div className="text-2xl font-bold">-</div>
-              <div className="text-xs text-gray-500 mt-1">No trades yet</div>
-            </div>
-          </div>
+            ))}
+          </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left Column */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Wallet Management */}
-              <div className="bg-panel border border-gray-800/50 rounded-xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-semibold flex items-center gap-2">
-                    <Wallet className="w-5 h-5" />
-                    Wallets
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Main Column */}
+            <div className="lg:col-span-2 space-y-8">
+              {/* Wallet Manager */}
+              <section className="glass rounded-[3rem] p-10 border border-white/10 shadow-neon-strong/5">
+                <div className="flex items-center justify-between mb-10">
+                   <h3 className="text-2xl font-black italic tracking-tighter flex items-center gap-4">
+                     <Wallet className="w-8 h-8 text-primary" />
+                     SECURE VAULTS
+                   </h3>
+                   <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-muted">
+                     {turnkeyWallets?.length || 0} TOTAL
+                   </div>
+                </div>
+                <div className="bg-black/40 rounded-[2rem] border border-white/5 p-4">
+                  <WalletManager />
+                </div>
+              </section>
+
+              {/* Transactions/Activity */}
+              <section className="glass rounded-[3rem] p-10 border border-white/10">
+                <div className="flex items-center justify-between mb-10">
+                  <h3 className="text-2xl font-black italic tracking-tighter flex items-center gap-4">
+                    <Activity className="w-8 h-8 text-secondary" />
+                    LIVE ACTIVITY
                   </h3>
+                  <button className="text-[10px] font-black text-primary hover:underline italic uppercase tracking-widest">
+                    VIEW ALL
+                  </button>
                 </div>
-                <WalletManager />
-              </div>
-
-              {/* Trading Activity */}
-              <div className="bg-panel border border-gray-800/50 rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Activity className="w-5 h-5" />
-                  Recent Activity
-                </h3>
-                <div className="text-center py-12 text-gray-400">
-                  <BarChart3 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No trading activity yet</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Your trades will appear here
-                  </p>
+                <div className="py-20 text-center space-y-6">
+                  <div className="relative inline-block">
+                    <div className="absolute inset-0 bg-secondary/10 blur-3xl" />
+                    <BarChart3 className="relative w-24 h-24 mx-auto text-secondary/30" />
+                  </div>
+                  <div>
+                    <p className="text-xl font-black italic tracking-tighter text-muted">TERMINAL IS COLD</p>
+                    <p className="text-[10px] font-bold text-muted/50 uppercase tracking-[0.3em] mt-2">NO RECENT EXECUTIONS DETECTED</p>
+                  </div>
                 </div>
-              </div>
-
-              {/* Favorite Tokens */}
-              <div className="bg-panel border border-gray-800/50 rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Star className="w-5 h-5" />
-                  Favorite Tokens
-                </h3>
-                <div className="text-center py-12 text-gray-400">
-                  <Star className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">No favorite tokens yet</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Star tokens to track them here
-                  </p>
-                </div>
-              </div>
+              </section>
             </div>
 
-            {/* Right Column */}
-            <div className="space-y-6">
-              {/* User Information */}
-              <div className="bg-panel border border-gray-800/50 rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Account Details
+            {/* Right Sidebar Column */}
+            <div className="space-y-8">
+              {/* Account Security */}
+              <section className="glass rounded-[3rem] p-10 border border-white/10 shadow-accent-neon-strong/5">
+                <h3 className="text-xl font-black italic mb-8 tracking-tighter flex items-center gap-3">
+                  <Shield className="w-6 h-6 text-accent" />
+                  SECURITY
                 </h3>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="text-xs text-gray-400 mb-1">User ID</div>
-                    <div className="flex items-center gap-2">
-                      <code className="text-sm bg-panel-elev px-2 py-1 rounded font-mono">
-                        {displayUser.id.slice(0, 8)}...
-                        {displayUser.id.slice(-6)}
-                      </code>
-                      <button
-                        onClick={() =>
-                          navigator.clipboard.writeText(displayUser.id)
-                        }
-                        className="p-1 hover:bg-panel-elev rounded transition-colors"
-                        title="Copy User ID"
-                      >
-                        <ExternalLink className="w-4 h-4 text-gray-400" />
-                      </button>
+                
+                <div className="space-y-6">
+                  <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 space-y-4">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">IDENTIFIER</span>
+                      <div className="flex items-center gap-3">
+                        <code className="text-xs font-black italic tracking-tighter text-white">
+                          {displayUser.id.slice(0, 12)}...
+                        </code>
+                        <button 
+                          onClick={() => navigator.clipboard.writeText(displayUser.id)}
+                          className="p-2 hover:bg-white/10 rounded-xl transition-all"
+                        >
+                          <ExternalLink className="w-4 h-4 text-muted" />
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  {user?.telegramId && (
-                    <div className="flex items-center gap-3 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                      <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white font-bold">T</span>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">Telegram</div>
-                        <div className="text-xs text-gray-400">Connected</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {user?.googleId && (
-                    <div className="flex items-center gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                      <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white font-bold">G</span>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">Google</div>
-                        <div className="text-xs text-gray-400">Connected</div>
-                      </div>
-                    </div>
-                  )}
-
-                  {turnkeyUser && (
-                    <div className="flex items-center gap-3 p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                      <Shield className="w-8 h-8 text-green-400" />
-                      <div>
-                        <div className="text-sm font-medium">Turnkey</div>
-                        <div className="text-xs text-gray-400">
-                          Secure wallet infrastructure
+                  <div className="space-y-3">
+                    {turnkeyUser && (
+                      <div className="flex items-center gap-4 p-5 bg-primary/5 border border-primary/20 rounded-[1.5rem]">
+                        <Zap className="w-6 h-6 text-primary" />
+                        <div>
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest">TURNKEY CORE</p>
+                          <p className="text-[10px] font-bold text-primary/70 uppercase">NON-CUSTODIAL ACTIVE</p>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                    {user?.telegramId && (
+                      <div className="flex items-center gap-4 p-5 bg-blue-500/5 border border-blue-500/20 rounded-[1.5rem]">
+                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-black">T</div>
+                        <div>
+                          <p className="text-[10px] font-black text-white uppercase tracking-widest">TELEGRAM</p>
+                          <p className="text-[10px] font-bold text-blue-400 uppercase">LINKED</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </section>
 
-              {/* Settings */}
-              <div className="bg-panel border border-gray-800/50 rounded-xl p-6">
-                <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Settings
+              {/* Preferences */}
+              <section className="glass rounded-[3rem] p-10 border border-white/10">
+                <h3 className="text-xl font-black italic mb-8 tracking-tighter flex items-center gap-3">
+                  <Settings className="w-6 h-6 text-muted" />
+                  PROTOCOL
                 </h3>
 
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">Notifications</div>
-                      <div className="text-xs text-gray-400">
-                        New token alerts
+                <div className="space-y-8">
+                  {[
+                    { label: "NOTIFICATIONS", sub: "Priority trade alerts", checked: true },
+                    { label: "AUTO-TRADING", sub: "Algorithmic execution", checked: false },
+                    { label: "ANALYTICS", sub: "Weekly field reports", checked: true }
+                  ].map((pref, i) => (
+                    <div key={i} className="flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-black text-white uppercase tracking-widest">{pref.label}</div>
+                        <div className="text-[8px] font-bold text-muted uppercase tracking-wider mt-1">{pref.sub}</div>
                       </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" className="sr-only peer" defaultChecked={pref.checked} />
+                        <div className="w-12 h-6 bg-black/60 rounded-full border border-white/10 peer peer-checked:bg-primary/20 peer-checked:border-primary/50 transition-all after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white/10 after:border-white/20 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-6 peer-checked:after:bg-primary peer-checked:after:border-primary peer-checked:after:shadow-neon-sm"></div>
+                      </label>
                     </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only peer"
-                        defaultChecked
-                      />
-                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">Auto-trading</div>
-                      <div className="text-xs text-gray-400">
-                        Automated signals
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="font-medium text-sm">Email Updates</div>
-                      <div className="text-xs text-gray-400">
-                        Weekly summaries
-                      </div>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
-                      <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-                    </label>
-                  </div>
+                  ))}
                 </div>
-              </div>
+              </section>
             </div>
           </div>
         </div>
-      </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

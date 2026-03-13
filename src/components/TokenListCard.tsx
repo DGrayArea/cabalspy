@@ -100,7 +100,7 @@ export function TokenListCard({
                 )}
               </div>
             ) : (
-              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg sm:text-xl shadow-lg shadow-[var(--primary)]/10 relative">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-linear-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center ring-2 ring-gray-800/50 text-lg sm:text-xl shadow-lg shadow-[var(--primary)]/10 relative">
                 {token.icon}
                 {/* Platform logo overlay - bottom right */}
                 {platformLogo && !platformLogoError ? (

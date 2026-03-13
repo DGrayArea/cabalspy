@@ -26,7 +26,7 @@ export function Hero() {
           
           <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6 leading-[0.9]">
             HUNT THE <br />
-            <span className="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic">
+            <span className="bg-linear-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic">
               NEXT CABAL.
             </span>
           </h1>
@@ -42,9 +42,11 @@ export function Hero() {
                 GET STARTED <ArrowUpRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
-            <Button size="lg" variant="glass" className="rounded-2xl px-8 h-14 border-white/10 hover:border-white/20 font-bold">
-              VIEW TERMINAL
-            </Button>
+            <Link href="/">
+              <Button size="lg" variant="glass" className="rounded-2xl px-8 h-14 border-white/10 hover:border-white/20 font-bold">
+                VIEW TERMINAL
+              </Button>
+            </Link>
           </div>
           
           <div className="mt-12 flex items-center justify-center md:justify-start gap-8 opacity-50">

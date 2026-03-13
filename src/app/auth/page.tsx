@@ -3,17 +3,17 @@
 import { useEffect, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Loader2, ArrowLeft, ShieldCheck, Zap, Globe } from "lucide-react";
+import { Hero } from "@/components/Hero";
 
 function AuthContent() {
   const router = useRouter();
-  const { user, turnkeyUser, authLoading } = useAuth() as any;
+  const { user, turnkeyUser } = useAuth() as any;
   const { handleLogin } = useTurnkey();
 
   // If already authenticated, redirect to home
@@ -57,19 +57,19 @@ function AuthContent() {
 
   return (
     <div className="min-h-screen bg-app flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 blur-[120px] rounded-full animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-secondary/10 blur-[120px] rounded-full animate-pulse transition-delay-1000" />
-      
+      <div className="w-full max-w-7xl mx-auto mb-12">
+        <Hero />
+      </div>
+
       {/* Back Button */}
       <Link 
         href="/" 
-        className="absolute top-8 left-8 flex items-center gap-2 text-muted hover:text-primary transition-colors group"
+        className="absolute top-8 left-8 flex items-center gap-2 text-muted hover:text-primary transition-colors group z-20"
       >
         <div className="p-2 rounded-full bg-white/5 border border-white/10 group-hover:border-primary/30 transition-all">
           <ArrowLeft className="w-4 h-4" />
         </div>
-        <span className="text-sm font-bold uppercase tracking-widest">Back</span>
+        <span className="text-sm font-bold uppercase tracking-widest">Back to Terminal</span>
       </Link>
 
       <div className="w-full max-w-[440px] z-10 animate-fade-in">
@@ -85,7 +85,7 @@ function AuthContent() {
               unoptimized
             />
           </div>
-          <h1 className="text-4xl font-black bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tighter mb-1">
+          <h1 className="text-4xl font-black bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tighter mb-1">
             CABALSPY
           </h1>
           <p className="text-muted text-xs font-bold uppercase tracking-[0.2em]">Real-time Token Pulse</p>

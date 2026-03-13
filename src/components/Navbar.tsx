@@ -46,8 +46,8 @@ export default function Navbar({
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
-    <header className="border-b border-panel bg-panel/80 backdrop-blur-sm sticky top-0 z-50 w-full">
-      <div className="w-full px-2 sm:px-4 py-2 sm:py-3">
+    <header className="border-b border-primary/20 bg-panel/80 backdrop-blur-xl sticky top-0 z-50 w-full shadow-[0_4px_20px_-5px_rgba(var(--primary-rgb),0.2)] h-14 sm:h-16 flex items-center">
+      <div className="w-full px-2 sm:px-4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Logo and Navigation */}
           <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 flex-1">
@@ -75,7 +75,7 @@ export default function Navbar({
                 />
                 <div className="absolute inset-0 rounded-full bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-xl font-black tracking-tight whitespace-nowrap">
+              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-xl font-black tracking-tight whitespace-nowrap">
                 CABALSPY
               </span>
             </Link>
@@ -145,28 +145,33 @@ export default function Navbar({
 
           {/* Mobile: Hamburger Menu and Wallet - Show only on mobile (below md breakpoint) */}
           <div
-            style={{
-              display: isMobile ? "flex" : "none",
-              alignItems: "center",
-              gap: "0.5rem",
-            }}
+            className="lg:hidden flex items-center gap-2"
           >
+            {showSearch && onSearchClick && (
+              <button
+                onClick={onSearchClick}
+                className="p-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer text-muted hover:text-primary"
+              >
+                <Search className="w-5 h-5" />
+              </button>
+            )}
             <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
               <DialogTrigger asChild>
                 <button
-                  className="p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95 text-muted hover:text-primary"
+                  className="p-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer active:scale-95 text-muted hover:text-primary border-0 focus:ring-0 active:bg-white/5"
                   title="Menu"
                 >
-                  <Menu className="w-5 h-5 cursor-pointer" />
+                  <Menu className="w-6 h-6 cursor-pointer" />
                 </button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md glass border-0 rounded-3xl shadow-2xl p-0 top-[5%] translate-y-0 max-h-[90vh] overflow-y-auto">
-                <div className="flex flex-col">
+              <DialogContent className="sm:max-w-md glass border-0 rounded-[2.5rem] shadow-[0_0_100px_rgba(var(--primary-rgb),0.2)] p-0 top-[2%] h-auto max-h-[96vh] overflow-hidden focus:ring-0 select-none">
+                <div className="flex flex-col h-full bg-black/40 backdrop-blur-3xl">
                   {/* Header */}
-                  <div className="px-6 pt-6 pb-4">
+                  <div className="px-8 pt-10 pb-6">
                     <DialogHeader className="text-left">
-                      <DialogTitle className="text-white text-2xl font-black tracking-tight">
-                        MENU
+                      <DialogTitle className="text-white text-3xl font-black italic tracking-tighter flex items-center gap-3">
+                        <div className="w-2 h-10 bg-primary shadow-neon" />
+                        TERMINAL MENU
                       </DialogTitle>
                     </DialogHeader>
                   </div>

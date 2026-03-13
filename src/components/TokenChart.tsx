@@ -54,9 +54,10 @@ export function TokenChart({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [iframeSource, setIframeSource] = useState<IframeSource>("dexscreener");
+  const [isForcedIframe, setIsForcedIframe] = useState(false);
 
-  // Use native chart ONLY for active (not-yet-migrated) pump.fun tokens
-  const useNativeChart = isPumpFun && !isMigrated;
+  // Use native chart ONLY for active (not-yet-migrated) pump.fun tokens, unless forced
+  const useNativeChart = isPumpFun && !isMigrated && !isForcedIframe;
 
   // Normalised chain string for DexScreener
   const dexChain =
@@ -88,7 +89,7 @@ export function TokenChart({
     return (
       <div className="h-full w-full flex flex-col gap-2">
         {/* Header row */}
-        <div className="flex-shrink-0 flex items-center justify-between flex-wrap gap-2">
+        <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
           {/* Source switcher */}
           <div className="flex gap-1 bg-panel-elev rounded-lg p-1">
             <button
@@ -125,11 +126,11 @@ export function TokenChart({
         </div>
 
         {/* Embed */}
-        <div className="flex-1 min-h-[300px] w-full bg-panel-elev rounded-lg overflow-hidden border border-gray-800/50">
+        <div className="flex-1 w-full bg-panel-elev rounded-lg overflow-hidden border border-gray-800/50 relative aspect-video md:aspect-auto md:min-h-[400px]">
           <iframe
             key={embedUrl} // re-mount when source changes
             src={embedUrl}
-            className="w-full h-full border-none"
+            className="absolute inset-0 w-full h-full border-none"
             title={`${tokenSymbol} Chart — ${sourceLabel}`}
             allow="clipboard-write"
           />
@@ -142,7 +143,7 @@ export function TokenChart({
   return (
     <div className="h-full w-full flex flex-col" style={{ height: "100%", width: "100%" }}>
       {/* Chart Title and Controls */}
-      <div className="mb-2 sm:mb-4 flex-shrink-0">
+      <div className="mb-2 sm:mb-4 shrink-0">
         <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-1.5 sm:mb-3">
           {tokenSymbol}/{currency === "USD" ? "SOL" : "SOL"} Market Cap ({currency})
         </h3>
@@ -150,7 +151,7 @@ export function TokenChart({
           {/* Chart Type and Timeframe */}
           <div className="flex items-center gap-2 sm:gap-2 min-w-0 flex-1">
             {/* Chart Type Toggle */}
-            <div className="flex gap-1 sm:mr-2 sm:border-r sm:border-gray-800/50 sm:pr-2 flex-shrink-0">
+            <div className="flex gap-1 sm:mr-2 sm:border-r sm:border-gray-800/50 sm:pr-2 shrink-0">
               <button
                 onClick={() => setChartType("candlestick")}
                 className={`px-2 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation ${
@@ -177,7 +178,7 @@ export function TokenChart({
 
             {/* Timeframe */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="text-xs text-gray-400 whitespace-nowrap flex-shrink-0">
+              <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
                 Timeframe:
               </span>
               <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1 min-w-0">
@@ -185,7 +186,7 @@ export function TokenChart({
                   <button
                     key={tf}
                     onClick={() => setTimeframe(tf)}
-                    className={`px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation whitespace-nowrap flex-shrink-0 ${
+                    className={`px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation whitespace-nowrap shrink-0 ${
                       timeframe === tf
                         ? "bg-primary text-white"
                         : "bg-panel-elev text-gray-400 hover:text-white"
@@ -198,23 +199,34 @@ export function TokenChart({
             </div>
           </div>
 
-          {/* Currency */}
-          <div className="flex items-center gap-2 sm:flex-shrink-0">
-            <span className="text-xs text-gray-400 whitespace-nowrap">Currency:</span>
-            <div className="flex gap-1">
-              {(["USD", "SOL"] as const).map((curr) => (
-                <button
-                  key={curr}
-                  onClick={() => setCurrency(curr)}
-                  className={`px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation ${
-                    currency === curr
-                      ? "bg-primary text-white"
-                      : "bg-panel-elev text-gray-400 hover:text-white"
-                  }`}
-                >
-                  {curr}
-                </button>
-              ))}
+          {/* Currency and Embed Toggle */}
+          <div className="flex items-center gap-3 sm:shrink-0">
+            <button
+              onClick={() => setIsForcedIframe(true)}
+              className="px-2.5 py-1.5 sm:px-3 sm:py-1 text-[10px] font-black italic rounded-lg bg-white/5 border border-white/10 text-muted hover:text-primary transition-all flex items-center gap-1.5"
+              title="Switch to External Embed"
+            >
+              <ExternalLink className="w-3 h-3" />
+              SWITCH TO EMBED
+            </button>
+            <div className="h-4 w-px bg-white/5 hidden sm:block" />
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 whitespace-nowrap">Currency:</span>
+              <div className="flex gap-1">
+                {(["USD", "SOL"] as const).map((curr) => (
+                  <button
+                    key={curr}
+                    onClick={() => setCurrency(curr)}
+                    className={`px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation ${
+                      currency === curr
+                        ? "bg-primary text-white font-bold"
+                        : "bg-panel-elev text-gray-400 hover:text-white"
+                    }`}
+                  >
+                    {curr}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -222,8 +234,7 @@ export function TokenChart({
 
       {/* Chart Container */}
       <div
-        className="relative overflow-hidden flex-1"
-        style={{ flex: "1 1 auto", minHeight: "200px", width: "100%" }}
+        className="relative overflow-hidden flex-1 min-h-[350px] md:min-h-[500px] w-full"
       >
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-panel-elev/80 z-10 rounded-lg">
@@ -237,15 +248,22 @@ export function TokenChart({
           <div className="absolute inset-0 flex items-center justify-center bg-panel-elev/80 z-10 rounded-lg">
             <div className="text-center text-gray-400">
               <p className="text-sm mb-3">{error}</p>
-              {/* Offer DexScreener fallback even for pump.fun if native chart fails */}
-              <a
-                href={dexPublicUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-primary hover:underline flex items-center gap-1 justify-center"
-              >
-                View on DexScreener <ExternalLink className="w-3 h-3" />
-              </a>
+              <div className="flex flex-col gap-2 items-center">
+                <button
+                  onClick={() => setIsForcedIframe(true)}
+                  className="px-4 py-2 bg-primary text-black text-xs font-black italic rounded-xl shadow-neon hover:scale-105 transition-all"
+                >
+                  SWITCH TO EMBEDDED CHART
+                </button>
+                <a
+                  href={dexPublicUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 justify-center"
+                >
+                  View on DexScreener <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
             </div>
           </div>
         )}

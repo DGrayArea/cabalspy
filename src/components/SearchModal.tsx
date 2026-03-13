@@ -213,7 +213,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary/30 to-purple-500/20 flex items-center justify-center flex-shrink-0 text-xl">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary/30 to-purple-500/20 flex items-center justify-center flex-shrink-0 text-xl">
                       {tokenResult.symbol[0] || "?"}
                     </div>
                   )}

@@ -20,6 +20,14 @@ export interface TokenData {
     holders: number;
     trades: number;
   };
+  bondingProgress?: number; // 0-1 scale
+  isMigrated?: boolean;
+  raydiumPool?: string;
+  protocol?: string;
+  supply?: number;
+  maxSupply?: number;
+  liquidity?: number; // USD liquidity fallback
+  socials?: { type: 'twitter' | 'telegram' | 'website'; url: string }[];
   // Multi-chain support
   chain?: "solana" | "bsc" | "ethereum" | "base";
   source?: string; // e.g., "pumpapi", "forr.meme"

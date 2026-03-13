@@ -286,7 +286,7 @@ export default function PortfolioPage() {
                           if (fb) fb.style.display = "flex";
                         }}
                       />
-                      <div className="sol-fb w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 items-center justify-center font-bold text-xs absolute inset-0 hidden">
+                      <div className="sol-fb w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-blue-500 items-center justify-center font-bold text-xs absolute inset-0 hidden">
                         SOL
                       </div>
                     </div>
@@ -370,7 +370,7 @@ export default function PortfolioPage() {
                               />
                             ) : null}
                             <div
-                              className={`tok-fb w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 items-center justify-center font-bold text-[10px] ${
+                              className={`tok-fb w-8 h-8 rounded-full bg-linear-to-br from-purple-500/20 to-blue-500/20 items-center justify-center font-bold text-[10px] ${
                                 token.logoUrl ? "absolute inset-0 hidden" : "flex"
                               }`}
                             >

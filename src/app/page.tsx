@@ -25,7 +25,10 @@ import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
 import { SearchModal } from "@/components/SearchModal";
-import { TokenListSkeleton, MarqueeSkeleton } from "@/components/TokenCardSkeleton";
+import {
+  TokenListSkeleton,
+  MarqueeSkeleton,
+} from "@/components/TokenCardSkeleton";
 import LaunchpadStatsCard from "@/components/LaunchpadStatsCard";
 import { pumpFunService } from "@/services/pumpfun";
 import { protocolService } from "@/services/protocols";
@@ -95,7 +98,12 @@ import {
   Lock,
 } from "lucide-react";
 import { getChainLogo } from "@/utils/platformLogos";
-import { formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil, formatPercent, formatPercentCompact } from "@/utils/format";
+import {
+  formatCurrency as formatCurrencyUtil,
+  formatNumber as formatNumberUtil,
+  formatPercent,
+  formatPercentCompact,
+} from "@/utils/format";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { Hero } from "@/components/Hero";
@@ -106,10 +114,10 @@ const TradingPanel = lazy(() => import("@/components/TradingPanel"));
 const WalletSettingsModal = lazy(() =>
   import("../services/WalletSettingsModal").then((mod) => ({
     default: mod.WalletSettingsModal,
-  }))
+  })),
 );
 const DisplaySettingsModal = lazy(
-  () => import("../components/DisplaySettingsModal")
+  () => import("../components/DisplaySettingsModal"),
 );
 
 // Component that uses useSearchParams - must be wrapped in Suspense
@@ -166,7 +174,7 @@ function AuthCallbackHandler() {
           username: user.username,
           discriminator: user.discriminator,
           avatar: user.avatar,
-          roles: user.roles
+          roles: user.roles,
         });
         // Clean URL
         window.history.replaceState({}, "", "/");
@@ -295,6 +303,8 @@ export default function PulsePage() {
     loadMore: mobulaLoadMore,
   } = useMobulaPulse(mobulaEnabled);
 
+  console.log(mobulaEnabled, mobulaLoading, mobulaError, mobulaTokensByFilter);
+
   // Get tokens for current filter
   const mobulaTokens = useMemo(() => {
     if (!mobulaEnabled) return [];
@@ -321,7 +331,6 @@ export default function PulsePage() {
 
   const mobulaAvailable = mobulaEnabled && mobulaTokens.length > 0;
 
-
   const tokens = useMemo(() => {
     if (mobulaEnabled) {
       if (mobulaLoading) {
@@ -340,20 +349,29 @@ export default function PulsePage() {
 
   const isLoading = mobulaEnabled && !mobulaError ? mobulaLoading : wsLoading;
   const error = mobulaEnabled && mobulaError ? mobulaError : wsError;
-  const source = mobulaEnabled && mobulaTokens.length > 0 && !mobulaError ? "mobula" : "websocket";
+  const source =
+    mobulaEnabled && mobulaTokens.length > 0 && !mobulaError
+      ? "mobula"
+      : "websocket";
 
   // Debug logging for token feeds
   useEffect(() => {
     if (typeof window !== "undefined") {
       console.log(`[Display] Source: ${source}, Filter: ${filter}`);
-      console.log(`[Display] Mobula: ${mobulaTokens.length} tokens, WS: ${wsTokens.length} tokens`);
+      console.log(
+        `[Display] Mobula: ${mobulaTokens.length} tokens, WS: ${wsTokens.length} tokens`,
+      );
       console.log(`[Display] Current visible tokens: ${tokens.length}`);
     }
   }, [source, filter, mobulaTokens.length, wsTokens.length, tokens.length]);
 
-
   // Get user from auth context
-  const { user, turnkeyUser, turnkeySession, isLoading: isAuthLoading } = useAuth();
+  const {
+    user,
+    turnkeyUser,
+    turnkeySession,
+    isLoading: isAuthLoading,
+  } = useAuth();
   // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
   const isAuthenticated = user || turnkeyUser || turnkeySession;
 
@@ -418,18 +436,20 @@ export default function PulsePage() {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [hasMore, setHasMore] = useState(true); // For infinite scroll
   // Track which filters have loaded data at least once (to show skeleton on first visit)
-  const [filtersEverLoaded, setFiltersEverLoaded] = useState<Set<string>>(new Set());
+  const [filtersEverLoaded, setFiltersEverLoaded] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Infinite scroll implementation
   const handleLoadMore = useCallback(async () => {
     if (!mobulaEnabled || !mobulaLoadMore) return;
-    
+
     try {
       await mobulaLoadMore(filter);
       // If we get less than expected, no more data
       // This will be handled by the hook internally
     } catch (error) {
-      console.error('Error loading more tokens:', error);
+      console.error("Error loading more tokens:", error);
     }
   }, [mobulaEnabled, mobulaLoadMore, filter]);
 
@@ -437,10 +457,10 @@ export default function PulsePage() {
     handleLoadMore,
     {
       threshold: 0.5,
-      rootMargin: '200px',
+      rootMargin: "200px",
       enabled: mobulaEnabled && !mobulaLoading,
       hasMore,
-    }
+    },
   );
 
   // Helper function to format time from timestamp
@@ -460,14 +480,14 @@ export default function PulsePage() {
         return `${Math.floor(diff / 3600000)}h`;
       }
     },
-    []
+    [],
   );
 
   // Helper function to convert PumpFunTokenInfo to TokenData
   const convertPumpFunToTokenData = useCallback(
     (
       pumpFunData: Awaited<ReturnType<typeof pumpFunService.fetchLatest>>,
-      isFromGraduatedEndpoint = false
+      isFromGraduatedEndpoint = false,
     ) => {
       return pumpFunData.map((info) => {
         // Use creation timestamp for time calculation (not migration timestamp)
@@ -556,7 +576,7 @@ export default function PulsePage() {
         };
       });
     },
-    [formatTimeFromTimestamp]
+    [formatTimeFromTimestamp],
   );
 
   // Fetch all pump.fun token types on mount and when needed
@@ -564,7 +584,6 @@ export default function PulsePage() {
     const fetchAllPumpFunTokens = async () => {
       setIsLoadingPumpFun(true);
       try {
-
         // Call pumpfun service directly from client (better for rate limits - each user makes their own requests)
         const fetchTokens = async (type: string) => {
           try {
@@ -602,7 +621,6 @@ export default function PulsePage() {
 
         await new Promise((resolve) => setTimeout(resolve, 500));
         const marketCap = await fetchTokens("marketCap");
-
 
         // Convert and store each type
         // CRITICAL: Tokens from graduated endpoint are ALWAYS migrated - no need to check API fields
@@ -677,7 +695,7 @@ export default function PulsePage() {
         // Convert pump.fun tokens
         const convertedPumpFun = convertPumpFunToTokenData(
           pumpFunFeatured,
-          false
+          false,
         );
 
         // Convert Jupiter trending tokens
@@ -751,7 +769,7 @@ export default function PulsePage() {
               ? "finalStretch"
               : filter === "graduated"
                 ? "migrated" // API uses "migrated" but we call it "graduated" in UI
-                : undefined
+                : undefined,
         );
 
         // Convert ProtocolToken to TokenData format
@@ -793,7 +811,7 @@ export default function PulsePage() {
                   return token.marketCap
                     ? Math.min(
                         (token.marketCap || 0) / bondingCurveTargetUSD,
-                        1.0
+                        1.0,
                       )
                     : 0;
                 })();
@@ -882,7 +900,7 @@ export default function PulsePage() {
 
         console.log(
           `✅ Fetched ${converted.length} tokens from protocols for ${filter} tab`,
-          { protocols: selectedProtocols, rawCount: protocolTokenData.length }
+          { protocols: selectedProtocols, rawCount: protocolTokenData.length },
         );
 
         // Log protocol breakdown
@@ -936,7 +954,9 @@ export default function PulsePage() {
     // If WebSocket tokens are empty, filter Mobula tokens by chain
     if (solanaTokens.length === 0 && bscTokens.length === 0) {
       if (chain === "sol") {
-        return tokens.filter((t) => t.chain === "solana" || (t as any).chain === "sol");
+        return tokens.filter(
+          (t) => t.chain === "solana" || (t as any).chain === "sol",
+        );
       }
       if (chain === "bsc") {
         return tokens.filter((t) => t.chain === "bsc");
@@ -948,7 +968,9 @@ export default function PulsePage() {
     if (chain === "sol")
       return solanaTokens.length > 0
         ? solanaTokens
-        : tokens.filter((t) => t.chain === "solana" || (t as any).chain === "sol");
+        : tokens.filter(
+            (t) => t.chain === "solana" || (t as any).chain === "sol",
+          );
     if (chain === "bsc")
       return bscTokens.length > 0
         ? bscTokens
@@ -1007,7 +1029,7 @@ export default function PulsePage() {
         (token) =>
           token.name.toLowerCase().includes(query) ||
           token.symbol.toLowerCase().includes(query) ||
-          token.id.toLowerCase().includes(query)
+          token.id.toLowerCase().includes(query),
       );
     }
 
@@ -1059,7 +1081,7 @@ export default function PulsePage() {
         if (mobulaEnabled) {
           if (mobulaTokens.length > 0) {
             console.log(
-              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`
+              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`,
             );
             return mobulaTokens;
           }
@@ -1104,11 +1126,12 @@ export default function PulsePage() {
           // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
           if (mobulaTokens.length > 0) {
             let filteredMobulaTokens = mobulaTokens;
-            
+
             if (filterType === "new") {
               // NEW: Exclude bonded/graduated tokens (must be < 99% and not bonded)
               filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const bondingPercentage =
+                  token._mobulaData?.bondingPercentage || 0;
                 const isBonded = token._mobulaData?.bonded || false;
                 // Exclude tokens that are bonded or have bonding percentage >= 99%
                 return !isBonded && bondingPercentage < 99;
@@ -1116,19 +1139,23 @@ export default function PulsePage() {
             } else if (filterType === "finalStretch") {
               // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
               filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const bondingPercentage =
+                  token._mobulaData?.bondingPercentage || 0;
                 const isBonded = token._mobulaData?.bonded || false;
-                return !isBonded && bondingPercentage >= 90 && bondingPercentage < 99;
+                return (
+                  !isBonded && bondingPercentage >= 90 && bondingPercentage < 99
+                );
               });
             } else if (filterType === "graduated") {
               // GRADUATED: Fully bonded tokens (bondingPercentage === 100% or bonded === true)
               filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-                const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
+                const bondingPercentage =
+                  token._mobulaData?.bondingPercentage || 0;
                 const isBonded = token._mobulaData?.bonded || false;
                 return isBonded || bondingPercentage >= 100;
               });
             }
-            
+
             if (filteredMobulaTokens.length > 0) {
               // console.log(
               //   `🔍 Filter ${filterType}: Using ${filteredMobulaTokens.length} filtered Mobula tokens (from ${mobulaTokens.length} total)`
@@ -1324,7 +1351,7 @@ export default function PulsePage() {
       mobulaLoading,
       lastFetchedFilter,
       filter,
-    ]
+    ],
   );
 
   // Get tokens to display based on selected filter
@@ -1350,7 +1377,9 @@ export default function PulsePage() {
 
     // Debug log for tokens
     if (uniqueTokens.length > 0) {
-      console.log(`[Display] Filter ${filter} has ${uniqueTokens.length} tokens to display`);
+      console.log(
+        `[Display] Filter ${filter} has ${uniqueTokens.length} tokens to display`,
+      );
     } else {
       console.log(`[Display] Filter ${filter} has NO tokens to display yet`);
     }
@@ -1377,18 +1406,24 @@ export default function PulsePage() {
 
     // Only show skeleton on initial load or if explicitly enabled and loading
     if (mobulaEnabled && mobulaLoading) return true;
-    
+
     // For protocol-based filters, show skeleton while protocols are loading
     if (
-      (filter === "new" || filter === "finalStretch" || filter === "graduated") &&
+      (filter === "new" ||
+        filter === "finalStretch" ||
+        filter === "graduated") &&
       isLoadingProtocols
-    ) return true;
-    
+    )
+      return true;
+
     // For pumpfun filters, show skeleton while pumpfun is loading
     if (
-      (filter === "latest" || filter === "featured" || filter === "marketCap") &&
+      (filter === "latest" ||
+        filter === "featured" ||
+        filter === "marketCap") &&
       isLoadingPumpFun
-    ) return true;
+    )
+      return true;
 
     // For trending, show skeleton while WS is loading
     if (filter === "trending" && wsLoading) return true;
@@ -1429,22 +1464,33 @@ export default function PulsePage() {
         }).length;
       }
 
+      // Deduplicate function for counts
+      const getUniqueCount = (items: TokenData[]) => {
+        if (!items) return 0;
+        const seen = new Set<string>();
+        return items.filter(t => {
+          if (seen.has(t.id)) return false;
+          seen.add(t.id);
+          return true;
+        }).length;
+      };
+
       return {
-        trending: mobulaTokensByFilter.trending?.length || 0,
+        trending: getUniqueCount(mobulaTokensByFilter.trending),
         new: mobulaNewCount,
         finalStretch: mobulaFinalStretchCount,
         graduated: mobulaGraduatedCount,
-        latest: mobulaTokensByFilter.latest?.length || 0,
-        featured: mobulaTokensByFilter.featured?.length || 0,
-        marketCap: mobulaTokensByFilter.marketCap?.length || 0,
+        latest: getUniqueCount(mobulaTokensByFilter.latest),
+        featured: getUniqueCount(mobulaTokensByFilter.featured),
+        marketCap: getUniqueCount(mobulaTokensByFilter.marketCap),
       };
     }
 
     // Fallback to non-Mobula counts when Mobula is disabled
     // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
-    const latestCount = (pumpFunTokensByType.latest?.length || 0);
-    const featuredCount = (pumpFunTokensByType.featured?.length || 0);
-    const marketCapCount = (pumpFunTokensByType.marketCap?.length || 0);
+    const latestCount = pumpFunTokensByType.latest?.length || 0;
+    const featuredCount = pumpFunTokensByType.featured?.length || 0;
+    const marketCapCount = pumpFunTokensByType.marketCap?.length || 0;
 
     // NOTE: Graduated = Migrated (same thing - token completed bonding curve)
     // Calculate combined count to avoid double counting
@@ -1530,7 +1576,7 @@ export default function PulsePage() {
                 ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
                 : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
           return bondingProgress >= 0.9 && bondingProgress < 0.99;
-        }
+        },
       );
       finalStretchCount = filteredFinalStretch.length;
     } else {
@@ -1624,48 +1670,60 @@ export default function PulsePage() {
       <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
 
       {/* Main Content */}
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-4 py-8">
-        <Hero />
-        
-        <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16">
-          <div className="flex-1 w-full animate-fade-in">
+      <div className="relative z-10 w-full max-w-[90rem] mx-auto px-4 py-8">
+        {/* Simplified Header/Status row */}
+        <div className="flex flex-col gap-8 mb-12">
+          <div className="w-full animate-fade-in">
             <LaunchpadStatsCard />
           </div>
-          
-          <div className="w-full md:w-auto flex items-center gap-3 p-1.5 rounded-[2rem] glass border border-white/10 shrink-0 animate-fade-in">
-            {[
-              { id: "all", label: "ALL", logo: null },
-              { id: "sol", label: "SOL", logo: "solana" },
-              { id: "bsc", label: "BSC", logo: "bsc" }
-            ].map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setChain(c.id as any)}
-                className={`px-8 py-3 rounded-[1.5rem] text-[10px] font-black tracking-widest transition-all flex items-center gap-2 ${
-                  chain === c.id
-                    ? "bg-primary text-black shadow-neon scale-105"
-                    : "text-muted hover:text-white hover:bg-white/5"
-                }`}
-              >
-                {c.logo && (
-                  <img
-                    src={getChainLogo(c.logo as any)}
-                    alt={c.label}
-                    className="w-4 h-4 rounded-full ring-1 ring-white/20"
-                  />
-                )}
-                {c.label}
-              </button>
-            ))}
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div className="flex items-center gap-3 p-1.5 rounded-[2rem] glass border border-white/10 animate-fade-in shadow-xl bg-black/20">
+              {[
+                { id: "all", label: "ALL", logo: null },
+                { id: "sol", label: "SOL", logo: "solana" },
+                { id: "bsc", label: "BSC", logo: "bsc" },
+              ].map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => setChain(c.id as any)}
+                  className={`px-8 py-2.5 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-2 ${
+                    chain === c.id
+                      ? "bg-primary text-black shadow-neon scale-105"
+                      : "text-muted hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {c.logo && (
+                    <img
+                      src={getChainLogo(c.logo as any)}
+                      alt={c.label}
+                      className="w-3.5 h-3.5 rounded-full ring-1 ring-white/20"
+                    />
+                  )}
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 px-6 py-2 rounded-full glass border border-white/5 bg-primary/5">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
+              </span>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+                Live Terminal Active
+              </span>
+            </div>
           </div>
         </div>
-      </div>
 
         {/* Top Featured Tokens Marquee */}
         <div className="mb-16 animate-fade-in">
           <div className="px-4 mb-4 flex items-center gap-3">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-black italic tracking-tight">TOP FEATURED</h2>
+            <h2 className="text-xl font-black italic tracking-tight">
+              TOP FEATURED
+            </h2>
           </div>
           {featuredTokens.length > 0 ? (
             <div className="glass rounded-[2rem] p-4 border-white/5">
@@ -1676,140 +1734,148 @@ export default function PulsePage() {
           )}
         </div>
 
-          {/* Filter Tabs with Counts */}
-          <div className="mb-8 w-full sticky top-[72px] bg-app/80 backdrop-blur-xl z-40 py-4 -mx-4 px-4 border-y border-white/5 shadow-2xl">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-              <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-1">
-                {[
-                  {
-                    id: "trending",
-                    label: "TRENDING",
-                    count: filterCounts.trending ?? 0,
-                    icon: TrendingUpIcon,
-                    accent: "primary"
-                  },
-                  {
-                    id: "new",
-                    label: "NEW PAIRS",
-                    count: filterCounts.new ?? 0,
-                    icon: Sparkles,
-                    accent: "secondary"
-                  },
-                  {
-                    id: "finalStretch",
-                    label: "FINAL STRETCH",
-                    count: filterCounts.finalStretch ?? 0,
-                    icon: Zap,
-                    accent: "accent"
-                  },
-                  {
-                    id: "graduated",
-                    label: "GRADUATED",
-                    count: filterCounts.graduated ?? 0,
-                    icon: CheckCircle2,
-                    accent: "primary"
-                  },
-                  {
-                    id: "latest",
-                    label: "LATEST",
-                    count: filterCounts.latest ?? 0,
-                    icon: Clock,
-                    accent: "muted"
-                  },
-                  {
-                    id: "marketCap",
-                    label: "TOP MC",
-                    count: filterCounts.marketCap ?? 0,
-                    icon: BarChart3,
-                    accent: "muted"
-                  },
-                ].map(({ id, label, count, icon: Icon, accent }) => (
-                  <button
-                    key={id}
-                    onClick={() => setFilter(id as typeof filter)}
-                    className={`group relative px-5 py-3 rounded-2xl transition-all flex items-center gap-3 whitespace-nowrap overflow-hidden ${
-                      filter === id
-                        ? "text-white"
-                        : "text-muted hover:text-white"
-                    }`}
-                  >
-                    {filter === id && (
-                      <div className={`absolute inset-0 bg-${accent}/10 border border-${accent}/20 animate-fade-in`} />
-                    )}
-                    <Icon className={`w-4 h-4 relative z-10 ${filter === id ? `text-${accent}` : "opacity-50"}`} />
-                    <div className="flex flex-col items-start relative z-10">
-                      <span className="text-[10px] font-black tracking-[0.1em]">{label}</span>
-                      <span className="text-[9px] font-bold opacity-40 group-hover:opacity-60 transition-opacity">
-                        {count.toLocaleString()} ITEMS
-                      </span>
-                    </div>
-                    {filter === id && (
-                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${accent} shadow-neon`} />
-                    )}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowProtocolModal(true)}
-                  className="p-3 glass rounded-2xl hover:border-primary/40 transition-all group"
-                  title="Protocol Filters"
-                >
-                  <Sliders className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
-                </button>
-                <div className="h-8 w-px bg-white/5 mx-1" />
-                <button
-                  className="p-3 glass rounded-2xl hover:border-white/20 transition-all opacity-50 hover:opacity-100"
-                  title="Notifications"
-                >
-                  <Bell className="w-4 h-4 text-muted" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Icons and Display dropdown */}
-          <div className="mb-8 flex items-center gap-4 justify-end px-4">
-            <div className="flex items-center gap-2 glass p-1.5 rounded-2xl border-white/5">
+        {/* Filter Tabs with Counts - Sticky below Navbar */}
+        <div className="mb-12 w-full sticky top-14 sm:top-16 bg-app/90 backdrop-blur-2xl z-40 py-2 -mx-4 px-4 border-y border-white/5 shadow-2xl overflow-hidden">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+            <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2 snap-x">
               {[
-                { icon: Bell, title: "Notifications" },
-                { icon: Volume2, title: "Sound" },
-                { icon: Calendar, title: "Calendar" }
-              ].map((item, idx) => (
+                {
+                  id: "trending",
+                  label: "TRENDING",
+                  count: filterCounts.trending ?? 0,
+                  icon: TrendingUpIcon,
+                  accent: "primary",
+                },
+                {
+                  id: "new",
+                  label: "NEW PAIRS",
+                  count: filterCounts.new ?? 0,
+                  icon: Sparkles,
+                  accent: "secondary",
+                },
+                {
+                  id: "finalStretch",
+                  label: "FINAL STRETCH",
+                  count: filterCounts.finalStretch ?? 0,
+                  icon: Zap,
+                  accent: "accent",
+                },
+                {
+                  id: "graduated",
+                  label: "GRADUATED",
+                  count: filterCounts.graduated ?? 0,
+                  icon: CheckCircle2,
+                  accent: "primary",
+                },
+                {
+                  id: "latest",
+                  label: "LATEST",
+                  count: filterCounts.latest ?? 0,
+                  icon: Clock,
+                  accent: "muted",
+                },
+                {
+                  id: "marketCap",
+                  label: "TOP MC",
+                  count: filterCounts.marketCap ?? 0,
+                  icon: BarChart3,
+                  accent: "muted",
+                },
+              ].map(({ id, label, count, icon: Icon, accent }) => (
                 <button
-                  key={idx}
-                  className="p-2.5 hover:bg-white/5 rounded-xl transition-all group"
-                  title={item.title}
+                  key={id}
+                  onClick={() => setFilter(id as typeof filter)}
+                  className={`group relative px-5 py-3 rounded-2xl transition-all flex items-center gap-3 whitespace-nowrap overflow-hidden ${
+                    filter === id ? "text-white" : "text-muted hover:text-white"
+                  }`}
                 >
-                  <item.icon className="w-4 h-4 text-muted group-hover:text-white" />
+                  {filter === id && (
+                    <div
+                      className={`absolute inset-0 bg-${accent}/10 border border-${accent}/20 animate-fade-in`}
+                    />
+                  )}
+                  <Icon
+                    className={`w-4 h-4 relative z-10 ${filter === id ? `text-${accent}` : "opacity-50"}`}
+                  />
+                  <div className="flex flex-col items-start relative z-10">
+                    <span className="text-[10px] font-black tracking-[0.1em]">
+                      {label}
+                    </span>
+                    <span className="text-[9px] font-bold opacity-40 group-hover:opacity-60 transition-opacity">
+                      {count.toLocaleString()} ITEMS
+                    </span>
+                  </div>
+                  {filter === id && (
+                    <div
+                      className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${accent} shadow-neon`}
+                    />
+                  )}
                 </button>
               ))}
             </div>
 
-            <div className="relative">
+            <div className="flex items-center gap-2">
               <button
-                onClick={() => setShowDisplaySettings(!showDisplaySettings)}
-                className={`px-6 py-3 bg-panel border rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${
-                  showDisplaySettings
-                    ? "border-primary text-primary bg-primary/5 shadow-neon"
-                    : "border-white/10 text-muted hover:border-white/20 hover:text-white"
-                }`}
+                onClick={() => setShowProtocolModal(true)}
+                className="p-3 glass rounded-2xl hover:border-primary/40 transition-all group"
+                title="Protocol Filters"
               >
-                Terminal Settings
-                <ChevronDownIcon className={`w-3 h-3 transition-transform duration-300 ${showDisplaySettings ? "rotate-180" : ""}`} />
+                <Sliders className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
               </button>
-              {showDisplaySettings && (
-                <Suspense fallback={null}>
-                  <div className="absolute top-full right-0 mt-4 z-50 animate-fade-in">
-                    <DisplaySettingsModal
-                      onClose={() => setShowDisplaySettings(false)}
-                      displaySettings={displaySettings}
-                      setDisplaySettings={setDisplaySettings}
-                    />
-                  </div>
-                </Suspense>
-              )}
+              <div className="h-8 w-px bg-white/5 mx-1" />
+              <button
+                className="p-3 glass rounded-2xl hover:border-white/20 transition-all opacity-50 hover:opacity-100"
+                title="Notifications"
+              >
+                <Bell className="w-4 h-4 text-muted" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Icons and Display dropdown */}
+        <div className="mb-8 flex items-center gap-4 justify-end px-4">
+          <div className="flex items-center gap-2 glass p-1.5 rounded-2xl border-white/5">
+            {[
+              { icon: Bell, title: "Notifications" },
+              { icon: Volume2, title: "Sound" },
+              { icon: Calendar, title: "Calendar" },
+            ].map((item, idx) => (
+              <button
+                key={idx}
+                className="p-2.5 hover:bg-white/5 rounded-xl transition-all group"
+                title={item.title}
+              >
+                <item.icon className="w-4 h-4 text-muted group-hover:text-white" />
+              </button>
+            ))}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowDisplaySettings(!showDisplaySettings)}
+              className={`px-6 py-3 bg-panel border rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${
+                showDisplaySettings
+                  ? "border-primary text-primary bg-primary/5 shadow-neon"
+                  : "border-white/10 text-muted hover:border-white/20 hover:text-white"
+              }`}
+            >
+              Terminal Settings
+              <ChevronDownIcon
+                className={`w-3 h-3 transition-transform duration-300 ${showDisplaySettings ? "rotate-180" : ""}`}
+              />
+            </button>
+            {showDisplaySettings && (
+              <Suspense fallback={null}>
+                <div className="absolute top-full right-0 mt-4 z-50 animate-fade-in">
+                  <DisplaySettingsModal
+                    onClose={() => setShowDisplaySettings(false)}
+                    displaySettings={displaySettings}
+                    setDisplaySettings={setDisplaySettings}
+                  />
+                </div>
+              </Suspense>
+            )}
           </div>
         </div>
 
@@ -1817,15 +1883,19 @@ export default function PulsePage() {
         <div className="pb-32">
           {showSkeleton ? (
             <div className="px-4">
-               <TokenListSkeleton count={12} />
+              <TokenListSkeleton count={12} />
             </div>
           ) : tokensToDisplay.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 glass rounded-[3rem] border-white/5 mx-4">
               <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-6">
                 <Activity className="w-10 h-10 text-muted" />
               </div>
-              <h3 className="text-xl font-black italic text-muted">NO SIGNALS DETECTED</h3>
-              <p className="text-xs font-bold text-muted/50 uppercase tracking-widest mt-2">Adjust your filters or wait for new data</p>
+              <h3 className="text-xl font-black italic text-muted">
+                NO SIGNALS DETECTED
+              </h3>
+              <p className="text-xs font-bold text-muted/50 uppercase tracking-widest mt-2">
+                Adjust your filters or wait for new data
+              </p>
             </div>
           ) : (
             <div className="px-4">
@@ -1841,7 +1911,7 @@ export default function PulsePage() {
                   />
                 ))}
               </div>
-              
+
               {/* Infinite scroll sentinel element */}
               {mobulaEnabled && (
                 <div ref={observerTarget} className="py-8 flex justify-center">
@@ -1856,6 +1926,7 @@ export default function PulsePage() {
             </div>
           )}
         </div>
+      </div>
 
       <Footer />
 
@@ -1880,7 +1951,7 @@ export default function PulsePage() {
               </span>
               <button
                 onClick={() => {
-                  const allProtocols = [
+                  const protocols = [
                     "pump",
                     "raydium",
                     "meteora",
@@ -1905,9 +1976,9 @@ export default function PulsePage() {
                     "wavebreak",
                   ];
                   setSelectedProtocols(
-                    selectedProtocols.length === allProtocols.length
+                    selectedProtocols.length === protocols.length
                       ? []
-                      : allProtocols
+                      : protocols,
                   );
                 }}
                 className="text-xs text-primary hover:text-primary-light transition-colors cursor-pointer"
@@ -1966,7 +2037,7 @@ export default function PulsePage() {
                       setSelectedProtocols((prev) =>
                         isSelected
                           ? prev.filter((p) => p !== protocol.id)
-                          : [...prev, protocol.id]
+                          : [...prev, protocol.id],
                       );
                     }}
                     className={`px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer border-2 ${
@@ -2028,436 +2099,5 @@ export default function PulsePage() {
         </Suspense>
       )}
     </div>
-  );
-}
-
-function TokenCard({
-  token,
-  formatCurrency,
-  formatNumber,
-}: {
-  token: TokenData;
-  formatCurrency: (value: number) => string;
-  formatNumber: (value: number) => string;
-}) {
-  const [imageError, setImageError] = useState(false);
-  const [showTradingPanel, setShowTradingPanel] = useState(false);
-  const [hoveredMetric, setHoveredMetric] = useState<string | null>(null);
-
-  const percentageChange =
-    token.percentages.reduce((sum, p) => sum + p, 0) /
-      token.percentages.length || 0;
-  const isPositive = percentageChange >= 0;
-  const isTrending = token.volume > 1000;
-
-  const parseTimeToSeconds = (timeStr: string): number => {
-    const match = timeStr.match(/(\d+)([smh])/);
-    if (!match) return 0;
-    const value = parseInt(match[1]);
-    const unit = match[2];
-    switch (unit) {
-      case "s":
-        return value;
-      case "m":
-        return value * 60;
-      case "h":
-        return value * 3600;
-      default:
-        return 0;
-    }
-  };
-
-  const isNew = parseTimeToSeconds(token.time) < 300;
-
-  // Calculate buy/sell ratio (mock data - would come from API)
-  const buyCount = Math.floor(token.transactions * 0.55);
-  const sellCount = token.transactions - buyCount;
-  const netValue = token.volume * (isPositive ? 1.1 : 0.9);
-
-  // Generate mini sparkline data
-  const sparklineData = useMemo(() => {
-    const points = 20;
-    const base = 50;
-    return Array.from({ length: points }, (_, i) => {
-      const variation = Math.sin((i / points) * Math.PI * 2) * 20;
-      return base + variation + (isPositive ? 10 : -10);
-    });
-  }, [isPositive]);
-
-  return (
-    <>
-      <div className="bg-panel border border-gray-800/50 rounded-xl p-3 hover:border-[var(--primary-border)] transition-all hover:shadow-lg hover:shadow-[var(--primary)]/5 group relative w-full max-w-sm sm:max-w-none">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-2">
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {token.image && !imageError ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-800/50 relative group/token">
-                <Image
-                  src={token.image}
-                  alt={token.symbol}
-                  width={40}
-                  height={40}
-                  className="w-full h-full object-cover"
-                  onError={() => setImageError(true)}
-                  unoptimized
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover/token:bg-black/20 transition-colors flex items-center justify-center opacity-0 group-hover/token:opacity-100">
-                  <ExternalLink className="w-3 h-3 text-[var(--primary-text)]" />
-                </div>
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--primary)]/30 via-purple-500/20 to-green-500/30 flex items-center justify-center flex-shrink-0 ring-2 ring-gray-800/50 text-xl shadow-lg shadow-[var(--primary)]/10">
-                {token.icon}
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <h3 className="font-semibold text-xs truncate">{token.name}</h3>
-                {isNew && (
-                  <span className="px-1.5 py-0.5 bg-gradient-to-r from-green-500/30 to-emerald-500/30 border border-green-500/30 text-green-400 text-[10px] rounded-md font-medium flex items-center gap-0.5 flex-shrink-0 shadow-sm shadow-green-500/20">
-                    <Sparkles className="w-2.5 h-2.5 text-green-400" />
-                    NEW
-                  </span>
-                )}
-                <div className="relative group/info">
-                  <Info className="w-3 h-3 text-[var(--primary-text)]/70 hover:text-[var(--primary-text)] cursor-pointer transition-colors" />
-                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover/info:block z-50">
-                    <div className="bg-panel-elev border border-gray-800/50 rounded-lg p-2 text-xs w-48 shadow-xl">
-                      <div className="font-medium mb-1 text-[var(--primary-text)]">
-                        Token Details
-                      </div>
-                      <div className="space-y-0.5 text-gray-300">
-                        <div className="flex items-center gap-1">
-                          <Link2 className="w-2.5 h-2.5 text-gray-500" />
-                          <span className="text-gray-400 font-mono text-[10px]">
-                            {token.id.slice(0, 8)}...
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <DollarSign className="w-2.5 h-2.5 text-green-400" />
-                          <span>${token.price.toFixed(6)}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Coins className="w-2.5 h-2.5 text-yellow-400" />
-                          <span>Fee: {token.fee.toFixed(4)}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-[10px] text-gray-400">
-                  {token.symbol}
-                </span>
-                <span className="text-[10px] text-gray-600">•</span>
-                <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                  <Clock className="w-2.5 h-2.5" />
-                  {token.time}
-                </span>
-                <span className="text-[10px] text-[var(--primary-text)] ml-1">
-                  @{token.symbol.toLowerCase()}
-                </span>
-              </div>
-            </div>
-          </div>
-          {isTrending && (
-            <div className="flex-shrink-0 relative group/trending">
-              <div className="relative">
-                <Flame className="w-4 h-4 text-orange-400 animate-pulse cursor-pointer" />
-                <div className="absolute inset-0 bg-orange-400/20 blur-sm rounded-full"></div>
-              </div>
-              <div className="absolute right-0 bottom-full mb-2 hidden group-hover/trending:block z-50">
-                <div className="bg-panel-elev border border-gray-800/50 rounded-lg p-2 text-xs w-32 shadow-xl">
-                  <div className="text-orange-400 font-medium flex items-center gap-1">
-                    <Flame className="w-3 h-3" />
-                    Trending
-                  </div>
-                  <div className="text-gray-300">High volume activity</div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Mini Sparkline Chart */}
-        <div className="mb-2 h-8 bg-gradient-to-br from-panel-elev/40 to-panel-elev/20 rounded-md relative overflow-hidden group/chart border border-gray-800/30">
-          <svg
-            className="w-full h-full"
-            viewBox="0 0 100 30"
-            preserveAspectRatio="none"
-          >
-            <defs>
-              <linearGradient
-                id={`gradient-${token.id}`}
-                x1="0%"
-                y1="0%"
-                x2="0%"
-                y2="100%"
-              >
-                <stop
-                  offset="0%"
-                  stopColor={isPositive ? "#10b981" : "#ef4444"}
-                  stopOpacity="0.3"
-                />
-                <stop
-                  offset="100%"
-                  stopColor={isPositive ? "#10b981" : "#ef4444"}
-                  stopOpacity="0"
-                />
-              </linearGradient>
-            </defs>
-            <polyline
-              points={sparklineData
-                .map(
-                  (y, i) =>
-                    `${(i / sparklineData.length) * 100},${30 - (y / 100) * 30}`
-                )
-                .join(" ")}
-              fill={`url(#gradient-${token.id})`}
-              stroke={isPositive ? "#10b981" : "#ef4444"}
-              strokeWidth="2"
-              className="transition-all"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/chart:opacity-100 transition-opacity bg-black/30 rounded-md">
-            <span
-              className={`text-[10px] font-bold ${isPositive ? "text-green-400" : "text-red-400"}`}
-            >
-              {formatPercent(percentageChange)}
-            </span>
-          </div>
-        </div>
-
-        {/* Market Cap & Change */}
-        <div className="mb-2 bg-panel-elev/30 rounded-lg p-2 border border-gray-800/20">
-          <div className="flex items-baseline justify-between mb-1">
-            <span className="text-[10px] text-gray-400 flex items-center gap-1">
-              <DollarSign className="w-2.5 h-2.5 text-green-400" />
-              <span>MC</span>
-            </span>
-            <div
-              className={`flex items-center gap-0.5 text-xs font-bold px-1.5 py-0.5 rounded ${isPositive ? "text-green-400 bg-green-500/10" : "text-red-400 bg-red-500/10"}`}
-            >
-              {isPositive ? (
-                <ArrowUpRight className="w-3 h-3" />
-              ) : (
-                <ArrowDownRight className="w-3 h-3" />
-              )}
-              {formatPercentCompact(Math.abs(percentageChange), false)}
-            </div>
-          </div>
-          <div className="text-base font-bold text-white">
-            {formatCurrency(token.marketCap)}
-          </div>
-        </div>
-
-        {/* Compact Metrics Grid */}
-        <div className="grid grid-cols-3 gap-1.5 mb-2">
-          <div className="bg-gradient-to-br from-[var(--primary)]/10 to-[var(--primary-dark)]/5 rounded-lg p-1.5 border border-[var(--primary-border)] relative group/metric">
-            <div className="text-[9px] text-gray-400 mb-0.5 flex items-center gap-0.5">
-              <BarChart3 className="w-2.5 h-2.5 text-[var(--primary-text)]" />
-              <span>V</span>
-            </div>
-            <div className="text-xs font-semibold text-[var(--primary-lighter)]">
-              {formatCurrency(token.volume)}
-            </div>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/metric:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-32 shadow-xl">
-                <div className="font-medium text-[var(--primary-text)] flex items-center gap-1">
-                  <BarChart3 className="w-2.5 h-2.5" />
-                  Volume
-                </div>
-                <div className="text-gray-300">24h trading volume</div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/5 rounded-lg p-1.5 border border-purple-500/20 relative group/metric">
-            <div className="text-[9px] text-gray-400 mb-0.5 flex items-center gap-0.5">
-              <Activity className="w-2.5 h-2.5 text-purple-400" />
-              <span>TX</span>
-            </div>
-            <div className="text-xs font-semibold text-purple-300">
-              {formatNumber(token.transactions)}
-            </div>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/metric:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-36 shadow-xl">
-                <div className="font-medium text-purple-400 flex items-center gap-1">
-                  <Activity className="w-2.5 h-2.5" />
-                  Transactions
-                </div>
-                <div className="text-green-400">{buyCount} buy</div>
-                <div className="text-red-400">{sellCount} sell</div>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 rounded-lg p-1.5 border border-yellow-500/20 relative group/metric">
-            <div className="text-[9px] text-gray-400 mb-0.5 flex items-center gap-0.5">
-              <Coins className="w-2.5 h-2.5 text-yellow-400" />
-              <span>F</span>
-            </div>
-            <div className="text-xs font-semibold text-yellow-300">
-              {token.fee.toFixed(3)}
-            </div>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/metric:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-32 shadow-xl">
-                <div className="font-medium text-yellow-400 flex items-center gap-1">
-                  <Coins className="w-2.5 h-2.5" />
-                  Fee
-                </div>
-                <div className="text-gray-300">Trading fee %</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Percentage Bars with Tooltip */}
-        <div className="flex items-center gap-0.5 mb-2 relative group/bars bg-panel-elev/20 rounded-md p-1.5 border border-gray-800/20">
-          {token.percentages.map((pct, idx) => (
-            <div
-              key={idx}
-              className={`h-2 flex-1 rounded transition-all ${
-                pct > 0
-                  ? "bg-gradient-to-t from-green-500 to-green-400"
-                  : pct < 0
-                    ? "bg-gradient-to-t from-red-500 to-red-400"
-                    : "bg-gray-700"
-              }`}
-              style={{ opacity: Math.max(0.4, Math.abs(pct) / 100) }}
-            />
-          ))}
-          <div className="absolute left-0 top-full mt-1 hidden group-hover/bars:block z-50">
-            <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-40 shadow-xl">
-              <div className="font-medium mb-1 text-[var(--primary-text)] flex items-center gap-1">
-                <BarChart3 className="w-2.5 h-2.5" />
-                Price Change
-              </div>
-              <div className="space-y-0.5">
-                {token.percentages.map((pct, idx) => (
-                  <div key={idx} className="flex justify-between items-center">
-                    <span className="text-gray-400">Bar {idx + 1}:</span>
-                    <span
-                      className={`font-medium ${pct > 0 ? "text-green-400" : pct < 0 ? "text-red-400" : "text-gray-400"}`}
-                    >
-                      {formatPercentCompact(pct)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Activity Stats Row */}
-        <div className="flex items-center justify-between text-[10px] text-gray-400 mb-2 pb-2 border-b border-gray-800/30">
-          <div className="flex items-center gap-1 relative group/stat px-1.5 py-0.5 rounded hover:bg-panel-elev/50 transition-colors">
-            <Eye className="w-2.5 h-2.5 text-cyan-400" />
-            <span className="text-cyan-300">
-              {formatNumber(token.activity.views)}
-            </span>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/stat:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-28 shadow-xl">
-                <div className="font-medium text-cyan-400 flex items-center gap-1">
-                  <Eye className="w-2.5 h-2.5" />
-                  Views
-                </div>
-                <div className="text-gray-300">Total views</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 relative group/stat px-1.5 py-0.5 rounded hover:bg-panel-elev/50 transition-colors">
-            <Users className="w-2.5 h-2.5 text-indigo-400" />
-            <span className="text-indigo-300">
-              {formatNumber(token.activity.holders)}
-            </span>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/stat:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-28 shadow-xl">
-                <div className="font-medium text-indigo-400 flex items-center gap-1">
-                  <Users className="w-2.5 h-2.5" />
-                  Holders
-                </div>
-                <div className="text-gray-300">Unique holders</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 relative group/stat px-1.5 py-0.5 rounded hover:bg-panel-elev/50 transition-colors">
-            <MessageSquare className="w-2.5 h-2.5 text-pink-400" />
-            <span className="text-pink-300">
-              {formatNumber(token.activity.trades)}
-            </span>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/stat:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-28 shadow-xl">
-                <div className="font-medium text-pink-400 flex items-center gap-1">
-                  <MessageSquare className="w-2.5 h-2.5" />
-                  Trades
-                </div>
-                <div className="text-gray-300">Total trades</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 relative group/stat px-1.5 py-0.5 rounded hover:bg-panel-elev/50 transition-colors">
-            <Star className="w-2.5 h-2.5 text-amber-400" />
-            <span className="text-amber-300">Q{token.activity.Q}</span>
-            <div className="absolute left-0 top-full mt-1 hidden group-hover/stat:block z-50">
-              <div className="bg-panel-elev border border-gray-800/50 rounded p-1.5 text-[10px] w-32 shadow-xl">
-                <div className="font-medium text-amber-400 flex items-center gap-1">
-                  <Star className="w-2.5 h-2.5" />
-                  Quality Score
-                </div>
-                <div className="text-gray-300">Token quality rating</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Net Value & Transaction Count */}
-        <div className="flex items-center justify-between text-[10px] mb-2 bg-panel-elev/30 rounded-md px-2 py-1 border border-gray-800/20">
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`font-semibold ${isPositive ? "text-green-400" : "text-red-400"}`}
-            >
-              N{isPositive ? "+" : ""}
-              {formatCurrency(netValue)}
-            </span>
-            <span className="text-gray-500">•</span>
-            <span className="text-gray-400 flex items-center gap-0.5">
-              <Activity className="w-2.5 h-2.5 text-purple-400" />
-              <span className="text-gray-300">{token.transactions}</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-panel/50">
-            <span className="text-green-400 font-medium">{buyCount}</span>
-            <span className="text-gray-600">/</span>
-            <span className="text-red-400 font-medium">{sellCount}</span>
-          </div>
-        </div>
-
-        {/* Action Button */}
-        <button
-          onClick={() => setShowTradingPanel(true)}
-          className="w-full py-2 bg-gradient-to-r from-[var(--primary-dark)] to-[var(--primary-darker)] hover:from-[var(--primary-darker)] hover:to-[var(--primary-darker)] text-white text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 group-hover:shadow-lg group-hover:shadow-[var(--primary)]/20 cursor-pointer"
-        >
-          <Zap className="w-3 h-3 cursor-pointer" />
-          Buy {token.symbol}
-        </button>
-      </div>
-
-      {showTradingPanel && (
-        <Suspense
-          fallback={
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-              <div className="bg-gray-800 rounded-lg p-6">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-              </div>
-            </div>
-          }
-        >
-          <TradingPanel
-            token={token}
-            onClose={() => setShowTradingPanel(false)}
-          />
-        </Suspense>
-      )}
-    </>
   );
 }

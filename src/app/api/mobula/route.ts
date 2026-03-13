@@ -86,6 +86,8 @@ export async function GET(request: NextRequest) {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        // Vercel Edge Caching: Cache for 15s at the edge, allow 30s of stale data
+        "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
       },
     });
   } catch (error: any) {
@@ -144,6 +146,8 @@ export async function POST(request: NextRequest) {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        // POST requests are usually not cached by default, but we can force it for these static views
+        "Cache-Control": "public, s-maxage=15, stale-while-revalidate=30",
       },
     });
   } catch (error: any) {

@@ -79,26 +79,25 @@ export class AIPlatformDetector {
    * Uses endpoint patterns, token signatures, and known platform indicators
    */
   private detectPlatformFromPatterns(token: TokenPlatformData): DetectedPlatform {
-    // Check explicit source/protocol first
+    const rawData = (token as any)._mobulaData || {};
+    const poolType = (rawData.poolType || token.protocol || token.source || "").toLowerCase();
+
+    // Check explicit pool types/protocols first
+    if (poolType.includes('pumpfun') || poolType.includes('pumpswap')) return 'pump';
+    if (poolType.includes('raydium')) return 'raydium';
+    if (poolType.includes('meteora')) return 'meteora';
+    if (poolType.includes('orca')) return 'orca';
+    if (poolType.includes('moonshot')) return 'moonshot';
+    if (poolType.includes('jupiter')) return 'jupiter-studio';
+    if (poolType.includes('moonit')) return 'moonit';
+    if (poolType.includes('letsbonk') || poolType.includes('bonk')) return 'bonk';
+    if (poolType.includes('heaven')) return 'heaven';
+
+    // Check explicit source/protocol strings as fallback
     if (token.source) {
       const source = token.source.toLowerCase();
       if (source.includes('pump') || source === 'pumpportal') return 'pump';
       if (source.includes('raydium')) return 'raydium';
-      if (source.includes('meteora')) return 'meteora';
-      if (source.includes('orca')) return 'orca';
-      if (source.includes('moonshot')) return 'moonshot';
-      if (source.includes('jupiter')) return 'jupiter-studio';
-      if (source.includes('bonk')) return 'bonk';
-    }
-
-    if (token.protocol) {
-      const protocol = token.protocol.toLowerCase();
-      if (protocol.includes('pump')) return 'pump';
-      if (protocol.includes('raydium')) return 'raydium';
-      if (protocol.includes('meteora')) return 'meteora';
-      if (protocol.includes('orca')) return 'orca';
-      if (protocol.includes('moonshot')) return 'moonshot';
-      if (protocol.includes('jupiter')) return 'jupiter-studio';
     }
 
     // Check for Raydium pool indicator
@@ -106,11 +105,11 @@ export class AIPlatformDetector {
       return 'raydium';
     }
 
-    // Check token ID patterns
+    // Check token ID patterns - Pump.fun tokens MUST end with "pump" on Solana
     const tokenId = token.id.toLowerCase();
+    const tokenAddress = tokenId.includes(':') ? tokenId.split(':')[1] : tokenId;
     
-    // Pump.fun tokens often end with "pump"
-    if (tokenId.endsWith('pump')) {
+    if (tokenAddress.endsWith('pump')) {
       return 'pump';
     }
 
@@ -120,14 +119,12 @@ export class AIPlatformDetector {
       if (imageUrl.includes('pump.fun') || imageUrl.includes('pumpportal')) return 'pump';
       if (imageUrl.includes('raydium')) return 'raydium';
       if (imageUrl.includes('meteora')) return 'meteora';
-      if (imageUrl.includes('orca')) return 'orca';
-      if (imageUrl.includes('moonshot')) return 'moonshot';
-      if (imageUrl.includes('jupiter')) return 'jupiter-studio';
     }
 
-    // Default based on chain
+    // Final fallback for Solana items
     if (token.chain === 'solana') {
-      return 'pump'; // Default Solana tokens to pump.fun
+      // If it doesn't end in 'pump', it's likely a standard SPL token on Raydium
+      return 'raydium';
     }
 
     return 'unknown';

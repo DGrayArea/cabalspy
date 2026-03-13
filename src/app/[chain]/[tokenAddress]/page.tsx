@@ -43,6 +43,7 @@ import {
   Flame,
   Globe,
   MessageCircle,
+  ArrowUpRight,
 } from "lucide-react";
 import { formatCurrency, formatNumber, formatPercent, formatPercentCompact } from "@/utils/format";
 import { TokenData } from "@/types/token";
@@ -290,6 +291,7 @@ function TokenDetailContent() {
   const marketCap = dexscreenerData?.fdv || geckoTerminalData?.marketCap || pumpfunData?.marketCap || baseToken?.marketCap || 0;
   const volume = dexscreenerData?.volume24h || geckoTerminalData?.volume24h || pumpfunData?.volume || baseToken?.volume || 0;
   const priceChange = dexscreenerData?.priceChange1h ?? dexscreenerData?.priceChange24h ?? 0;
+  const holders = tokenData?.data?.holders || [];
   const isPositive = priceChange >= 0;
 
   const bondingProgress = pumpfunData?.bondingProgress ?? (baseToken as any)?.bondingProgress ?? 0;
@@ -315,13 +317,13 @@ function TokenDetailContent() {
 
                <div className="absolute top-8 right-8">
                  <div className={`px-6 py-3 rounded-2xl font-black italic text-lg tracking-tighter ${isPositive ? "bg-primary/10 text-primary shadow-neon" : "bg-accent/10 text-accent shadow-accent-neon"}`}>
-                   {isPositive ? "+" : ""}{formatPercent(priceChange)}
+                   {formatPercent(priceChange)}
                  </div>
                </div>
 
                <div className="flex flex-col md:flex-row items-center md:items-start gap-10">
                  <div className="relative group/avatar">
-                    <div className="absolute inset-[-4px] bg-gradient-to-tr from-primary via-secondary to-accent rounded-[2.5rem] opacity-40 blur-lg group-hover/avatar:opacity-100 transition-opacity" />
+                    <div className="absolute inset-[-4px] bg-linear-to-tr from-primary via-secondary to-accent rounded-[2.5rem] opacity-40 blur-lg group-hover/avatar:opacity-100 transition-opacity" />
                     <div className="relative w-32 h-32 md:w-40 md:h-40 rounded-[2.5rem] overflow-hidden border-4 border-black ring-1 ring-white/20">
                       {tokenImage && !imageError ? (
                         <Image src={tokenImage} alt={tokenSymbol} fill className="object-cover" unoptimized onError={() => setImageError(true)} />
@@ -523,156 +525,157 @@ function TokenDetailContent() {
             </section>
           </div>
 
-          {/* Trade Column */}
+          {/* Trade & Status Column */}
           <div className="space-y-8">
-            <section className="glass rounded-[3rem] p-8 md:p-10 border border-white/10 shadow-neon-strong/5 sticky top-24">
-               <h3 className="text-2xl font-black italic mb-8 tracking-tighter">EXECUTE TRADE</h3>
+            <div className="sticky top-24 space-y-8">
+              <section className="glass rounded-[3rem] p-8 md:p-10 border border-white/10 shadow-neon-strong/5">
+                <h3 className="text-2xl font-black italic mb-8 tracking-tighter">EXECUTE TRADE</h3>
 
-               <div className="flex bg-black/60 rounded-[1.5rem] p-1.5 mb-8 border border-white/5">
-                 <button
-                   onClick={() => setTradeType("buy")}
-                   className={`flex-1 py-4 rounded-xl text-[10px] font-black tracking-[0.2em] transition-all ${tradeType === "buy" ? "bg-primary text-black shadow-neon" : "text-muted hover:text-white"}`}
-                 >
-                   BUY
-                 </button>
-                 <button
-                   onClick={() => setTradeType("sell")}
-                   className={`flex-1 py-4 rounded-xl text-[10px] font-black tracking-[0.2em] transition-all ${tradeType === "sell" ? "bg-accent text-white shadow-accent-neon" : "text-muted hover:text-white"}`}
-                 >
-                   SELL
-                 </button>
-               </div>
+                <div className="flex bg-black/60 rounded-[1.5rem] p-1.5 mb-8 border border-white/5">
+                  <button
+                    onClick={() => setTradeType("buy")}
+                    className={`flex-1 py-4 rounded-xl text-[10px] font-black tracking-[0.2em] transition-all ${tradeType === "buy" ? "bg-primary text-black shadow-neon" : "text-muted hover:text-white"}`}
+                  >
+                    BUY
+                  </button>
+                  <button
+                    onClick={() => setTradeType("sell")}
+                    className={`flex-1 py-4 rounded-xl text-[10px] font-black tracking-[0.2em] transition-all ${tradeType === "sell" ? "bg-accent text-white shadow-accent-neon" : "text-muted hover:text-white"}`}
+                  >
+                    SELL
+                  </button>
+                </div>
 
-               <div className="space-y-8">
-                 <div>
-                   <div className="flex justify-between mb-3 px-2">
-                     <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Input Amount</label>
-                     <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Bal: {formatNumber(tradeType === "buy" ? solBalance : (tokenBalance?.amount || 0))}</span>
+                <div className="space-y-8">
+                  <div>
+                    <div className="flex justify-between mb-3 px-2">
+                      <label className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Input Amount</label>
+                      <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">Bal: {formatNumber(tradeType === "buy" ? solBalance : (tokenBalance?.amount || 0))}</span>
+                    </div>
+                    <div className="relative group/input">
+                      <div className="absolute inset-0 bg-primary/5 blur-xl opacity-0 group-hover/input:opacity-100 transition-opacity" />
+                      <input
+                        type="number"
+                        value={tradeAmount}
+                        onChange={(e) => setTradeAmount(e.target.value)}
+                        className="relative w-full bg-black/40 border border-white/10 rounded-[1.5rem] py-6 px-8 font-black italic text-2xl tracking-tighter focus:border-primary/50 transition-all outline-none"
+                        placeholder="0.00"
+                      />
+                      <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-4">
+                        <button
+                          onClick={() => setTradeAmount(tradeType === "buy" ? Math.max(0, solBalance - 0.01).toString() : (tokenBalance?.amount || 0).toString())}
+                          className="text-[10px] font-black text-primary border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary hover:text-black transition-all"
+                        >
+                          MAX
+                        </button>
+                        <span className="text-xl font-black italic text-muted opacity-40">{tradeType === "buy" ? "SOL" : tokenSymbol}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 space-y-4">
+                     <div className="flex justify-between items-center gap-4">
+                        <span className="text-[10px] font-black text-muted uppercase tracking-widest whitespace-nowrap">Est. {tradeType === "buy" ? "Output" : "Proceeds"}</span>
+                        <span className="text-sm font-black italic text-white truncate">~0.00 {tradeType === "buy" ? tokenSymbol : "SOL"}</span>
+                     </div>
+                     <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Slippage</span>
+                        <div className="flex gap-2">
+                           {["0.5", "1.0", "3.0"].map(s => (
+                             <button
+                               key={s}
+                               onClick={() => setTradeSlippage(s)}
+                               className={`text-[8px] font-black px-2 py-1 rounded-lg border transition-all ${tradeSlippage === s ? "border-primary text-primary bg-primary/10" : "border-white/10 text-muted"}`}
+                             >
+                               {s}%
+                             </button>
+                           ))}
+                        </div>
+                     </div>
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                       if (!isAuthenticated) {
+                         setShowLoginModal(true);
+                         return;
+                       }
+                       if (!walletAddress || !connection || !signSolanaTransaction) {
+                         toast({ variant: "error", title: "Connect wallet first" });
+                         return;
+                       }
+                       if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
+                         toast({ variant: "error", title: "Invalid amount" });
+                         return;
+                       }
+                       try {
+                         setIsTrading(true);
+                         const result = await executeJupiterSwap({
+                           inputMint: tradeType === "buy" ? SOL_MINT : tokenAddress,
+                           outputMint: tradeType === "buy" ? tokenAddress : SOL_MINT,
+                           amount: parseFloat(tradeAmount),
+                           inputDecimals: tradeType === "sell" ? tokenDecimals : 9,
+                           outputDecimals: tradeType === "buy" ? tokenDecimals : 9,
+                           userPublicKey: walletAddress,
+                           slippageBps: Math.round(parseFloat(tradeSlippage) * 100),
+                           connection,
+                           signTransaction: signSolanaTransaction,
+                         });
+                         if (result.success) {
+                           toast({ variant: "success", title: "Trade Successful", description: result.signature });
+                           setTradeAmount("");
+                         } else {
+                           toast({ variant: "error", title: "Trade Failed", description: result.error });
+                         }
+                       } catch (e: any) {
+                         toast({ variant: "error", title: "Error", description: e.message });
+                       } finally {
+                         setIsTrading(false);
+                       }
+                    }}
+                    disabled={isTrading || !tradeAmount}
+                    className={`w-full py-6 rounded-[2rem] font-black italic text-lg tracking-tight transition-all flex items-center justify-center gap-3 ${tradeType === "buy" ? "bg-primary text-black shadow-neon hover:scale-[1.02]" : "bg-accent text-white shadow-accent-neon hover:scale-[1.02]"} disabled:opacity-50 disabled:cursor-not-allowed active:scale-95`}
+                  >
+                    {isTrading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Zap className="w-6 h-6" />}
+                    CONFIRM {tradeType.toUpperCase()}
+                  </button>
+                </div>
+              </section>
+
+              <section className="glass rounded-[3rem] p-10 border border-white/10">
+                 <div className="flex items-center justify-between mb-10">
+                   <h3 className="text-xl font-black italic tracking-tighter">BONDING STATUS</h3>
+                   <Target className="w-6 h-6 text-primary" />
+                 </div>
+
+                 <div className="space-y-10">
+                   <div className="relative h-4 bg-black/60 rounded-full border border-white/5 overflow-hidden">
+                      <div
+                        className="absolute inset-y-0 left-0 bg-linear-to-r from-primary via-secondary to-accent shadow-neon transition-all duration-1000"
+                        style={{ width: `${bondingProgress * 100}%` }}
+                      />
                    </div>
-                   <div className="relative group/input">
-                     <div className="absolute inset-0 bg-primary/5 blur-xl opacity-0 group-hover/input:opacity-100 transition-opacity" />
-                     <input
-                       type="number"
-                       value={tradeAmount}
-                       onChange={(e) => setTradeAmount(e.target.value)}
-                       className="relative w-full bg-black/40 border border-white/10 rounded-[1.5rem] py-6 px-8 font-black italic text-2xl tracking-tighter focus:border-primary/50 transition-all outline-none"
-                       placeholder="0.00"
-                     />
-                     <div className="absolute right-6 top-1/2 -translate-y-1/2 flex items-center gap-4">
-                       <button
-                         onClick={() => setTradeAmount(tradeType === "buy" ? Math.max(0, solBalance - 0.01).toString() : (tokenBalance?.amount || 0).toString())}
-                         className="text-[10px] font-black text-primary border border-primary/20 px-3 py-1.5 rounded-xl hover:bg-primary hover:text-black transition-all"
-                       >
-                         MAX
-                       </button>
-                       <span className="text-xl font-black italic text-muted opacity-40">{tradeType === "buy" ? "SOL" : tokenSymbol}</span>
+
+                   <div className="grid grid-cols-2 gap-8">
+                     <div className="flex flex-col gap-1">
+                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Progress</span>
+                        <span className="text-2xl font-black italic text-white tracking-tighter">{(bondingProgress * 100).toFixed(2)}%</span>
+                     </div>
+                     <div className="flex flex-col gap-1 text-right">
+                        <span className="text-[10px] font-black text-muted uppercase tracking-widest">Stage</span>
+                        <span className="text-2xl font-black italic text-secondary tracking-tighter">{isMigrated ? "GRADUATED" : "ORBITAL"}</span>
                      </div>
                    </div>
-                 </div>
 
-                 <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 space-y-4">
-                    <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-black text-muted uppercase tracking-widest">Estimated {tradeType === "buy" ? "Output" : "Proceeds"}</span>
-                       <span className="text-sm font-black italic text-white">~0.00 {tradeType === "buy" ? tokenSymbol : "SOL"}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                       <span className="text-[10px] font-black text-muted uppercase tracking-widest">Slippage</span>
-                       <div className="flex gap-2">
-                          {["0.5", "1.0", "3.0"].map(s => (
-                            <button
-                              key={s}
-                              onClick={() => setTradeSlippage(s)}
-                              className={`text-[8px] font-black px-2 py-1 rounded-lg border transition-all ${tradeSlippage === s ? "border-primary text-primary bg-primary/10" : "border-white/10 text-muted"}`}
-                            >
-                              {s}%
-                            </button>
-                          ))}
-                       </div>
-                    </div>
-                 </div>
-
-                 <button
-                   onClick={async () => {
-                      if (!isAuthenticated) {
-                        setShowLoginModal(true);
-                        return;
-                      }
-                      // Actual trade logic stays the same to maintain functionality
-                      if (!walletAddress || !connection || !signSolanaTransaction) {
-                        toast({ variant: "destructive", title: "Connect wallet first" });
-                        return;
-                      }
-                      if (!tradeAmount || parseFloat(tradeAmount) <= 0) {
-                        toast({ variant: "destructive", title: "Invalid amount" });
-                        return;
-                      }
-                      try {
-                        setIsTrading(true);
-                        const result = await executeJupiterSwap({
-                          inputMint: tradeType === "buy" ? SOL_MINT : tokenAddress,
-                          outputMint: tradeType === "buy" ? tokenAddress : SOL_MINT,
-                          amount: parseFloat(tradeAmount),
-                          inputDecimals: tradeType === "sell" ? tokenDecimals : 9,
-                          outputDecimals: tradeType === "buy" ? tokenDecimals : 9,
-                          userPublicKey: walletAddress,
-                          slippageBps: Math.round(parseFloat(tradeSlippage) * 100),
-                          connection,
-                          signTransaction: signSolanaTransaction,
-                        });
-                        if (result.success) {
-                          toast({ variant: "success", title: "Trade Successful", description: result.signature });
-                          setTradeAmount("");
-                        } else {
-                          toast({ variant: "destructive", title: "Trade Failed", description: result.error });
-                        }
-                      } catch (e: any) {
-                        toast({ variant: "destructive", title: "Error", description: e.message });
-                      } finally {
-                        setIsTrading(false);
-                      }
-                   }}
-                   disabled={isTrading || !tradeAmount}
-                   className={`w-full py-6 rounded-[2rem] font-black italic text-lg tracking-tight transition-all flex items-center justify-center gap-3 ${tradeType === "buy" ? "bg-primary text-black shadow-neon hover:scale-[1.02]" : "bg-accent text-white shadow-accent-neon hover:scale-[1.02]"} disabled:opacity-50 disabled:cursor-not-allowed active:scale-95`}
-                 >
-                   {isTrading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Zap className="w-6 h-6" />}
-                   CONFIRM {tradeType.toUpperCase()}
-                 </button>
-               </div>
-            </section>
-
-            <section className="glass rounded-[3rem] p-10 border border-white/10">
-               <div className="flex items-center justify-between mb-10">
-                 <h3 className="text-xl font-black italic tracking-tighter">BONDING STATUS</h3>
-                 <Target className="w-6 h-6 text-primary" />
-               </div>
-
-               <div className="space-y-10">
-                 <div className="relative h-4 bg-black/60 rounded-full border border-white/5 overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 bg-gradient-to-r from-primary via-secondary to-accent shadow-neon transition-all duration-1000"
-                      style={{ width: `${bondingProgress * 100}%` }}
-                    />
-                 </div>
-
-                 <div className="grid grid-cols-2 gap-8">
-                   <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">Progress</span>
-                      <span className="text-2xl font-black italic text-white tracking-tighter">{(bondingProgress * 100).toFixed(2)}%</span>
-                   </div>
-                   <div className="flex flex-col gap-1 text-right">
-                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">Stage</span>
-                      <span className="text-2xl font-black italic text-secondary tracking-tighter">{isMigrated ? "GRADUATED" : "ORBITAL"}</span>
+                   <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 flex items-center gap-4">
+                      <Flame className="w-8 h-8 text-accent animate-pulse" />
+                      <p className="text-[10px] font-bold text-muted leading-relaxed uppercase tracking-widest">
+                        Token is <span className="text-white">{(100 - (bondingProgress * 100)).toFixed(2)}%</span> away from migrating to Raydium LP.
+                      </p>
                    </div>
                  </div>
-
-                 <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 flex items-center gap-4">
-                    <Flame className="w-8 h-8 text-accent animate-pulse" />
-                    <p className="text-[10px] font-bold text-muted leading-relaxed uppercase tracking-widest">
-                      Token is <span className="text-white">{(100 - (bondingProgress * 100)).toFixed(2)}%</span> away from migrating to Raydium LP.
-                    </p>
-                 </div>
-               </div>
-            </section>
+              </section>
+            </div>
           </div>
         </div>
       </main>

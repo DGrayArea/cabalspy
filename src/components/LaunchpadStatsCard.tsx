@@ -95,7 +95,7 @@ export default function LaunchpadStatsCard() {
 
   if (loading || !stats) {
     return (
-      <div className="bg-gradient-to-br from-panel via-panel-elev/50 to-panel border border-gray-800/50 rounded-xl p-4 shadow-lg">
+      <div className="bg-linear-to-br from-panel via-panel-elev/50 to-panel border border-gray-800/50 rounded-xl p-4 shadow-lg">
         <div className="animate-pulse">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -157,7 +157,7 @@ export default function LaunchpadStatsCard() {
   };
 
   return (
-    <div className="bg-gradient-to-br from-panel via-panel-elev/50 to-panel border border-gray-800/50 rounded-xl p-4 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 transition-all">
+    <div className="bg-linear-to-br from-panel via-panel-elev/50 to-panel border border-gray-800/50 rounded-xl p-4 shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/30 transition-all">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
@@ -175,7 +175,7 @@ export default function LaunchpadStatsCard() {
               onClick={() => setSelectedTimeframe(tf)}
               className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
                 selectedTimeframe === tf
-                  ? "bg-gradient-to-r from-purple-500/30 to-blue-500/30 text-white shadow-sm shadow-purple-500/20 border border-purple-500/40"
+                  ? "bg-linear-to-r from-purple-500/30 to-blue-500/30 text-white shadow-sm shadow-purple-500/20 border border-purple-500/40"
                   : "bg-transparent text-gray-500 hover:text-gray-300 hover:bg-gray-800/30"
               }`}
             >
@@ -215,13 +215,13 @@ export default function LaunchpadStatsCard() {
                 return (
                   <div
                     key={lp.launchpad}
-                    className="group relative bg-gradient-to-br from-panel-elev/80 via-panel-elev/60 to-panel-elev/80 border border-gray-800/40 rounded-xl p-4 min-w-[280px] hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all overflow-hidden flex-shrink-0"
+                    className="group relative bg-linear-to-br from-panel-elev/80 via-panel-elev/60 to-panel-elev/80 border border-gray-800/40 rounded-xl p-4 min-w-[280px] hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all overflow-hidden flex-shrink-0"
                   >
                     {/* Gradient overlay on hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 via-blue-500/0 to-green-500/0 group-hover:from-purple-500/5 group-hover:via-blue-500/5 group-hover:to-green-500/5 transition-all pointer-events-none" />
+                    <div className="absolute inset-0 bg-linear-to-br from-purple-500/0 via-blue-500/0 to-green-500/0 group-hover:from-purple-500/5 group-hover:via-blue-500/5 group-hover:to-green-500/5 transition-all pointer-events-none" />
 
                     {/* Rank badge */}
-                    <div className="absolute top-3 right-3 w-7 h-7 bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-full flex items-center justify-center text-xs font-bold text-purple-300 shadow-sm">
+                    <div className="absolute top-3 right-3 w-7 h-7 bg-linear-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-full flex items-center justify-center text-xs font-bold text-purple-300 shadow-sm">
                       #{index + 1}
                     </div>
 
@@ -245,14 +245,14 @@ export default function LaunchpadStatsCard() {
                           />
                         ) : null}
                         <div
-                          className="w-full h-full rounded-lg bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center text-sm fallback-icon ring-1 ring-gray-800/50 group-hover:ring-purple-500/50 transition-all"
+                          className="w-full h-full rounded-lg bg-linear-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center text-sm fallback-icon ring-1 ring-gray-800/50 group-hover:ring-purple-500/50 transition-all"
                           style={{ display: platformLogo ? "none" : "flex" }}
                         >
                           {platformIcon}
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-blue-400 transition-all">
+                        <h3 className="text-sm font-semibold text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-linear-to-r group-hover:from-purple-400 group-hover:to-blue-400 transition-all">
                           {displayName}
                         </h3>
                         <div className="px-2 py-1 bg-purple-500/20 border border-purple-500/30 rounded-md text-[10px] font-semibold text-purple-300 inline-block mt-1.5">
@@ -263,7 +263,7 @@ export default function LaunchpadStatsCard() {
 
                     {/* Stats grid - improved spacing for mobile */}
                     <div className="space-y-2 relative z-10">
-                      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20 group-hover:border-blue-500/40 transition-all">
+                      <div className="flex items-center justify-between px-3 py-2 bg-linear-to-r from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20 group-hover:border-blue-500/40 transition-all">
                         <div className="flex items-center gap-2">
                           <Sparkles className="w-4 h-4 text-blue-400" />
                           <span className="text-xs text-gray-400 font-medium">
@@ -277,7 +277,7 @@ export default function LaunchpadStatsCard() {
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-green-500/10 to-green-500/5 rounded-lg border border-green-500/20 group-hover:border-green-500/40 transition-all">
+                      <div className="flex items-center justify-between px-3 py-2 bg-linear-to-r from-green-500/10 to-green-500/5 rounded-lg border border-green-500/20 group-hover:border-green-500/40 transition-all">
                         <div className="flex items-center gap-2">
                           <Rocket className="w-4 h-4 text-green-400" />
                           <span className="text-xs text-gray-400 font-medium">
@@ -289,7 +289,7 @@ export default function LaunchpadStatsCard() {
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20 group-hover:border-purple-500/40 transition-all">
+                      <div className="flex items-center justify-between px-3 py-2 bg-linear-to-r from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20 group-hover:border-purple-500/40 transition-all">
                         <div className="flex items-center gap-2">
                           <TrendingUp className="w-4 h-4 text-purple-400" />
                           <span className="text-xs text-gray-400 font-medium">
@@ -301,7 +301,7 @@ export default function LaunchpadStatsCard() {
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between px-3 py-2 bg-gradient-to-r from-orange-500/10 to-orange-500/5 rounded-lg border border-orange-500/20 group-hover:border-orange-500/40 transition-all">
+                      <div className="flex items-center justify-between px-3 py-2 bg-linear-to-r from-orange-500/10 to-orange-500/5 rounded-lg border border-orange-500/20 group-hover:border-orange-500/40 transition-all">
                         <div className="flex items-center gap-2">
                           <Users className="w-4 h-4 text-orange-400" />
                           <span className="text-xs text-gray-400 font-medium">
@@ -323,10 +323,10 @@ export default function LaunchpadStatsCard() {
 
           {/* Desktop: Grid layout with improved spacing */}
           <div
-            className="gap-4 lg:gap-6"
+            className="gap-4"
             style={{
               display: isDesktop ? "grid" : "none",
-              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
             }}
           >
             {filteredLaunchpads.map((lp, index) => {
@@ -339,13 +339,13 @@ export default function LaunchpadStatsCard() {
               return (
                 <div
                   key={lp.launchpad}
-                  className="group relative bg-gradient-to-br from-panel-elev/80 via-panel-elev/60 to-panel-elev/80 border border-gray-800/40 rounded-xl p-4 lg:p-5 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all overflow-hidden"
+                  className="group relative bg-linear-to-br from-panel-elev/80 via-panel-elev/60 to-panel-elev/80 border border-gray-800/40 rounded-xl p-4 lg:p-5 hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 transition-all overflow-hidden"
                 >
                   {/* Gradient overlay on hover */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-purple-500/0 via-blue-500/0 to-green-500/0 group-hover:from-purple-500/5 group-hover:via-blue-500/5 group-hover:to-green-500/5 transition-all pointer-events-none" />
+                  <div className="absolute inset-0 bg-linear-to-br from-purple-500/0 via-blue-500/0 to-green-500/0 group-hover:from-purple-500/5 group-hover:via-blue-500/5 group-hover:to-green-500/5 transition-all pointer-events-none" />
 
                   {/* Rank badge */}
-                  <div className="absolute top-2 right-2 w-6 h-6 bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-full flex items-center justify-center text-[10px] font-bold text-purple-300 shadow-sm">
+                  <div className="absolute top-2 right-2 w-6 h-6 bg-linear-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 rounded-full flex items-center justify-center text-[10px] font-bold text-purple-300 shadow-sm">
                     #{index + 1}
                   </div>
 
@@ -369,14 +369,14 @@ export default function LaunchpadStatsCard() {
                         />
                       ) : null}
                       <div
-                        className="w-full h-full rounded-lg bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center text-xs fallback-icon ring-1 ring-gray-800/50 group-hover:ring-purple-500/50 transition-all"
+                        className="w-full h-full rounded-lg bg-linear-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center text-xs fallback-icon ring-1 ring-gray-800/50 group-hover:ring-purple-500/50 transition-all"
                         style={{ display: platformLogo ? "none" : "flex" }}
                       >
                         {platformIcon}
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="text-xs font-semibold text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-purple-400 group-hover:to-blue-400 transition-all">
+                      <h3 className="text-xs font-semibold text-white truncate group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-linear-to-r group-hover:from-purple-400 group-hover:to-blue-400 transition-all">
                         {displayName}
                       </h3>
                       <div className="px-1.5 py-0.5 bg-purple-500/20 border border-purple-500/30 rounded-md text-[9px] font-semibold text-purple-300 inline-block mt-1">
@@ -387,7 +387,7 @@ export default function LaunchpadStatsCard() {
 
                   {/* Stats grid - improved spacing */}
                   <div className="space-y-2 lg:space-y-2.5 relative z-10">
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20 group-hover:border-blue-500/40 transition-all">
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-linear-to-r from-blue-500/10 to-blue-500/5 rounded-lg border border-blue-500/20 group-hover:border-blue-500/40 transition-all">
                       <div className="flex items-center gap-1.5">
                         <Sparkles className="w-3 h-3 text-blue-400" />
                         <span className="text-[10px] text-gray-400 font-medium">
@@ -401,7 +401,7 @@ export default function LaunchpadStatsCard() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-green-500/10 to-green-500/5 rounded-lg border border-green-500/20 group-hover:border-green-500/40 transition-all">
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-linear-to-r from-green-500/10 to-green-500/5 rounded-lg border border-green-500/20 group-hover:border-green-500/40 transition-all">
                       <div className="flex items-center gap-1.5">
                         <Rocket className="w-3 h-3 text-green-400" />
                         <span className="text-[10px] text-gray-400 font-medium">
@@ -413,7 +413,7 @@ export default function LaunchpadStatsCard() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20 group-hover:border-purple-500/40 transition-all">
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-linear-to-r from-purple-500/10 to-purple-500/5 rounded-lg border border-purple-500/20 group-hover:border-purple-500/40 transition-all">
                       <div className="flex items-center gap-1.5">
                         <TrendingUp className="w-3 h-3 text-purple-400" />
                         <span className="text-[10px] text-gray-400 font-medium">
@@ -425,7 +425,7 @@ export default function LaunchpadStatsCard() {
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between px-2 py-1.5 bg-gradient-to-r from-orange-500/10 to-orange-500/5 rounded-lg border border-orange-500/20 group-hover:border-orange-500/40 transition-all">
+                    <div className="flex items-center justify-between px-2 py-1.5 bg-linear-to-r from-orange-500/10 to-orange-500/5 rounded-lg border border-orange-500/20 group-hover:border-orange-500/40 transition-all">
                       <div className="flex items-center gap-1.5">
                         <Users className="w-3 h-3 text-orange-400" />
                         <span className="text-[10px] text-gray-400 font-medium">
