@@ -434,10 +434,10 @@ export function WalletSettingsModal({
                 <button
                   key={value}
                   onClick={() => setQuickBuyAmount(value)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0 cursor-pointer border active:scale-95 ${
                     quickBuyAmount === value
-                      ? "bg-primary-dark text-white"
-                      : "bg-panel-elev text-gray-400 hover:text-white"
+                      ? "bg-primary/20 text-primary border-primary shadow-neon"
+                      : "bg-panel-elev text-gray-400 border-gray-800 hover:border-primary/50 hover:text-white"
                   }`}
                 >
                   {value} SOL
@@ -466,10 +466,10 @@ export function WalletSettingsModal({
                 <button
                   key={value}
                   onClick={() => setSlippage(value)}
-                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors flex-shrink-0 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0 cursor-pointer border active:scale-95 ${
                     slippage === value
-                      ? "bg-primary-dark text-white"
-                      : "bg-panel-elev text-gray-400 hover:text-white"
+                      ? "bg-primary/20 text-primary border-primary shadow-neon"
+                      : "bg-panel-elev text-gray-400 border-gray-800 hover:border-primary/50 hover:text-white"
                   }`}
                 >
                   {value}%
@@ -592,17 +592,17 @@ export function WalletSettingsModal({
           </div>
 
           {/* Action Buttons */}
-          <div className="grid grid-cols-2 gap-2 mt-4">
-            <button className="px-4 py-2 bg-primary-dark hover:bg-primary-darker text-white text-sm font-medium rounded-lg transition-colors cursor-pointer">
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <button className="px-4 py-2.5 bg-primary/10 border border-primary text-primary hover:bg-primary/20 hover:shadow-neon active:scale-95 text-sm font-bold rounded-xl transition-all cursor-pointer">
               Deposit
             </button>
-            <button className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors cursor-pointer">
+            <button className="px-4 py-2.5 bg-accent/10 border border-accent text-accent hover:bg-accent/20 hover:shadow-accent-neon active:scale-95 text-sm font-bold rounded-xl transition-all cursor-pointer">
               Withdraw
             </button>
             <button
               onClick={handleCreateWallet}
               disabled={isCreatingWallet || !turnkeyUser || !createWallet}
-              className="px-4 py-2 bg-primary-dark hover:bg-primary-darker disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
+              className="px-4 py-2.5 bg-primary/10 border border-primary text-primary hover:bg-primary/20 hover:shadow-neon disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-none active:scale-95 text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               {isCreatingWallet ? (
                 <>
@@ -610,13 +610,13 @@ export function WalletSettingsModal({
                   Creating...
                 </>
               ) : (
-                "Create"
+                "Create Wallet"
               )}
             </button>
             <button
               onClick={handleExportWalletClick}
               disabled={!embeddedSolanaWallet?.walletId}
-              className="px-4 py-2 bg-panel-elev hover:bg-panel disabled:opacity-50 disabled:cursor-not-allowed text-gray-300 text-sm font-medium rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-2"
+              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-700 active:scale-95 text-gray-300 hover:text-white text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Download className="w-4 h-4" />
               Export
@@ -673,18 +673,18 @@ export function WalletSettingsModal({
               </p>
             </div>
           </DialogHeader>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 sm:gap-3 mt-4">
             <button
               onClick={() => setShowExportDialog(false)}
-              className="px-4 py-2 bg-panel-elev hover:bg-panel text-gray-300 text-sm font-medium rounded-lg transition-colors"
+              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 hover:text-white active:scale-95 text-gray-300 text-sm font-bold rounded-xl transition-all cursor-pointer"
             >
               Cancel
             </button>
             <button
               onClick={confirmExport}
-              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors"
+              className="px-4 py-2.5 bg-red-500/10 border border-red-500 text-red-500 hover:bg-red-500/20 hover:shadow-[0_0_15px_rgba(239,68,68,0.5)] active:scale-95 text-sm font-bold rounded-xl transition-all cursor-pointer"
             >
-              I Understand, Export Wallet
+              I Understand, Export
             </button>
           </DialogFooter>
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">

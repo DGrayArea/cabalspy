@@ -45,7 +45,7 @@ export function DisplaySettingsModal({
             <h3 className="text-lg font-bold text-white">Display</h3>
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-panel-elev rounded-lg transition-colors flex-shrink-0 cursor-pointer"
+              className="p-1.5 hover:bg-panel-elev rounded-lg transition-colors shrink-0 cursor-pointer"
             >
               <X className="w-4 h-4 text-gray-400 hover:text-white cursor-pointer" />
             </button>
@@ -85,7 +85,7 @@ export function DisplaySettingsModal({
                   <div className="flex gap-2">
                     <button
                       onClick={() => updateSetting("metricsSize", "small")}
-                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer border-2 flex-shrink-0 ${
+                      className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer border-2 shrink-0 ${
                         displaySettings.metricsSize === "small"
                           ? "bg-primary-dark text-white border-primary"
                           : "bg-panel-elev text-gray-400 hover:text-white border-gray-700/50 hover:border-gray-600"
@@ -146,13 +146,13 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
                           displaySettings.grey
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.grey && (
                           <svg
-                            className="w-3 h-3 text-white"
+                            className="w-3 h-3 text-primary"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -186,13 +186,13 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
                           displaySettings.showSearchBar
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.showSearchBar && (
                           <svg
-                            className="w-3 h-3 text-white"
+                            className="w-3 h-3 text-primary"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -222,13 +222,13 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
                           displaySettings.noDecimals
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.noDecimals && (
                           <svg
-                            className="w-3 h-3 text-white"
+                            className="w-3 h-3 text-primary"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -270,12 +270,12 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center ${
                           displaySettings.showHiddenTokens
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.showHiddenTokens && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-neon-sm"></div>
                         )}
                       </div>
                     </div>
@@ -297,12 +297,12 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded-full border-2 transition-all flex items-center justify-center ${
                           displaySettings.unhideOnMigrated
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.unhideOnMigrated && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-primary shadow-neon-sm"></div>
                         )}
                       </div>
                     </div>
@@ -330,13 +330,13 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
                           displaySettings.circleImages
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.circleImages && (
                           <svg
-                            className="w-3 h-3 text-white"
+                            className="w-3 h-3 text-primary"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -366,13 +366,13 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
                           displaySettings.progressBar
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.progressBar && (
                           <svg
-                            className="w-3 h-3 text-white"
+                            className="w-3 h-3 text-primary"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -402,13 +402,13 @@ export function DisplaySettingsModal({
                       <div
                         className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center ${
                           displaySettings.spacedTables
-                            ? "bg-primary border-primary"
-                            : "bg-panel-elev border-gray-600 group-hover:border-gray-500"
+                            ? "bg-primary/20 border-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                            : "bg-black/40 border-gray-600 group-hover:border-gray-500"
                         }`}
                       >
                         {displaySettings.spacedTables && (
                           <svg
-                            className="w-3 h-3 text-white"
+                            className="w-3 h-3 text-primary"
                             fill="none"
                             strokeLinecap="round"
                             strokeLinejoin="round"

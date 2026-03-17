@@ -5,6 +5,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 
@@ -94,6 +95,7 @@ interface AuthContextType {
   connectWallet: (address: string) => void;
   setTurnkeyUser: (user: TurnkeyUser | null) => void;
   setTurnkeySession: (session: TurnkeySession | null) => void;
+  refreshSession: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -118,35 +120,42 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   );
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const response = await fetch("/api/auth/session");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.user) {
-            setUser({
-              id: data.user.id,
-              name: data.user.name,
-              email: data.user.email,
-              telegramId: data.user.telegramId,
-              discordId: data.user.discordId,
-              googleId: data.user.googleId,
-              avatar: data.user.avatar,
-              walletAddress: data.wallet?.address,
-              createdAt: new Date(),
-            });
-          }
+  const checkSession = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/session");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user) {
+          setUser({
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            telegramId: data.user.telegramId,
+            discordId: data.user.discordId,
+            googleId: data.user.googleId,
+            avatar: data.user.avatar,
+            walletAddress: data.wallet?.address,
+            createdAt: new Date(),
+          });
+        } else {
+          setUser(null);
         }
-      } catch (error) {
-        console.error("Error checking session:", error);
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    checkSession();
+    } catch (error) {
+      console.error("Error checking session:", error);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    checkSession();
+  }, [checkSession]);
+
+  const refreshSession = useCallback(async () => {
+    setIsLoading(true);
+    await checkSession();
+  }, [checkSession]);
 
   const login = async (provider: "google" | "telegram" | "discord", data: AuthData) => {
     try {
@@ -247,6 +256,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     connectWallet,
     setTurnkeyUser,
     setTurnkeySession,
+    refreshSession,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

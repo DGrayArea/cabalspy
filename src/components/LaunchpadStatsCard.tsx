@@ -73,7 +73,7 @@ export default function LaunchpadStatsCard() {
       try {
         setLoading(true);
         const response = await fetch(
-          "https://datapi.jup.ag/v3/launchpads/stats"
+          "https://datapi.jup.ag/v3/launchpads/stats",
         );
         if (!response.ok) {
           throw new Error("Failed to fetch launchpad stats");
@@ -238,7 +238,7 @@ export default function LaunchpadStatsCard() {
                               e.currentTarget.style.display = "none";
                               const fallback =
                                 e.currentTarget.parentElement?.querySelector(
-                                  ".fallback-icon"
+                                  ".fallback-icon",
                                 ) as HTMLElement;
                               if (fallback) fallback.style.display = "flex";
                             }}
@@ -326,7 +326,7 @@ export default function LaunchpadStatsCard() {
             className="gap-4"
             style={{
               display: isDesktop ? "grid" : "none",
-              gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+              gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
             }}
           >
             {filteredLaunchpads.map((lp, index) => {
@@ -362,7 +362,7 @@ export default function LaunchpadStatsCard() {
                             e.currentTarget.style.display = "none";
                             const fallback =
                               e.currentTarget.parentElement?.querySelector(
-                                ".fallback-icon"
+                                ".fallback-icon",
                               ) as HTMLElement;
                             if (fallback) fallback.style.display = "flex";
                           }}

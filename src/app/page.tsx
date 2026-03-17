@@ -123,7 +123,7 @@ const DisplaySettingsModal = lazy(
 // Component that uses useSearchParams - must be wrapped in Suspense
 function AuthCallbackHandler() {
   const searchParams = useSearchParams();
-  const { login } = useAuth();
+  const { login, refreshSession } = useAuth() as any;
 
   // Handle OAuth callback
   useEffect(() => {
@@ -164,25 +164,28 @@ function AuthCallbackHandler() {
 
     // Handle Discord auth callback
     const discordAuth = searchParams.get("discord_auth");
-    const discordData = searchParams.get("data");
 
-    if (discordAuth === "success" && discordData) {
-      try {
-        const user = JSON.parse(decodeURIComponent(discordData));
-        login("discord", {
-          id: user.id,
-          username: user.username,
-          discriminator: user.discriminator,
-          avatar: user.avatar,
-          roles: user.roles,
-        });
-        // Clean URL
-        window.history.replaceState({}, "", "/");
-      } catch (error) {
-        console.error("Failed to parse Discord auth data:", error);
+    if (discordAuth === "success") {
+      // The server already set the session cookie during the callback.
+      // Force a session refresh so AuthContext picks it up immediately.
+      refreshSession().catch(console.error);
+      // Clean URL
+      window.history.replaceState({}, "", "/");
+    }
+
+    // Handle auth errors from Discord callback
+    const authError = searchParams.get("error");
+    if (authError) {
+      window.history.replaceState({}, "", "/");
+      if (authError === "missing_role" || authError === "not_in_server") {
+        window.location.href = "/access-denied";
+      } else if (authError === "missing_code" || authError === "invalid_code") {
+        console.error("Discord auth error: invalid code");
+      } else {
+        console.error("Auth error:", authError);
       }
     }
-  }, [searchParams, login]);
+  }, [searchParams, login, refreshSession]);
 
   return null;
 }
@@ -1737,7 +1740,7 @@ export default function PulsePage() {
         {/* Filter Tabs with Counts - Sticky below Navbar */}
         <div className="mb-12 w-full sticky top-14 sm:top-16 bg-app/90 backdrop-blur-2xl z-40 py-2 -mx-4 px-4 border-y border-white/5 shadow-2xl overflow-hidden">
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2 snap-x">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 snap-x px-2">
               {[
                 {
                   id: "trending",
@@ -1785,7 +1788,7 @@ export default function PulsePage() {
                 <button
                   key={id}
                   onClick={() => setFilter(id as typeof filter)}
-                  className={`group relative px-5 py-3 rounded-2xl transition-all flex items-center gap-3 whitespace-nowrap overflow-hidden ${
+                  className={`group shrink-0 relative px-4 sm:px-5 py-3 rounded-2xl transition-all flex items-center gap-2 sm:gap-3 whitespace-nowrap overflow-hidden snap-start ${
                     filter === id ? "text-white" : "text-muted hover:text-white"
                   }`}
                 >

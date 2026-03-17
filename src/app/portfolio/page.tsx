@@ -198,36 +198,39 @@ export default function PortfolioPage() {
         </div>
 
         {/* ── Action buttons ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <button
             onClick={() => setShowDepositModal(true)}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2 py-4 px-4 rounded-2xl font-black italic text-sm sm:text-lg bg-primary/10 border-2 border-primary text-primary hover:bg-primary/20 hover:shadow-neon transition-all cursor-pointer active:scale-95"
           >
-            <ArrowDownToLine className="w-4 h-4" />
-            Deposit
+            <ArrowDownToLine className="w-5 h-5 sm:w-6 sm:h-6" />
+            DEPOSIT
           </button>
           <button
             onClick={() => setShowWithdrawModal(true)}
-            className="flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-medium text-sm bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
+            className="flex items-center justify-center gap-2 py-4 px-4 rounded-2xl font-black italic text-sm sm:text-lg bg-accent/10 border-2 border-accent text-accent hover:bg-accent/20 hover:shadow-accent-neon transition-all cursor-pointer active:scale-95"
           >
-            <ArrowUpFromLine className="w-4 h-4" />
-            Withdraw
+            <ArrowUpFromLine className="w-5 h-5 sm:w-6 sm:h-6" />
+            WITHDRAW
           </button>
         </div>
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-1 mb-5 bg-panel border border-gray-800/60 rounded-xl p-1">
+        <div className="flex border-b border-white/10 mb-6">
           {(["assets", "history"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer capitalize ${
+              className={`flex-1 sm:flex-none px-8 py-4 text-[11px] sm:text-sm font-black tracking-[0.2em] transition-all cursor-pointer uppercase relative ${
                 activeTab === tab
-                  ? "bg-primary-dark text-white shadow"
-                  : "text-gray-400 hover:text-white"
+                  ? "text-primary bg-primary/5"
+                  : "text-muted hover:text-white hover:bg-white/5"
               }`}
             >
               {tab}
+              {activeTab === tab && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary shadow-neon rounded-t-full" />
+              )}
             </button>
           ))}
         </div>
@@ -247,14 +250,37 @@ export default function PortfolioPage() {
                   className="w-full pl-9 pr-3 py-2.5 bg-panel border border-gray-800/60 rounded-xl text-sm text-white placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
-              <label className="inline-flex items-center gap-2 text-xs text-gray-400 cursor-pointer whitespace-nowrap">
-                <input
-                  type="checkbox"
-                  checked={hideSmall}
-                  onChange={(e) => setHideSmall(e.target.checked)}
-                  className="rounded border-gray-700 bg-panel-elev text-primary focus:ring-primary"
-                />
-                Hide &lt; $1
+              <label className="inline-flex items-center gap-2 text-xs text-gray-400 cursor-pointer whitespace-nowrap group">
+                <div className="relative flex items-center justify-center">
+                  <input
+                    type="checkbox"
+                    checked={hideSmall}
+                    onChange={(e) => setHideSmall(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${
+                      hideSmall
+                        ? "bg-primary/20 border-primary text-primary shadow-[0_0_10px_rgba(var(--primary),0.5)]"
+                        : "bg-black/40 border-white/20 group-hover:border-white/40"
+                    }`}
+                  >
+                    {hideSmall && (
+                      <svg
+                        className="w-2.5 h-2.5"
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="3"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path d="M5 13l4 4L19 7"></path>
+                      </svg>
+                    )}
+                  </div>
+                </div>
+                <span className="group-hover:text-white transition-colors tracking-widest font-bold uppercase text-[10px]">Hide &lt; $1</span>
               </label>
             </div>
 
