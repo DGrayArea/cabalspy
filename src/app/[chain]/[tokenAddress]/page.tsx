@@ -62,6 +62,8 @@ import { pumpFunService, PumpFunTokenInfo } from "@/services/pumpfun";
 import { dexscreenerService } from "@/services/dexscreener";
 import { geckoTerminalService } from "@/services/geckoterminal";
 import { multiChainTokenService } from "@/services/multichain-tokens";
+import { aiPlatformDetector } from "@/services/ai-platform-detector";
+import { getPlatformLogo, getPlatformName } from "@/utils/platformLogos";
 import { env } from "@/lib/env";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
@@ -152,18 +154,18 @@ function TokenDetailContent() {
   useEffect(() => {
     const fetchSolPrice = async () => {
       try {
-        const response = await fetch(
-          "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd",
+        // Use Jupiter API for reliable SOL price data
+        // Try DexScreener first
+        const solPriceResponse = await fetch(
+          "https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112"
         );
-        if (response.ok) {
-          const data = await response.json();
-          if (data.solana?.usd) {
-            setSolPrice(data.solana.usd);
-            return;
-          }
+        if (solPriceResponse.ok) {
+          const solPriceData = await solPriceResponse.json();
+          const p = solPriceData.pairs?.[0]?.priceUsd;
+          if (p) setSolPrice(parseFloat(p));
         }
-      } catch (error) {
-        console.warn("Failed to fetch SOL price from CoinGecko:", error);
+      } catch (err) {
+        console.warn("Failed to fetch SOL price from DexScreener:", err);
       }
       setSolPrice(150);
     };
@@ -351,8 +353,25 @@ function TokenDetailContent() {
   const isPositive = priceChange >= 0;
 
   const bondingProgress =
-    pumpfunData?.bondingProgress ?? (baseToken as any)?.bondingProgress ?? 0;
-  const isMigrated = pumpfunData?.isMigrated || (baseToken as any)?.isMigrated;
+    pumpfunData?.bondingProgress ?? 
+    (tokenData?.data?.mobula?.bondingProgress !== undefined ? tokenData.data.mobula.bondingProgress / 100 : undefined) ??
+    (baseToken as any)?.bondingProgress ?? 0;
+  const isMigrated = pumpfunData?.isMigrated || (baseToken as any)?.isMigrated || bondingProgress >= 1;
+
+  // Platform detection
+  const platform = aiPlatformDetector.detectPlatform({
+    id: tokenAddress,
+    name: tokenName,
+    symbol: tokenSymbol,
+    image: tokenImage || undefined,
+    source: (tokenData?.data?.base as any)?.source || (pumpfunData ? "pumpfun" : undefined),
+    protocol: (tokenData?.data?.base as any)?.protocol,
+    chain: chain,
+    raydiumPool: pumpfunData?.raydiumPool || (tokenData?.data?.base as any)?.raydiumPool,
+  });
+
+  const platformLogo = getPlatformLogo(platform);
+  const platformName = getPlatformName(platform);
 
   return (
     <div className="min-h-screen bg-app text-white selection:bg-primary/30">
@@ -371,26 +390,68 @@ function TokenDetailContent() {
         <section className="glass rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-white/10 mb-3">
           <div className="flex flex-wrap items-center gap-3 sm:gap-5">
 
-            {/* Logo + Name */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden border-2 border-white/10 shrink-0">
-                {tokenImage && !imageError ? (
-                  <Image
-                    src={tokenImage}
-                    alt={tokenSymbol}
-                    fill
-                    className="object-cover"
-                    unoptimized
-                    onError={() => setImageError(true)}
-                  />
-                ) : (
-                  <div className="w-full h-full bg-panel-elev flex items-center justify-center text-lg font-black italic text-gradient">
-                    {tokenSymbol[0]}
+            {/* Logo + Name + Bonding Ring */}
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="relative w-14 h-14 sm:w-16 sm:h-16 shrink-0 flex items-center justify-center">
+                {/* Bonding Curve Circular Ring */}
+                {!isMigrated && bondingProgress > 0 && (
+                  <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                    <circle
+                      cx="50" cy="50" r="46"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.05)"
+                      strokeWidth="4"
+                    />
+                    <circle
+                      cx="50" cy="50" r="46"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      className={`${
+                        platform === 'pump' 
+                          ? "text-[#22c55e] drop-shadow-[0_0_10px_rgba(34,197,94,0.6)]" 
+                          : platform === 'meteora'
+                            ? "text-[#e879f9] drop-shadow-[0_0_10px_rgba(232,121,249,0.6)]"
+                            : platform === 'moonshot'
+                              ? "text-[#f472b6] drop-shadow-[0_0_10px_rgba(244,114,182,0.6)]"
+                              : "text-primary shadow-neon"
+                      } transition-all duration-1000`}
+                      strokeDasharray={`${bondingProgress * 289} 289`}
+                    />
+                  </svg>
+                )}
+                <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-2xl overflow-hidden border-2 border-white/10 shrink-0 z-10">
+                  {tokenImage && !imageError ? (
+                    <Image
+                      src={tokenImage}
+                      alt={tokenSymbol}
+                      fill
+                      className="object-cover"
+                      unoptimized
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-panel-elev flex items-center justify-center text-lg font-black italic text-gradient">
+                      {tokenSymbol[0]}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Platform Indicator Overlay */}
+                {platformLogo && (
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-black rounded-lg border border-white/10 p-1 z-20 shadow-lg" title={platformName}>
+                    <img src={platformLogo} alt={platformName} className="w-full h-full object-contain" />
                   </div>
                 )}
               </div>
               <div>
-                <h1 className="text-base sm:text-xl font-black italic tracking-tighter leading-none">{tokenName}</h1>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-base sm:text-xl font-black italic tracking-tighter leading-none">{tokenName}</h1>
+                  {isMigrated && (
+                    <div className="bg-secondary/20 text-secondary border border-secondary/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">GRADUATED</div>
+                  )}
+                </div>
                 <span className="text-[10px] sm:text-xs text-muted font-bold">{tokenSymbol}</span>
               </div>
             </div>
@@ -448,7 +509,7 @@ function TokenDetailContent() {
         </section>
 
         {/* ── CHART + BOTTOM GRID ─────────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-3">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_400px] gap-4">
 
           {/* Left column: Chart + Data Tabs */}
           <div className="space-y-3 min-w-0">
@@ -479,7 +540,7 @@ function TokenDetailContent() {
               </div>
 
               {/* Chart content */}
-              <div className="h-[55vh] min-h-[400px] w-full">
+              <div className="h-[65vh] min-h-[500px] w-full relative">
                 {chartTab === "chart" ? (
                   <TokenChart
                     mintAddress={tokenAddress}
@@ -529,30 +590,43 @@ function TokenDetailContent() {
 
               <div className="p-4 sm:p-6 max-h-[400px] overflow-y-auto">
                 {activeTab === "trades" && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-sm font-black italic tracking-tighter">LIVE TRANSACTIONS</h3>
-                      <span className="text-[9px] font-black text-muted uppercase tracking-widest">Buy/Sell 1.42x</span>
-                    </div>
-                    {[1, 2, 3, 4, 5, 6].map((i) => (
-                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black ${i % 2 === 0 ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"}`}>
-                            {i % 2 === 0 ? "BUY" : "SELL"}
-                          </div>
-                          <div>
-                            <div className="text-xs font-black italic">{i % 2 === 0 ? "+" : "-"}{(Math.random() * 5).toFixed(2)} SOL</div>
-                            <div className="text-[9px] text-muted font-bold uppercase">30s AGO</div>
-                          </div>
+                  <div className="space-y-2 relative min-h-[200px]">
+                    {!isAuthenticated ? (
+                      <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-panel/60 backdrop-blur-md rounded-2xl p-6 text-center">
+                        <div className="w-12 h-12 bg-primary/20 rounded-full flex items-center justify-center mb-4">
+                          <Lock className="w-6 h-6 text-primary" />
                         </div>
-                        <div className="text-right">
-                          <div className="text-xs font-black italic">${(Math.random() * 1000).toFixed(2)}</div>
-                          <button className="text-[9px] text-muted hover:text-white transition-colors">
-                            <ArrowUpRight className="w-3.5 h-3.5 inline" />
-                          </button>
-                        </div>
+                        <h4 className="text-base font-black italic mb-2">ACCESS RESTRICTED</h4>
+                        <p className="text-xs text-muted font-medium mb-6 max-w-[200px]">Sign in to access the live terminal and trade data.</p>
+                        <AuthButton />
                       </div>
-                    ))}
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-black italic tracking-tighter">LIVE TRANSACTIONS</h3>
+                          <span className="text-[9px] font-black text-muted uppercase tracking-widest">Buy/Sell 1.42x</span>
+                        </div>
+                        {[1, 2, 3, 4, 5, 6].map((i) => (
+                          <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black ${i % 2 === 0 ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"}`}>
+                                {i % 2 === 0 ? "BUY" : "SELL"}
+                              </div>
+                              <div>
+                                <div className="text-xs font-black italic">{i % 2 === 0 ? "+" : "-"}{(Math.random() * 5).toFixed(2)} SOL</div>
+                                <div className="text-[9px] text-muted font-bold uppercase">30s AGO</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xs font-black italic">${(Math.random() * 1000).toFixed(2)}</div>
+                              <button className="text-[9px] text-muted hover:text-white transition-colors">
+                                <ArrowUpRight className="w-3.5 h-3.5 inline" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
 

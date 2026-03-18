@@ -255,7 +255,17 @@ export function CompactTokenCard({
                   strokeWidth="2"
                   strokeDasharray={`${26 * 2 * Math.PI}`}
                   strokeDashoffset={`${26 * 2 * Math.PI * (1 - bondingProgress)}`}
-                  className={`${isTokenMigrated ? "text-primary shadow-neon" : "text-secondary"} transition-all duration-1000`}
+                  className={`${
+                    isTokenMigrated 
+                      ? "text-primary shadow-neon" 
+                      : platformInfo.platform === 'pump'
+                        ? "text-[#22c55e] drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+                        : platformInfo.platform === 'meteora'
+                          ? "text-[#e879f9] drop-shadow-[0_0_8px_rgba(232,121,249,0.5)]"
+                          : platformInfo.platform === 'moonshot'
+                            ? "text-[#f472b6] drop-shadow-[0_0_8px_rgba(244,114,182,0.5)]"
+                            : "text-secondary"
+                  } transition-all duration-1000`}
                   strokeLinecap="round"
                 />
               </svg>
@@ -387,20 +397,7 @@ export function CompactTokenCard({
           </div>
         </div>
 
-        <div className="mt-6 flex flex-col gap-2">
-          <div className="flex-1 space-y-2">
-            <div className="flex justify-between items-center px-1">
-               <span className="text-[8px] font-black text-muted uppercase tracking-widest">Bonding Curve</span>
-               <span className="text-[8px] font-black text-primary uppercase tracking-widest text-glow">{Math.round(bondingProgress * 100)}%</span>
-            </div>
-            <div className="h-2 bg-white/5 rounded-full overflow-hidden p-[1px] border border-white/5">
-              <div
-                className={`h-full bg-linear-to-r ${isTokenMigrated ? "from-primary to-primary-light shadow-neon" : "from-secondary to-primary"} transition-all duration-1000 rounded-full`}
-                style={{ width: `${bondingProgress * 100}%` }}
-              />
-            </div>
-          </div>
-        </div>
+
 
         {/* Floating Tooltip Data - Restored with rich icons and tooltips */}
         <TooltipProvider>

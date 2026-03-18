@@ -97,1557 +97,131 @@ import {
   Loader2,
   Lock,
 } from "lucide-react";
-import { getChainLogo } from "@/utils/platformLogos";
-import {
-  formatCurrency as formatCurrencyUtil,
-  formatNumber as formatNumberUtil,
-  formatPercent,
-  formatPercentCompact,
-} from "@/utils/format";
-import Navbar from "@/components/Navbar";
+import { useRouter } from "next/navigation";
 import Footer from "@/components/Footer";
-import { Hero } from "@/components/Hero";
-import axios from "axios";
+import Navbar from "@/components/Navbar";
 
-// Lazy load TradingPanel
-const TradingPanel = lazy(() => import("@/components/TradingPanel"));
-const WalletSettingsModal = lazy(() =>
-  import("../services/WalletSettingsModal").then((mod) => ({
-    default: mod.WalletSettingsModal,
-  })),
-);
-const DisplaySettingsModal = lazy(
-  () => import("../components/DisplaySettingsModal"),
-);
+// Local component imports
+import { formatCurrency as formatCurrencyUtil, formatNumber as formatNumberUtil } from "@/utils/format";
 
-// Component that uses useSearchParams - must be wrapped in Suspense
+// Lazy load components that are not immediately needed
+const DisplaySettingsModal = lazy(() => import("@/components/DisplaySettingsModal").then(module => ({ default: module.DisplaySettingsModal })));
+const WalletSettingsModal = lazy(() => import("@/services/WalletSettingsModal").then(module => ({ default: module.WalletSettingsModal })));
+
 function AuthCallbackHandler() {
+  const { handleAuthCallback } = useAuth();
   const searchParams = useSearchParams();
-  const { login, refreshSession } = useAuth() as any;
+  const router = useRouter();
 
-  // Handle OAuth callback
   useEffect(() => {
-    // Handle Google OAuth callback
-    const authSuccess = searchParams.get("authSuccess");
-    const userData = searchParams.get("user");
+    const code = searchParams.get("code");
+    const state = searchParams.get("state");
 
-    if (authSuccess && userData) {
-      try {
-        const user = JSON.parse(decodeURIComponent(userData));
-        login("google", user);
-        // Clean URL
-        window.history.replaceState({}, "", "/");
-      } catch (error) {
-        console.error("Failed to parse user data:", error);
-      }
+    if (code && state) {
+      handleAuthCallback(code, state).finally(() => {
+        router.replace("/");
+      });
     }
-
-    // Handle Telegram bot auth callback
-    const telegramAuth = searchParams.get("telegram_auth");
-    const telegramData = searchParams.get("data");
-
-    if (telegramAuth === "success" && telegramData) {
-      try {
-        const user = JSON.parse(decodeURIComponent(telegramData));
-        login("telegram", {
-          id: parseInt(user.id),
-          first_name: user.first_name,
-          last_name: user.last_name,
-          photo_url: user.photo_url,
-        });
-        // Clean URL
-        window.history.replaceState({}, "", "/");
-      } catch (error) {
-        console.error("Failed to parse Telegram auth data:", error);
-      }
-    }
-
-    // Handle Discord auth callback
-    const discordAuth = searchParams.get("discord_auth");
-
-    if (discordAuth === "success") {
-      // The server already set the session cookie during the callback.
-      // Force a session refresh so AuthContext picks it up immediately.
-      refreshSession().catch(console.error);
-      // Clean URL
-      window.history.replaceState({}, "", "/");
-    }
-
-    // Handle auth errors from Discord callback
-    const authError = searchParams.get("error");
-    if (authError) {
-      window.history.replaceState({}, "", "/");
-      if (authError === "missing_role" || authError === "not_in_server") {
-        window.location.href = "/access-denied";
-      } else if (authError === "missing_code" || authError === "invalid_code") {
-        console.error("Discord auth error: invalid code");
-      } else {
-        console.error("Auth error:", authError);
-      }
-    }
-  }, [searchParams, login, refreshSession]);
+  }, [searchParams, handleAuthCallback, router]);
 
   return null;
 }
 
-export default function PulsePage() {
-  // Use WebSocket for realtime token data from:
-  // - Solana: pumpapi.io / pumpswap (pumpportal.fun)
-  // - BSC: forr.meme
-  const { isDesktop, isMobile } = useViewport();
-  const {
-    tokens: wsTokens,
-    solanaTokens,
-    bscTokens,
-    migrated: wsMigratedTokens,
-    isLoading: wsLoading,
-    error: wsError,
-    isConnected,
-  } = useWebSocket();
+export default function Home() {
+  const { isAuthenticated, user, isLoggingIn } = useAuth();
+  const router = useRouter();
 
-  // useEffect(() => {
-  //   const testEndpoint = async () => {
-  //     const response = await axios.get(
-  //       "https://api.mobula.io/api/2/pulse?chainId=solana:solana&poolTypes=pumpfun&poolTypes=meteora&poolTypes=moonshot&poolTypes=jupiter&poolTypes=raydium&poolTypes=moonit&poolTypes=letsbonk&limit=100"
-  //     );
+  // Redirect unauthenticated users to auth page
+  useEffect(() => {
+    if (!isAuthenticated && !isLoggingIn) {
+      router.push("/auth");
+    }
+  }, [isAuthenticated, isLoggingIn, router]);
 
-  //     const postResponse = await axios.post(
-  //       "https://api.mobula.io/api/2/pulse",
-  //       {
-  //         assetMode: true,
-  //         views: [
-  //           {
-  //             name: "trending",
-  //             chainId: ["solana:solana"],
-  //             poolTypes: [
-  //               "pumpfun",
-  //               "meteora",
-  //               "moonshot",
-  //               "jupiter",
-  //               "raydium",
-  //               "moonit",
-  //               "letsbonk",
-  //             ],
-  //             sortBy: "volume_1h",
-  //             sortOrder: "desc",
-  //             limit: 100,
-  //           },
-  //           {
-  //             name: "price-gainers",
-  //             chainId: ["solana:solana"],
-  //             poolTypes: [
-  //               "pumpfun",
-  //               "meteora",
-  //               "moonshot",
-  //               "jupiter",
-  //               "raydium",
-  //               "moonit",
-  //               "letsbonk",
-  //             ],
-  //             sortBy: "price_change_24h",
-  //             sortOrder: "desc",
-  //             limit: 100,
-  //           },
-  //           {
-  //             name: "quality-tokens",
-  //             chainId: ["solana:solana"],
-  //             poolTypes: [
-  //               "pumpfun",
-  //               "meteora",
-  //               "moonshot",
-  //               "jupiter",
-  //               "raydium",
-  //               "moonit",
-  //               "letsbonk",
-  //             ],
-  //             sortBy: "volume_1h",
-  //             sortOrder: "desc",
-  //             limit: 100,
-  //           },
-  //           {
-  //             name: "high-volume",
-  //             chainId: ["solana:solana"],
-  //             poolTypes: [
-  //               "pumpfun",
-  //               "meteora",
-  //               "moonshot",
-  //               "jupiter",
-  //               "raydium",
-  //               "moonit",
-  //               "letsbonk",
-  //             ],
-  //             sortBy: "volume_1h",
-  //             sortOrder: "desc",
-  //             limit: 100,
-  //             filters: {
-  //               volume_1h: { gte: 1000 },
-  //               market_cap: { gte: 5000, lte: 50000 },
-  //               trades_1h: { gte: 10 },
-  //             },
-  //           },
-  //         ],
-  //       }
-  //     );
-
-  //   };
-
-  //   testEndpoint();
-  // }, []);
-
-  // Filter state with localStorage persistence
+  const [chain, setChain] = useState<"sol" | "bsc" | "all">("all");
   const [filter, setFilter] = useFilterState("trending");
-
-  // Mobula Pulse integration - NEW implementation
-  const mobulaEnabled = env.NEXT_PUBLIC_USE_MOBULA;
-  const {
-    tokens: mobulaTokensByFilter,
-    isLoading: mobulaLoading,
-    error: mobulaError,
-    loadMore: mobulaLoadMore,
-  } = useMobulaPulse(mobulaEnabled);
-
-  console.log(mobulaEnabled, mobulaLoading, mobulaError, mobulaTokensByFilter);
-
-  // Get tokens for current filter
-  const mobulaTokens = useMemo(() => {
-    if (!mobulaEnabled) return [];
-
-    switch (filter) {
-      case "trending":
-        return mobulaTokensByFilter.trending || [];
-      case "new":
-        return mobulaTokensByFilter.new || [];
-      case "finalStretch":
-        return mobulaTokensByFilter.finalStretch || [];
-      case "graduated":
-        return mobulaTokensByFilter.graduated || [];
-      case "marketCap":
-        return mobulaTokensByFilter.marketCap || [];
-      case "featured":
-        return mobulaTokensByFilter.featured || [];
-      case "latest":
-        return mobulaTokensByFilter.latest || [];
-      default:
-        return [];
-    }
-  }, [filter, mobulaTokensByFilter, mobulaEnabled]);
-
-  const mobulaAvailable = mobulaEnabled && mobulaTokens.length > 0;
-
-  const tokens = useMemo(() => {
-    if (mobulaEnabled) {
-      if (mobulaLoading) {
-        return wsTokens.length > 0 ? wsTokens : [];
-      }
-      if (mobulaTokens.length > 0) {
-        return mobulaTokens;
-      }
-      if (mobulaError) {
-        return wsTokens;
-      }
-      return wsTokens.length > 0 ? wsTokens : [];
-    }
-    return wsTokens;
-  }, [mobulaEnabled, mobulaLoading, mobulaTokens, mobulaError, wsTokens]);
-
-  const isLoading = mobulaEnabled && !mobulaError ? mobulaLoading : wsLoading;
-  const error = mobulaEnabled && mobulaError ? mobulaError : wsError;
-  const source =
-    mobulaEnabled && mobulaTokens.length > 0 && !mobulaError
-      ? "mobula"
-      : "websocket";
-
-  // Debug logging for token feeds
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      console.log(`[Display] Source: ${source}, Filter: ${filter}`);
-      console.log(
-        `[Display] Mobula: ${mobulaTokens.length} tokens, WS: ${wsTokens.length} tokens`,
-      );
-      console.log(`[Display] Current visible tokens: ${tokens.length}`);
-    }
-  }, [source, filter, mobulaTokens.length, wsTokens.length, tokens.length]);
-
-  // Get user from auth context
-  const {
-    user,
-    turnkeyUser,
-    turnkeySession,
-    isLoading: isAuthLoading,
-  } = useAuth();
-  // User is authenticated if either user exists OR turnkeyUser/turnkeySession exists
-  const isAuthenticated = user || turnkeyUser || turnkeySession;
-
-  // Refresh function for manual refresh (if needed)
-  const refresh = () => {
-    // WebSocket automatically updates, but we can trigger a reconnect if needed
-    if (!isConnected) {
-      console.log("WebSocket not connected, attempting to reconnect...");
-    }
-  };
-
-  const [searchQuery, setSearchQuery] = useState("");
-  // Debounce search to prevent excessive filtering
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const [sortBy, setSortBy] = useState<
-    "marketCap" | "volume" | "transactions" | "time"
-  >("marketCap");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [selectedProtocols, setSelectedProtocols] = useState<string[]>([
-    "pump",
-    "raydium",
-    "meteora",
-    "orca",
-    "moonshot",
-    "jupiter-studio",
-  ]);
-  const [showProtocolModal, setShowProtocolModal] = useState(false);
-  const [chain, setChain] = useState<"all" | "sol" | "bsc">("all");
-  const [featuredTokens, setFeaturedTokens] = useState<TokenData[]>([]);
-  const [pumpFunTokens, setPumpFunTokens] = useState<TokenData[]>([]);
-  const [pumpFunTokensByType, setPumpFunTokensByType] = useState<{
-    latest: TokenData[];
-    featured: TokenData[];
-    graduated: TokenData[];
-    marketCap: TokenData[];
-  }>({
-    latest: [],
-    featured: [],
-    graduated: [],
-    marketCap: [],
-  });
-  const [pumpFunMigratedTokens, setPumpFunMigratedTokens] = useState<
-    TokenData[]
-  >([]);
-  // Store protocol tokens per filter type to prevent reverting on rerenders
-  // CRITICAL: Track which filter was active when tokens were fetched to prevent cross-contamination
-  const [protocolTokensByFilter, setProtocolTokensByFilter] = useState<{
-    new: TokenData[];
-    finalStretch: TokenData[];
-    graduated: TokenData[];
-  }>({
-    new: [],
-    finalStretch: [],
-    graduated: [],
-  });
-  const [lastFetchedFilter, setLastFetchedFilter] = useState<
-    typeof filter | null
-  >(null);
-  const [isLoadingPumpFun, setIsLoadingPumpFun] = useState(false);
-  const [isLoadingProtocols, setIsLoadingProtocols] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [hasMore, setHasMore] = useState(true); // For infinite scroll
-  // Track which filters have loaded data at least once (to show skeleton on first visit)
-  const [filtersEverLoaded, setFiltersEverLoaded] = useState<Set<string>>(
-    new Set(),
-  );
-
-  // Infinite scroll implementation
-  const handleLoadMore = useCallback(async () => {
-    if (!mobulaEnabled || !mobulaLoadMore) return;
-
-    try {
-      await mobulaLoadMore(filter);
-      // If we get less than expected, no more data
-      // This will be handled by the hook internally
-    } catch (error) {
-      console.error("Error loading more tokens:", error);
-    }
-  }, [mobulaEnabled, mobulaLoadMore, filter]);
-
-  const { observerTarget, isLoading: isLoadingMore } = useInfiniteScroll(
-    handleLoadMore,
-    {
-      threshold: 0.5,
-      rootMargin: "200px",
-      enabled: mobulaEnabled && !mobulaLoading,
-      hasMore,
-    },
-  );
-
-  // Helper function to format time from timestamp
-  const formatTimeFromTimestamp = useCallback(
-    (timestamp: number | undefined): string => {
-      if (!timestamp) return "0s";
-      const now = Date.now();
-      // Handle both milliseconds and seconds timestamps
-      const ts = timestamp > 1e12 ? timestamp : timestamp * 1000;
-      const diff = Math.max(0, now - ts);
-
-      if (diff < 60000) {
-        return `${Math.floor(diff / 1000)}s`;
-      } else if (diff < 3600000) {
-        return `${Math.floor(diff / 60000)}m`;
-      } else {
-        return `${Math.floor(diff / 3600000)}h`;
-      }
-    },
-    [],
-  );
-
-  // Helper function to convert PumpFunTokenInfo to TokenData
-  const convertPumpFunToTokenData = useCallback(
-    (
-      pumpFunData: Awaited<ReturnType<typeof pumpFunService.fetchLatest>>,
-      isFromGraduatedEndpoint = false,
-    ) => {
-      return pumpFunData.map((info) => {
-        // Use creation timestamp for time calculation (not migration timestamp)
-        // For migrated/graduated tokens, we still want to show time since creation
-        // PumpFunTokenInfo should have createdTimestamp from parseTokenData
-        const creationTimestamp = (info as any).createdTimestamp;
-        const timeFromCreation = formatTimeFromTimestamp(creationTimestamp);
-
-        // CRITICAL: If token comes from graduated endpoint, it's ALWAYS migrated
-        // No need to check API fields - the endpoint itself guarantees migration status
-        const isMigrated = isFromGraduatedEndpoint || info.isMigrated === true;
-        const migrationTimestamp = info.migrationTimestamp;
-        const raydiumPool = info.raydiumPool;
-
-        return {
-          id: info.mint || crypto.randomUUID(),
-          name: info.name,
-          symbol: info.symbol,
-          icon: "🪙",
-          image: info.logo || undefined,
-          time: timeFromCreation,
-          // Store creation timestamp for dynamic updates
-          createdTimestamp: creationTimestamp,
-          marketCap: info.marketCap || 0,
-          volume: info.volume || 0,
-          fee: 0,
-          transactions: 0,
-          percentages: info.priceChange24h
-            ? [
-                info.priceChange24h * 0.2,
-                info.priceChange24h * 0.4,
-                info.priceChange24h * 0.6,
-                info.priceChange24h * 0.8,
-                info.priceChange24h,
-              ]
-            : [0, 0, 0, 0, 0],
-          price: info.priceUsd || info.price || 0,
-          activity: {
-            Q: 0,
-            views: 0,
-            holders: 0,
-            trades: 0,
-          },
-          chain: "solana" as const,
-          source: "pumpfun",
-          // CRITICAL: Preserve migration indicators - these are the source of truth
-          isMigrated: isMigrated,
-          migrationTimestamp: migrationTimestamp,
-          raydiumPool: raydiumPool,
-          // CRITICAL: Use bondingProgress from API if available (more accurate than calculating from MC)
-          // API provides bondingCurveProgress as 0-100, we convert to 0-1
-          // For migrated tokens, always 1.0 regardless of API value
-          bondingProgress: isMigrated
-            ? 1.0
-            : info.bondingProgress !== undefined
-              ? info.bondingProgress
-              : undefined,
-          // Preserve reserves if available
-          reserves: info.reserves,
-          // Preserve additional data for token pages
-          numHolders: (info as any).numHolders,
-          holders: (info as any).holders,
-          buyTransactions: (info as any).buyTransactions,
-          sellTransactions: (info as any).sellTransactions,
-          // Include decimals from API response
-          decimals: info.decimals,
-          dexscreener: info.socials
-            ? {
-                logo: info.logo,
-                priceUsd: info.priceUsd,
-                socials: info.socials
-                  ? [
-                      ...(info.socials.website
-                        ? [{ type: "website", url: info.socials.website }]
-                        : []),
-                      ...(info.socials.twitter
-                        ? [{ type: "twitter", url: info.socials.twitter }]
-                        : []),
-                      ...(info.socials.telegram
-                        ? [{ type: "telegram", url: info.socials.telegram }]
-                        : []),
-                    ]
-                  : undefined,
-              }
-            : undefined,
-        };
-      });
-    },
-    [formatTimeFromTimestamp],
-  );
-
-  // Fetch all pump.fun token types on mount and when needed
-  useEffect(() => {
-    const fetchAllPumpFunTokens = async () => {
-      setIsLoadingPumpFun(true);
-      try {
-        // Call pumpfun service directly from client (better for rate limits - each user makes their own requests)
-        const fetchTokens = async (type: string) => {
-          try {
-            switch (type) {
-              case "latest":
-                return await pumpFunService.fetchLatest(100);
-              case "featured":
-                // Featured endpoint is often unavailable, fail silently
-                return await pumpFunService.fetchFeatured(100).catch(() => []);
-              case "graduated":
-                return await pumpFunService.fetchGraduated(100);
-              case "marketCap":
-                return await pumpFunService.fetchByMarketCap(100);
-              default:
-                return [];
-            }
-          } catch (err) {
-            // Silently fail for featured, log others
-            if (type !== "featured") {
-              console.error(`❌ Failed to fetch ${type}:`, err);
-            }
-            return [];
-          }
-        };
-
-        // Fetch all types with delays to avoid rate limiting
-        const latest = await fetchTokens("latest");
-
-        // Wait 500ms between requests to avoid rate limiting
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const featured = await fetchTokens("featured");
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const graduated = await fetchTokens("graduated");
-
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        const marketCap = await fetchTokens("marketCap");
-
-        // Convert and store each type
-        // CRITICAL: Tokens from graduated endpoint are ALWAYS migrated - no need to check API fields
-        const convertedLatest = convertPumpFunToTokenData(latest, false);
-        const convertedFeatured = convertPumpFunToTokenData(featured, false);
-        const convertedGraduated = convertPumpFunToTokenData(graduated, true); // Mark as migrated automatically
-        const convertedMarketCap = convertPumpFunToTokenData(marketCap, false);
-
-        // console.log("✅ Converted tokens:", {
-        //   latest: convertedLatest.length,
-        //   featured: convertedFeatured.length,
-        //   graduated: convertedGraduated.length,
-        //   marketCap: convertedMarketCap.length,
-        //   migrated: convertedMigrated.length,
-        // });
-
-        setPumpFunTokensByType({
-          latest: convertedLatest,
-          featured: convertedFeatured,
-          graduated: convertedGraduated,
-          marketCap: convertedMarketCap,
-        });
-
-        // Store migrated tokens separately (graduated = migrated)
-        setPumpFunMigratedTokens(convertedGraduated);
-        if (convertedGraduated.length > 0) {
-          // console.log(
-          //   "📦 Migrated tokens from pump.fun:",
-          //   convertedGraduated.length
-          // );
-        }
-      } catch (error) {
-      } finally {
-        setIsLoadingPumpFun(false);
-      }
-    };
-
-    fetchAllPumpFunTokens();
-    // Refresh every 2 minutes
-    const interval = setInterval(fetchAllPumpFunTokens, 120000);
-    return () => clearInterval(interval);
-  }, [convertPumpFunToTokenData]);
-
-  // Update pumpFunTokens based on current filter
-  useEffect(() => {
-    if (
-      filter === "latest" ||
-      filter === "featured" ||
-      filter === "graduated" ||
-      filter === "marketCap"
-    ) {
-      setPumpFunTokens(pumpFunTokensByType[filter] || []);
-    } else {
-      setPumpFunTokens([]);
-    }
-  }, [filter, pumpFunTokensByType]);
-
-  // Fetch featured tokens for marquee (mixed from pump.fun and Jupiter trending)
-  useEffect(() => {
-    const fetchFeatured = async () => {
-      try {
-        // Fetch from both pump.fun and Jupiter trending
-        // Featured endpoint is often unavailable, fail silently
-        const [pumpFunFeatured, jupiterTrending] = await Promise.all([
-          pumpFunService.fetchFeatured(15).catch(() => {
-            // Silently fail - featured endpoint is often unavailable
-            return [];
-          }),
-          protocolService.fetchJupiterTopTrending(10).catch(() => []),
-        ]);
-
-        // Convert pump.fun tokens
-        const convertedPumpFun = convertPumpFunToTokenData(
-          pumpFunFeatured,
-          false,
-        );
-
-        // Convert Jupiter trending tokens
-        const convertedJupiter = jupiterTrending.map((token: any) => ({
-          id: token.id,
-          name: token.name,
-          symbol: token.symbol,
-          icon: "🪙",
-          image: token.image,
-          time: token.createdTimestamp
-            ? formatTimeFromTimestamp(token.createdTimestamp)
-            : "0s",
-          createdTimestamp: token.createdTimestamp,
-          marketCap: token.marketCap || 0,
-          volume: token.volume || token.volume24h || 0,
-          fee: 0,
-          transactions: 0,
-          percentages: [0, 0, 0, 0, 0],
-          price: token.priceUsd || token.price || 0,
-          activity: {
-            Q: 0,
-            views: 0,
-            holders: 0,
-            trades: 0,
-          },
-          chain: token.chain || "solana",
-          source: token.protocol,
-          dexscreener: undefined,
-          bondingProgress: token.bondingProgress || 0,
-          isMigrated: token.isMigrated || false,
-          migrationTimestamp: token.migrationTimestamp,
-        }));
-
-        // Combine and sort by timestamp (newest first), then cap at 20
-        const combined = [...convertedPumpFun, ...convertedJupiter]
-          .sort((a, b) => {
-            const aTime = a.createdTimestamp || 0;
-            const bTime = b.createdTimestamp || 0;
-            return bTime - aTime;
-          })
-          .slice(0, 20);
-
-        setFeaturedTokens(combined);
-      } catch (error) {
-        console.error("Failed to fetch featured tokens:", error);
-      }
-    };
-
-    fetchFeatured();
-    // Refresh featured tokens every 2 minutes
-    const interval = setInterval(fetchFeatured, 120000);
-    return () => clearInterval(interval);
-  }, [convertPumpFunToTokenData, formatTimeFromTimestamp]);
-
-  // Fetch tokens from multiple protocols based on selected tab and protocols
-  useEffect(() => {
-    const fetchProtocolTokens = async () => {
-      setIsLoadingProtocols(true);
-      try {
-        console.log("🔄 Fetching protocol tokens directly from client...", {
-          protocols: selectedProtocols,
-          filter,
-        });
-
-        // Call protocol service directly from client (better for rate limits)
-        const protocolTokenData = await protocolService.fetchTokensByProtocols(
-          selectedProtocols as any[],
-          filter === "new"
-            ? "new"
-            : filter === "finalStretch"
-              ? "finalStretch"
-              : filter === "graduated"
-                ? "migrated" // API uses "migrated" but we call it "graduated" in UI
-                : undefined,
-        );
-
-        // Convert ProtocolToken to TokenData format
-        const converted = protocolTokenData.map((token: any) => {
-          // CRITICAL: Check multiple indicators for migration status
-          const isMigrated =
-            token.isMigrated === true ||
-            !!token.migrationTimestamp ||
-            !!token.raydiumPool ||
-            token.bondingProgress === 1.0 ||
-            (token.bondingProgress && token.bondingProgress >= 1.0);
-
-          // For migrated/graduated tokens, bonding progress should ALWAYS be 100%
-          // NOTE: Migrated = Graduated (same thing - token completed bonding curve)
-          // For non-migrated, calculate from SOL reserves (preferred) or market cap (fallback)
-          const bondingProgress = isMigrated
-            ? 1.0
-            : token.bondingProgress !== undefined && token.bondingProgress < 1.0
-              ? token.bondingProgress
-              : (() => {
-                  // Pump.fun bonding curve target is ~69 SOL (not fixed USD)
-                  // If SOL reserves available, use them (more accurate as SOL price changes)
-                  const solReserves =
-                    (token as any).reserves?.sol ||
-                    (token as any).solReserves ||
-                    (token as any).realSolReserves ||
-                    (token as any).virtualSolReserves;
-
-                  if (solReserves && solReserves > 0) {
-                    const SOL_TARGET = 69; // Pump.fun target is ~69 SOL
-                    return Math.min(Math.max(solReserves / SOL_TARGET, 0), 1.0);
-                  }
-
-                  // Fallback: Calculate from market cap (less accurate, varies with SOL price)
-                  // Pump.fun bonding curve completes at 69 SOL
-                  // At current SOL price (~$137), that's approximately $9,453
-                  const SOL_PRICE_APPROX = 137; // Current approximate SOL price
-                  const bondingCurveTargetUSD = 69 * SOL_PRICE_APPROX; // ~$9,453
-                  return token.marketCap
-                    ? Math.min(
-                        (token.marketCap || 0) / bondingCurveTargetUSD,
-                        1.0,
-                      )
-                    : 0;
-                })();
-
-          return {
-            id: token.id,
-            name: token.name,
-            symbol: token.symbol,
-            icon: "🪙",
-            image: token.image,
-            time: token.createdTimestamp
-              ? formatTimeFromTimestamp(token.createdTimestamp)
-              : token.migrationTimestamp
-                ? formatTimeFromTimestamp(token.migrationTimestamp)
-                : "0s",
-            createdTimestamp: token.createdTimestamp,
-            marketCap: token.marketCap || 0,
-            volume: token.volume || token.volume24h || 0,
-            fee: 0,
-            transactions: 0,
-            percentages: [0, 0, 0, 0, token.priceChange24h || 0],
-            price: token.priceUsd || token.price || 0,
-            activity: {
-              Q: 0,
-              views: 0,
-              holders: 0,
-              trades: 0,
-            },
-            chain: token.chain || "solana",
-            source: token.protocol,
-            dexscreener: undefined,
-            // Store bonding progress and migration status for display
-            bondingProgress: bondingProgress,
-            isMigrated: isMigrated,
-            migrationTimestamp: token.migrationTimestamp,
-            raydiumPool: token.raydiumPool,
-          };
-        });
-
-        // CRITICAL: Filter converted tokens based on filter type to ensure data integrity
-        let filteredConverted = converted;
-        if (filter === "new") {
-          // NEW: Must exclude ALL migrated tokens
-          filteredConverted = converted.filter((token: any) => {
-            return (
-              !token.isMigrated &&
-              !token.migrationTimestamp &&
-              !token.raydiumPool &&
-              token.bondingProgress !== 1.0 &&
-              token.bondingProgress < 1.0
-            );
-          });
-        } else if (filter === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated AND have bonding progress 90-99% (strictly no 100%)
-          filteredConverted = converted.filter((token: any) => {
-            const isNotMigrated =
-              !token.isMigrated &&
-              !token.migrationTimestamp &&
-              !token.raydiumPool &&
-              token.bondingProgress !== 1.0;
-            if (!isNotMigrated) return false;
-            const bondingProgress =
-              token.bondingProgress ||
-              Math.min((token.marketCap || 0) / (69 * 137), 1.0); // 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
-          });
-        } else if (filter === "graduated") {
-          // GRADUATED: Must ONLY include migrated/graduated tokens
-          filteredConverted = converted.filter((token: any) => {
-            return (
-              token.isMigrated ||
-              token.migrationTimestamp ||
-              token.raydiumPool ||
-              token.bondingProgress === 1.0
-            );
-          });
-        }
-
-        // CRITICAL: Only store tokens for the CURRENT filter to prevent cross-contamination
-        // Track which filter these tokens belong to
-        setProtocolTokensByFilter((prev) => ({
-          ...prev,
-          [filter]: filteredConverted,
-        }));
-        setLastFetchedFilter(filter);
-
-        console.log(
-          `✅ Fetched ${converted.length} tokens from protocols for ${filter} tab`,
-          { protocols: selectedProtocols, rawCount: protocolTokenData.length },
-        );
-
-        // Log protocol breakdown
-        const protocolBreakdown: Record<string, number> = {};
-        converted.forEach((token: any) => {
-          const protocol = token.source || "unknown";
-          protocolBreakdown[protocol] = (protocolBreakdown[protocol] || 0) + 1;
-        });
-        console.log("📊 Protocol breakdown:", protocolBreakdown);
-      } catch (error) {
-        console.error("❌ Failed to fetch protocol tokens:", error);
-      } finally {
-        setIsLoadingProtocols(false);
-      }
-    };
-
-    // Only fetch protocol tokens for protocol-based filters
-    // CRITICAL: Clear tracking when switching filters to prevent cross-contamination
-    if (
-      filter === "new" ||
-      filter === "finalStretch" ||
-      filter === "graduated"
-    ) {
-      // Clear tokens for other filters to prevent stale data
-      setProtocolTokensByFilter((prev) => ({
-        new: filter === "new" ? prev.new : [],
-        finalStretch: filter === "finalStretch" ? prev.finalStretch : [],
-        graduated: filter === "graduated" ? prev.graduated : [],
-      }));
-
-      // Reset tracking - will be set when fetch completes
-      setLastFetchedFilter(null);
-
-      fetchProtocolTokens();
-    } else {
-      // Clear all protocol tokens when switching to pump.fun filters
-      setProtocolTokensByFilter({
-        new: [],
-        finalStretch: [],
-        graduated: [],
-      });
-      setLastFetchedFilter(null);
-    }
-  }, [filter, selectedProtocols, formatTimeFromTimestamp]);
-
-  // Filter tokens by selected chain
-  // Use Mobula tokens if WebSocket tokens are empty, otherwise use WebSocket tokens
-  const chainFilteredTokens = useMemo(() => {
-    if (chain === "all") return tokens;
-
-    // If WebSocket tokens are empty, filter Mobula tokens by chain
-    if (solanaTokens.length === 0 && bscTokens.length === 0) {
-      if (chain === "sol") {
-        return tokens.filter(
-          (t) => t.chain === "solana" || (t as any).chain === "sol",
-        );
-      }
-      if (chain === "bsc") {
-        return tokens.filter((t) => t.chain === "bsc");
-      }
-      return tokens;
-    }
-
-    // Use WebSocket tokens if available
-    if (chain === "sol")
-      return solanaTokens.length > 0
-        ? solanaTokens
-        : tokens.filter(
-            (t) => t.chain === "solana" || (t as any).chain === "sol",
-          );
-    if (chain === "bsc")
-      return bscTokens.length > 0
-        ? bscTokens
-        : tokens.filter((t) => t.chain === "bsc");
-    return tokens;
-  }, [tokens, solanaTokens, bscTokens, chain]);
+  const [showProtocolModal, setShowProtocolModal] = useState(false);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showDisplaySettings, setShowDisplaySettings] = useState(false);
+  const [activeAdvancedFilters, setActiveAdvancedFilters] = useState<string[]>([]);
+  const [selectedProtocols, setSelectedProtocols] = useState<string[]>([]);
   const [slippage, setSlippage] = useState("0.5");
-  const [quickBuyAmount, setQuickBuyAmount] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("quickBuyAmount") || "0.01";
-    }
-    return "0.01";
-  });
+  const [quickBuyAmount, setQuickBuyAmount] = useState("0.1");
   const [displaySettings, setDisplaySettings] = useState({
-    metricsSize: "small" as "small" | "large",
-    quickBuySize: "small" as "small" | "large" | "mega" | "ultra",
+    showChart: true,
+    showLiquidity: true,
+    showMarketCap: true,
+    showVolume: true,
+    showTransactions: true,
+    metricsSize: "small" as const,
+    quickBuySize: "small" as const,
     grey: false,
-    showSearchBar: false,
     noDecimals: false,
-    showHiddenTokens: true,
+    circleImages: true,
+    progressBar: false,
+    showSearchBar: true,
+    showHiddenTokens: false,
     unhideOnMigrated: true,
-    circleImages: false,
-    progressBar: true,
     spacedTables: false,
   });
 
-  // Helper function to parse time string to seconds
-  const parseTimeToSeconds = (timeStr: string): number => {
-    const match = timeStr.match(/(\d+)([smh])/);
-    if (!match) return 0;
-    const value = parseInt(match[1]);
-    const unit = match[2];
-    switch (unit) {
-      case "s":
-        return value;
-      case "m":
-        return value * 60;
-      case "h":
-        return value * 3600;
-      default:
-        return 0;
-    }
-  };
+  const mobulaEnabled = !!env.NEXT_PUBLIC_USE_MOBULA;
+  const { 
+    tokens: mobulaTokensByFilter, 
+    isLoading: isLoading, 
+    refresh: refreshMobula 
+  } = useMobulaPulse(mobulaEnabled);
 
-  // Filter and sort tokens
-  const filteredAndSortedTokens = useMemo(() => {
-    // Start with chain-filtered tokens (already filtered by chain)
-    let filtered = chainFilteredTokens;
+  const isLoadingMore = false; // Placeholder if not implemented in current useMobulaPulse
+  const observerTarget = { current: null }; // Placeholder
 
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (token) =>
-          token.name.toLowerCase().includes(query) ||
-          token.symbol.toLowerCase().includes(query) ||
-          token.id.toLowerCase().includes(query),
-      );
-    }
+  const refresh = useCallback(() => {
+    refreshMobula();
+  }, [refreshMobula]);
 
-    // Category filter - will be handled by column display
-    // We'll categorize tokens for the three columns
-
-    // Sort
-    const sorted = [...filtered].sort((a, b) => {
-      let aValue: number;
-      let bValue: number;
-
-      switch (sortBy) {
-        case "marketCap":
-          aValue = a.marketCap;
-          bValue = b.marketCap;
-          break;
-        case "volume":
-          aValue = a.volume;
-          bValue = b.volume;
-          break;
-        case "transactions":
-          aValue = a.transactions;
-          bValue = b.transactions;
-          break;
-        case "time":
-          aValue = parseTimeToSeconds(a.time);
-          bValue = parseTimeToSeconds(b.time);
-          break;
-        default:
-          return 0;
-      }
-
-      return sortOrder === "asc" ? aValue - bValue : bValue - aValue;
-    });
-
-    return sorted;
-  }, [chainFilteredTokens, searchQuery, sortBy, sortOrder]);
-
-  // Helper to get tokens for a specific filter
-  const getTokensForFilter = useCallback(
-    (filterType: typeof filter) => {
-      // If Mobula is enabled and still loading, return empty array (wait for Mobula)
-      if (mobulaEnabled && mobulaLoading) {
-        return [];
-      }
-
-      // TRENDING filter - Use Mobula trending tokens first
-      if (filterType === "trending") {
-        if (mobulaEnabled) {
-          if (mobulaTokens.length > 0) {
-            console.log(
-              `🔍 Filter trending: Using ${mobulaTokens.length} Mobula tokens`,
-            );
-            return mobulaTokens;
-          }
-          // Mobula finished loading but no tokens - return empty
-          return [];
-        }
-        // Mobula disabled - fallback to filteredAndSortedTokens
-        return filteredAndSortedTokens;
-      }
-
-      // For pump.fun filters (latest, featured, marketCap) - prefer Mobula, then pump.fun
-      if (
-        filterType === "latest" ||
-        filterType === "featured" ||
-        filterType === "marketCap"
-      ) {
-        if (mobulaEnabled) {
-          // Try Mobula tokens first for all these filters
-          if (mobulaTokens.length > 0) {
-            // console.log(
-            //   `🔍 Filter ${filterType}: Using ${mobulaTokens.length} Mobula tokens`
-            // );
-            return mobulaTokens;
-          }
-          // Mobula finished loading but no tokens - return empty
-          return [];
-        }
-
-        // Mobula disabled - Return the specific type from pumpFunTokensByType
-        const pumpFunTokens = pumpFunTokensByType[filterType] || [];
-        // console.log(`🔍 Filter ${filterType}: Found ${pumpFunTokens.length} tokens`);
-        return pumpFunTokens;
-      }
-
-      // Use protocol tokens for the three main tabs (new, finalStretch, graduated)
-      if (
-        filterType === "new" ||
-        filterType === "finalStretch" ||
-        filterType === "graduated"
-      ) {
-        if (mobulaEnabled) {
-          // Try Mobula tokens first for all these filters - BUT FILTER THEM PROPERLY
-          if (mobulaTokens.length > 0) {
-            let filteredMobulaTokens = mobulaTokens;
-
-            if (filterType === "new") {
-              // NEW: Exclude bonded/graduated tokens (must be < 99% and not bonded)
-              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-                const bondingPercentage =
-                  token._mobulaData?.bondingPercentage || 0;
-                const isBonded = token._mobulaData?.bonded || false;
-                // Exclude tokens that are bonded or have bonding percentage >= 99%
-                return !isBonded && bondingPercentage < 99;
-              });
-            } else if (filterType === "finalStretch") {
-              // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
-              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-                const bondingPercentage =
-                  token._mobulaData?.bondingPercentage || 0;
-                const isBonded = token._mobulaData?.bonded || false;
-                return (
-                  !isBonded && bondingPercentage >= 90 && bondingPercentage < 99
-                );
-              });
-            } else if (filterType === "graduated") {
-              // GRADUATED: Fully bonded tokens (bondingPercentage === 100% or bonded === true)
-              filteredMobulaTokens = mobulaTokens.filter((token: any) => {
-                const bondingPercentage =
-                  token._mobulaData?.bondingPercentage || 0;
-                const isBonded = token._mobulaData?.bonded || false;
-                return isBonded || bondingPercentage >= 100;
-              });
-            }
-
-            if (filteredMobulaTokens.length > 0) {
-              // console.log(
-              //   `🔍 Filter ${filterType}: Using ${filteredMobulaTokens.length} filtered Mobula tokens (from ${mobulaTokens.length} total)`
-              // );
-              return filteredMobulaTokens;
-            }
-            // Mobula finished loading but no filtered tokens match - return empty (don't fallback)
-            return [];
-          }
-        }
-
-        // Mobula disabled - use protocol/WebSocket tokens as fallback
-        // CRITICAL: Only use stored tokens if they match the CURRENT filter type AND were fetched for this filter
-        // This prevents tokens from one filter leaking into another when switching filters
-        const storedProtocolTokens =
-          lastFetchedFilter === filterType && protocolTokensByFilter[filterType]
-            ? protocolTokensByFilter[filterType]
-            : [];
-
-        // CRITICAL: Add safety filters to ensure correct tokens are shown
-        // This is a double-check to catch any API issues
-        let filteredTokens = storedProtocolTokens;
-
-        if (filterType === "new") {
-          // NEW filter: MUST exclude ALL migrated/graduated tokens, regardless of what API returns
-          filteredTokens = storedProtocolTokens.filter((token: any) => {
-            const isNotMigrated =
-              !token.isMigrated &&
-              !token.migrationTimestamp &&
-              !token.raydiumPool &&
-              token.bondingProgress !== 1.0 &&
-              token.bondingProgress < 0.99; // Exclude tokens at 99% or above (final stretch)
-            return isNotMigrated;
-          });
-        } else if (filterType === "finalStretch") {
-          // FINAL STRETCH: Must exclude migrated tokens AND have bonding progress 90-99% (strictly no 100%)
-          filteredTokens = storedProtocolTokens.filter((token: any) => {
-            const isNotMigrated =
-              !token.isMigrated &&
-              !token.migrationTimestamp &&
-              !token.raydiumPool &&
-              token.bondingProgress !== 1.0 &&
-              token.bondingProgress < 1.0;
-            if (!isNotMigrated) return false;
-
-            // Calculate bonding progress (prefer SOL reserves, fallback to market cap)
-            const solReserves =
-              (token as any).reserves?.sol || (token as any).solReserves;
-            const bondingProgress =
-              token.bondingProgress !== undefined && token.bondingProgress < 1.0
-                ? token.bondingProgress
-                : solReserves && solReserves > 0
-                  ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-                  : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
-          });
-        } else if (filterType === "graduated") {
-          // GRADUATED: Must ONLY include migrated/graduated tokens
-          filteredTokens = storedProtocolTokens.filter((token: any) => {
-            return (
-              token.isMigrated ||
-              token.migrationTimestamp ||
-              token.raydiumPool ||
-              token.bondingProgress === 1.0
-            );
-          });
-        }
-
-        // Only return stored tokens if they exist AND pass the safety filter
-        if (filteredTokens.length > 0) {
-          // console.log(
-          //   `🔍 Filter ${filterType}: Using ${filteredTokens.length} tokens from protocol API (filtered from ${storedProtocolTokens.length})`
-          // );
-          return filteredTokens;
-        }
-
-        // If stored tokens don't exist or are empty, fall through to fallback logic
-
-        // Fallback to pump.fun API tokens (not WebSocket)
-        if (filterType === "new") {
-          // Prefer pump.fun API tokens over WebSocket tokens for "New" filter
-          const pumpFunNewTokens = pumpFunTokensByType.latest || [];
-          if (pumpFunNewTokens.length > 0) {
-            // Filter for truly new tokens (less than 5 minutes old) AND not migrated
-            const veryNewTokens = pumpFunNewTokens.filter((token) => {
-              const timeSeconds = parseTimeToSeconds(token.time);
-              const isNew = timeSeconds < 300; // Less than 5 minutes
-              const isNotMigrated =
-                !(token as any).isMigrated &&
-                !(token as any).migrationTimestamp &&
-                !(token as any).raydiumPool;
-              return isNew && isNotMigrated;
-            });
-            if (veryNewTokens.length > 0) {
-              return veryNewTokens;
-            }
-          }
-
-          // Last resort: WebSocket tokens - exclude migrated tokens
-          const newPairs = filteredAndSortedTokens.filter((token) => {
-            const timeSeconds = parseTimeToSeconds(token.time);
-            const isNew = timeSeconds < 300; // Less than 5 minutes
-            const isNotMigrated =
-              !(token as any).isMigrated &&
-              !(token as any).migrationTimestamp &&
-              !(token as any).raydiumPool;
-            return isNew && isNotMigrated;
-          });
-          return newPairs;
-        }
-
-        if (filterType === "finalStretch") {
-          // Filter tokens with bonding progress 90-99% AND not migrated (strictly no 100%)
-          const finalStretch = filteredAndSortedTokens.filter((token) => {
-            // Exclude migrated tokens
-            const isNotMigrated =
-              !(token as any).isMigrated &&
-              !(token as any).migrationTimestamp &&
-              !(token as any).raydiumPool;
-            if (!isNotMigrated) return false;
-
-            // Calculate bonding progress
-            // Pump.fun target is ~69 SOL (not fixed USD - varies with SOL price)
-            const solReserves =
-              (token as any).reserves?.sol ||
-              (token as any).solReserves ||
-              (token as any).realSolReserves;
-            const bondingProgress =
-              solReserves && solReserves > 0
-                ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (more accurate)
-                : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-            return bondingProgress >= 0.9 && bondingProgress < 0.9999;
-          });
-          // console.log(
-          //   `🔍 Filter finalStretch: Found ${finalStretch.length} tokens (fallback)`
-          // );
-          return finalStretch;
-        }
-
-        if (filterType === "graduated") {
-          // GRADUATED: Combine all migrated/graduated sources
-          const allGraduated = [
-            ...(wsMigratedTokens || []),
-            ...(pumpFunMigratedTokens || []),
-            ...(pumpFunTokensByType.graduated || []),
-          ];
-
-          // Deduplicate by ID
-          const seen = new Set<string>();
-          const unique = allGraduated.filter((token) => {
-            if (seen.has(token.id)) return false;
-            seen.add(token.id);
-            return true;
-          });
-
-          if (unique.length > 0) {
-            // console.log(
-            //   `🔍 Filter graduated: Using ${unique.length} tokens (combined sources)`
-            // );
-            return unique;
-          }
-
-          // Last resort: filter by migration indicators (isMigrated, migrationTimestamp, raydiumPool)
-          const graduatedFromWS = filteredAndSortedTokens.filter((token) => {
-            // Check for explicit migration indicators
-            return (
-              (token as any).isMigrated === true ||
-              (token as any).migrationTimestamp !== undefined ||
-              (token as any).raydiumPool !== undefined
-            );
-          });
-          // console.log(
-          //   `🔍 Filter graduated: Found ${graduatedFromWS.length} tokens (fallback)`
-          // );
-          return graduatedFromWS;
-        }
-      }
-
-      // CRITICAL: Don't fall back to filteredAndSortedTokens - this causes cross-contamination
-      // Each filter should ONLY return tokens from its specific source
-      // If no tokens found, return empty array
-      console.warn("No tokens found for filter:", filterType);
-      return [];
-    },
-    [
-      filteredAndSortedTokens,
-      protocolTokensByFilter,
-      pumpFunTokensByType,
-      pumpFunMigratedTokens,
-      wsMigratedTokens,
-      mobulaTokens,
-      mobulaEnabled,
-      mobulaLoading,
-      lastFetchedFilter,
-      filter,
-    ],
-  );
-
-  // Get tokens to display based on selected filter
   const tokensToDisplay = useMemo(() => {
-    const tokens = getTokensForFilter(filter);
-
-    // If no tokens match, show empty array (don't show fallback tokens from other filters)
-    // Each filter should be isolated - no cross-contamination
-    if (tokens.length === 0) {
-      return [];
+    if (!mobulaTokensByFilter) return [];
+    let list = mobulaTokensByFilter[filter] || [];
+    
+    // Filter by chain
+    if (chain !== "all") {
+      list = list.filter(t => t.chain?.toLowerCase() === (chain === "sol" ? "solana" : "bsc"));
     }
 
-    // CRITICAL: Deduplicate tokens by ID to prevent duplicate React keys
-    // Tokens can appear in multiple sources (protocol APIs, pump.fun, WebSocket)
-    const seen = new Set<string>();
-    const uniqueTokens = tokens.filter((token) => {
-      if (seen.has(token.id)) {
-        return false; // Skip duplicate
-      }
-      seen.add(token.id);
-      return true;
-    });
-
-    // Debug log for tokens
-    if (uniqueTokens.length > 0) {
-      console.log(
-        `[Display] Filter ${filter} has ${uniqueTokens.length} tokens to display`,
-      );
-    } else {
-      console.log(`[Display] Filter ${filter} has NO tokens to display yet`);
+    // Filter by protocol if selected
+    if (selectedProtocols.length > 0) {
+      list = list.filter(t => t.protocol && selectedProtocols.includes(t.protocol.toLowerCase()));
     }
 
-    return uniqueTokens;
-  }, [filter, getTokensForFilter, filteredAndSortedTokens]);
+    return list;
+  }, [filter, chain, mobulaTokensByFilter, selectedProtocols]);
 
-  // Mark a filter as "ever loaded" once it has tokens
-  useEffect(() => {
-    if (tokensToDisplay.length > 0) {
-      setFiltersEverLoaded((prev) => {
-        if (prev.has(filter)) return prev;
-        const next = new Set(prev);
-        next.add(filter);
-        return next;
-      });
-    }
-  }, [filter, tokensToDisplay.length]);
+  const featuredTokens = useMemo(() => {
+    if (!mobulaTokensByFilter) return [];
+    return mobulaTokensByFilter.featured || [];
+  }, [mobulaTokensByFilter]);
 
-  // Determine whether to show skeleton for the current filter
-  const showSkeleton = (() => {
-    // If we have tokens to display, NEVER show skeleton - prioritize content
-    if (tokensToDisplay.length > 0) return false;
+  const showSkeleton = isLoading && tokensToDisplay.length === 0;
 
-    // Only show skeleton on initial load or if explicitly enabled and loading
-    if (mobulaEnabled && mobulaLoading) return true;
-
-    // For protocol-based filters, show skeleton while protocols are loading
-    if (
-      (filter === "new" ||
-        filter === "finalStretch" ||
-        filter === "graduated") &&
-      isLoadingProtocols
-    )
-      return true;
-
-    // For pumpfun filters, show skeleton while pumpfun is loading
-    if (
-      (filter === "latest" ||
-        filter === "featured" ||
-        filter === "marketCap") &&
-      isLoadingPumpFun
-    )
-      return true;
-
-    // For trending, show skeleton while WS is loading
-    if (filter === "trending" && wsLoading) return true;
-
-    return false;
-  })();
-
-  // Calculate filter counts - must match the data sources used in getTokensForFilter
   const filterCounts = useMemo(() => {
-    // If Mobula is enabled, prioritize Mobula counts for all filters
-    if (mobulaEnabled && mobulaTokensByFilter) {
-      // Calculate counts from Mobula data (matching getTokensForFilter logic)
-      let mobulaNewCount = 0;
-      let mobulaFinalStretchCount = 0;
-      let mobulaGraduatedCount = 0;
-
-      if (mobulaTokens.length > 0) {
-        // NEW: Exclude bonded/graduated tokens (must be < 99%)
-        mobulaNewCount = mobulaTokens.filter((token: any) => {
-          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
-          const isBonded = token._mobulaData?.bonded || false;
-          // Exclude tokens that are bonded or have bonding percentage >= 99%
-          return !isBonded && bondingPercentage < 99;
-        }).length;
-
-        // FINAL STRETCH: Bonding percentage 90-99% but not fully bonded
-        mobulaFinalStretchCount = mobulaTokens.filter((token: any) => {
-          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
-          const isBonded = token._mobulaData?.bonded || false;
-          return !isBonded && bondingPercentage >= 90 && bondingPercentage < 99;
-        }).length;
-
-        // GRADUATED: Fully bonded tokens
-        mobulaGraduatedCount = mobulaTokens.filter((token: any) => {
-          const bondingPercentage = token._mobulaData?.bondingPercentage || 0;
-          const isBonded = token._mobulaData?.bonded || false;
-          return isBonded || bondingPercentage >= 100;
-        }).length;
-      }
-
-      // Deduplicate function for counts
-      const getUniqueCount = (items: TokenData[]) => {
-        if (!items) return 0;
-        const seen = new Set<string>();
-        return items.filter(t => {
-          if (seen.has(t.id)) return false;
-          seen.add(t.id);
-          return true;
-        }).length;
-      };
-
-      return {
-        trending: getUniqueCount(mobulaTokensByFilter.trending),
-        new: mobulaNewCount,
-        finalStretch: mobulaFinalStretchCount,
-        graduated: mobulaGraduatedCount,
-        latest: getUniqueCount(mobulaTokensByFilter.latest),
-        featured: getUniqueCount(mobulaTokensByFilter.featured),
-        marketCap: getUniqueCount(mobulaTokensByFilter.marketCap),
-      };
-    }
-
-    // Fallback to non-Mobula counts when Mobula is disabled
-    // For pump.fun filters (latest, featured, marketCap) - use pump.fun tokens
-    const latestCount = pumpFunTokensByType.latest?.length || 0;
-    const featuredCount = pumpFunTokensByType.featured?.length || 0;
-    const marketCapCount = pumpFunTokensByType.marketCap?.length || 0;
-
-    // NOTE: Graduated = Migrated (same thing - token completed bonding curve)
-    // Calculate combined count to avoid double counting
-    const allMigratedGraduated = [
-      ...(wsMigratedTokens || []),
-      ...(pumpFunMigratedTokens || []),
-      ...(pumpFunTokensByType.graduated || []),
-    ];
-    const seenMigrated = new Set<string>();
-    const uniqueMigratedGraduated = allMigratedGraduated.filter((token) => {
-      if (seenMigrated.has(token.id)) return false;
-      seenMigrated.add(token.id);
-      return true;
-    });
-    const migratedGraduatedCount = uniqueMigratedGraduated.length;
-
-    // For protocol-based filters (new, finalStretch, graduated)
-    // Use the same logic as getTokensForFilter to get accurate counts
-
-    // New count - use protocol tokens if available, otherwise use same fallback logic
-    let newCount = 0;
-    if (protocolTokensByFilter.new && protocolTokensByFilter.new.length > 0) {
-      // CRITICAL: Filter out migrated tokens from count (safety check)
-      const filteredNew = protocolTokensByFilter.new.filter((token: any) => {
-        return (
-          !token.isMigrated &&
-          !token.migrationTimestamp &&
-          !token.raydiumPool &&
-          token.bondingProgress !== 1.0
-        );
-      });
-      newCount = filteredNew.length;
-    } else {
-      // Try pump.fun latest tokens filtered by time AND not migrated
-      const pumpFunNewTokens = pumpFunTokensByType.latest || [];
-      const veryNewTokens = pumpFunNewTokens.filter((token) => {
-        const timeSeconds = parseTimeToSeconds(token.time);
-        const isNew = timeSeconds < 300; // Less than 5 minutes
-        const isNotMigrated =
-          !(token as any).isMigrated &&
-          !(token as any).migrationTimestamp &&
-          !(token as any).raydiumPool;
-        return isNew && isNotMigrated;
-      });
-      if (veryNewTokens.length > 0) {
-        newCount = veryNewTokens.length;
-      } else {
-        // Fallback to WebSocket tokens - exclude migrated
-        newCount = filteredAndSortedTokens.filter((token) => {
-          const timeSeconds = parseTimeToSeconds(token.time);
-          const isNew = timeSeconds < 300; // Less than 5 minutes
-          const isNotMigrated =
-            !(token as any).isMigrated &&
-            !(token as any).migrationTimestamp &&
-            !(token as any).raydiumPool;
-          return isNew && isNotMigrated;
-        }).length;
-      }
-    }
-
-    // Final stretch count - use protocol tokens if available, otherwise use same fallback logic
-    let finalStretchCount = 0;
-    if (
-      protocolTokensByFilter.finalStretch &&
-      protocolTokensByFilter.finalStretch.length > 0
-    ) {
-      // CRITICAL: Filter out migrated tokens and ensure bonding progress is correct
-      const filteredFinalStretch = protocolTokensByFilter.finalStretch.filter(
-        (token: any) => {
-          const isNotMigrated =
-            !token.isMigrated &&
-            !token.migrationTimestamp &&
-            !token.raydiumPool &&
-            token.bondingProgress !== 1.0;
-          if (!isNotMigrated) return false;
-          // Calculate bonding progress (prefer SOL reserves, fallback to market cap)
-          const solReserves =
-            (token as any).reserves?.sol || (token as any).solReserves;
-          const bondingProgress =
-            token.bondingProgress !== undefined
-              ? token.bondingProgress
-              : solReserves && solReserves > 0
-                ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-                : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-          return bondingProgress >= 0.9 && bondingProgress < 0.99;
-        },
-      );
-      finalStretchCount = filteredFinalStretch.length;
-    } else {
-      // Fallback: filter tokens with bonding progress 90-99% AND not migrated (strictly no 100%)
-      finalStretchCount = filteredAndSortedTokens.filter((token) => {
-        // Exclude migrated tokens
-        const isNotMigrated =
-          !(token as any).isMigrated &&
-          !(token as any).migrationTimestamp &&
-          !(token as any).raydiumPool;
-        if (!isNotMigrated) return false;
-
-        // Calculate bonding progress (prefer SOL reserves, fallback to market cap)
-        const solReserves =
-          (token as any).reserves?.sol || (token as any).solReserves;
-        const bondingProgress =
-          solReserves && solReserves > 0
-            ? Math.min(Math.max(solReserves / 69, 0), 1.0) // Use SOL reserves (~69 SOL target)
-            : Math.min((token.marketCap || 0) / (69 * 137), 1.0); // Fallback: 69 SOL * ~$137
-        return bondingProgress >= 0.9 && bondingProgress < 0.9999;
-      }).length;
-    }
-
-    // Graduated count - combine all sources and deduplicate
-    // NOTE: Graduated = tokens that completed bonding curve and migrated to Raydium
-    let graduatedCount = migratedGraduatedCount; // Use the combined deduplicated count calculated above
-
-    // If protocol tokens available, add them and deduplicate
-    if (
-      protocolTokensByFilter.graduated &&
-      protocolTokensByFilter.graduated.length > 0
-    ) {
-      const allSources = [
-        ...uniqueMigratedGraduated,
-        ...protocolTokensByFilter.graduated,
-      ];
-      const seen = new Set<string>();
-      graduatedCount = allSources.filter((token: any) => {
-        if (seen.has(token.id)) return false;
-        seen.add(token.id);
-        return true;
-      }).length;
-    }
-
-    // Trending count - use WebSocket tokens when Mobula is disabled
-    const trendingCount = filteredAndSortedTokens.length;
-
+    if (!mobulaTokensByFilter) return { trending: 0, new: 0, finalStretch: 0, graduated: 0, latest: 0, marketCap: 0 };
+    
     return {
-      trending: trendingCount || 0,
-      new: newCount || 0,
-      finalStretch: finalStretchCount || 0,
-      latest: latestCount || 0,
-      featured: featuredCount || 0,
-      graduated: graduatedCount || 0,
-      marketCap: marketCapCount || 0,
+      trending: mobulaTokensByFilter.trending.length,
+      new: mobulaTokensByFilter.new.length,
+      finalStretch: mobulaTokensByFilter.finalStretch.length,
+      graduated: mobulaTokensByFilter.graduated.length,
+      latest: mobulaTokensByFilter.latest.length,
+      marketCap: mobulaTokensByFilter.marketCap.length,
     };
-  }, [
-    filteredAndSortedTokens,
-    pumpFunTokensByType,
-    protocolTokensByFilter,
-    pumpFunMigratedTokens,
-    wsMigratedTokens,
-    mobulaEnabled,
-    mobulaAvailable,
-    mobulaTokensByFilter,
-    mobulaTokens,
-    parseTimeToSeconds,
-  ]);
+  }, [mobulaTokensByFilter]);
+
+  const getChainLogo = (c: "solana" | "bsc") => {
+    if (c === "solana") return "/logos/chains/solana.png";
+    if (c === "bsc") return "/logos/chains/bsc.png";
+    return "";
+  };
 
   const formatCurrency = formatCurrencyUtil;
   const formatNumber = formatNumberUtil;
@@ -1674,12 +248,7 @@ export default function PulsePage() {
 
       {/* Main Content */}
       <div className="relative z-10 w-full max-w-[90rem] mx-auto px-4 py-8">
-        {/* Simplified Header/Status row */}
-        <div className="flex flex-col gap-8 mb-12">
-          <div className="w-full animate-fade-in">
-            <LaunchpadStatsCard />
-          </div>
-
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-3 p-1.5 rounded-[2rem] glass border border-white/10 animate-fade-in shadow-xl bg-black/20">
               {[
@@ -1721,7 +290,7 @@ export default function PulsePage() {
         </div>
 
         {/* Top Featured Tokens Marquee */}
-        <div className="mb-16 animate-fade-in">
+        <div className="mb-16 animate-fade-in mt-8">
           <div className="px-4 mb-4 flex items-center gap-3">
             <Sparkles className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-black italic tracking-tight">
@@ -1820,10 +389,19 @@ export default function PulsePage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowProtocolModal(true)}
-                className="p-3 glass rounded-2xl hover:border-primary/40 transition-all group"
+                className={`p-3 glass rounded-2xl transition-all group relative ${
+                  selectedProtocols.length > 0 && selectedProtocols.length < 22 ? "border-primary/60 shadow-neon-sm" : "hover:border-primary/40"
+                }`}
                 title="Protocol Filters"
               >
-                <Sliders className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
+                <Sliders className={`w-4 h-4 transition-colors ${
+                  selectedProtocols.length > 0 && selectedProtocols.length < 22 ? "text-primary" : "text-muted group-hover:text-primary"
+                }`} />
+                {selectedProtocols.length > 0 && selectedProtocols.length < 22 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-black text-[8px] font-black rounded-full flex items-center justify-center border border-black shadow-lg">
+                    {selectedProtocols.length}
+                  </span>
+                )}
               </button>
               <div className="h-8 w-px bg-white/5 mx-1" />
               <button
@@ -1941,144 +519,139 @@ export default function PulsePage() {
 
       {/* Protocol Selector Modal */}
       <Dialog open={showProtocolModal} onOpenChange={setShowProtocolModal}>
-        <DialogContent className="sm:max-w-2xl bg-panel border border-gray-800/50 rounded-xl shadow-xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-white">
-              Protocol Filters
-            </DialogTitle>
-          </DialogHeader>
-          <div className="mt-4">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-sm text-gray-400">
-                Select protocols to include
-              </span>
-              <button
-                onClick={() => {
-                  const protocols = [
-                    "pump",
-                    "raydium",
-                    "meteora",
-                    "meteora-amm",
-                    "meteora-amm-v2",
-                    "orca",
-                    "bonk",
-                    "bags",
-                    "moonshot",
-                    "heaven",
-                    "daos-fun",
-                    "candle",
-                    "sugar",
-                    "believe",
-                    "jupiter-studio",
-                    "moonit",
-                    "boop",
-                    "launchlab",
-                    "dynamic-bc",
-                    "mayhem",
-                    "pump-amm",
-                    "wavebreak",
-                  ];
-                  setSelectedProtocols(
-                    selectedProtocols.length === protocols.length
-                      ? []
-                      : protocols,
-                  );
-                }}
-                className="text-xs text-primary hover:text-primary-light transition-colors cursor-pointer"
-              >
-                {selectedProtocols.length === 22
-                  ? "Unselect All"
-                  : "Select All"}
-              </button>
-            </div>
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {[
-                { id: "pump", label: "Pump", color: "bg-green-500" },
-                { id: "raydium", label: "Raydium", color: "bg-blue-500" },
-                { id: "meteora", label: "Meteora", color: "bg-purple-500" },
-                {
-                  id: "meteora-amm",
-                  label: "Meteora AMM",
-                  color: "bg-purple-400",
-                },
-                {
-                  id: "meteora-amm-v2",
-                  label: "Meteora AMM V2",
-                  color: "bg-purple-300",
-                },
-                { id: "orca", label: "Orca", color: "bg-cyan-500" },
-                { id: "bonk", label: "Bonk", color: "bg-orange-500" },
-                { id: "bags", label: "Bags", color: "bg-yellow-500" },
-                { id: "moonshot", label: "Moonshot", color: "bg-pink-500" },
-                { id: "heaven", label: "Heaven", color: "bg-indigo-500" },
-                { id: "daos-fun", label: "Daos.fun", color: "bg-teal-500" },
-                { id: "candle", label: "Candle", color: "bg-red-500" },
-                { id: "sugar", label: "Sugar", color: "bg-rose-500" },
-                { id: "believe", label: "Believe", color: "bg-emerald-500" },
-                {
-                  id: "jupiter-studio",
-                  label: "Jupiter Studio",
-                  color: "bg-violet-500",
-                },
-                { id: "moonit", label: "Moonit", color: "bg-sky-500" },
-                { id: "boop", label: "Boop", color: "bg-lime-500" },
-                { id: "launchlab", label: "LaunchLab", color: "bg-amber-500" },
-                {
-                  id: "dynamic-bc",
-                  label: "Dynamic BC",
-                  color: "bg-fuchsia-500",
-                },
-                { id: "mayhem", label: "Mayhem", color: "bg-red-600" },
-                { id: "pump-amm", label: "Pump AMM", color: "bg-green-400" },
-                { id: "wavebreak", label: "Wavebreak", color: "bg-blue-400" },
-              ].map((protocol) => {
-                const isSelected = selectedProtocols.includes(protocol.id);
-                return (
-                  <button
-                    key={protocol.id}
-                    onClick={() => {
-                      setSelectedProtocols((prev) =>
-                        isSelected
-                          ? prev.filter((p) => p !== protocol.id)
-                          : [...prev, protocol.id],
-                      );
-                    }}
-                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all cursor-pointer border-2 ${
-                      isSelected
-                        ? "bg-primary-dark text-white border-primary"
-                        : "bg-panel text-gray-400 border-gray-700/50 hover:border-gray-600"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className={`w-2 h-2 rounded-full ${protocol.color} ${
-                          isSelected ? "opacity-100" : "opacity-50"
+        <DialogContent className="sm:max-w-2xl bg-panel border border-white/10 rounded-4xl shadow-2xl p-0 overflow-hidden outline-none">
+          <div className="p-8">
+            <DialogHeader className="mb-8">
+              <DialogTitle className="text-2xl font-black italic text-white flex items-center gap-3">
+                <Sliders className="w-6 h-6 text-primary" />
+                ADVANCED DISCOVERY FILTERS
+              </DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-8">
+              {/* Quick Filters Section */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black italic text-muted uppercase tracking-[0.2em]">Quick Metrics</h4>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { label: "MC < $100K", icon: TrendingDown },
+                    { label: "MC > $1M", icon: TrendingUp },
+                    { label: "HIGH VOL", icon: Activity },
+                    { label: "TOP TRADES", icon: Users },
+                  ].map((f) => {
+                    const isActive = activeAdvancedFilters.includes(f.label);
+                    return (
+                      <button 
+                        key={f.label} 
+                        onClick={() => {
+                          setActiveAdvancedFilters(prev => 
+                            prev.includes(f.label) ? prev.filter(p => p !== f.label) : [...prev, f.label]
+                          );
+                        }}
+                        className={`px-4 py-2.5 rounded-2xl border transition-all text-[10px] font-black italic flex items-center gap-2 group cursor-pointer ${
+                          isActive 
+                            ? "bg-primary/20 border-primary text-primary shadow-neon-sm" 
+                            : "bg-white/5 border-white/5 hover:border-primary/30 hover:text-white"
                         }`}
-                      />
-                      <span>{protocol.label}</span>
-                    </div>
+                      >
+                        <f.icon className={`w-3.5 h-3.5 ${isActive ? "text-primary" : "text-muted group-hover:text-primary"}`} />
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Protocols Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-[10px] font-black italic text-muted uppercase tracking-[0.2em]">Launchpads & Protocols</h4>
+                  <button
+                    onClick={() => {
+                      const pList = ["pump","raydium","meteora","meteora-amm","meteora-amm-v2","orca","bonk","bags","moonshot","heaven","daos-fun","candle","sugar","believe","jupiter-studio","moonit","boop","launchlab","dynamic-bc","mayhem","pump-amm","wavebreak"];
+                      setSelectedProtocols(selectedProtocols.length === pList.length ? [] : pList);
+                    }}
+                    className="text-[9px] font-black italic text-primary hover:text-primary/70 transition-colors cursor-pointer uppercase tracking-widest"
+                  >
+                    {selectedProtocols.length === 22 ? "Unselect All" : "Select All"}
                   </button>
-                );
-              })}
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: "pump", label: "Pump", color: "bg-green-500" },
+                    { id: "raydium", label: "Raydium", color: "bg-blue-500" },
+                    { id: "meteora", label: "Meteora", color: "bg-purple-500" },
+                    { id: "meteora-amm", label: "Meteora AMM", color: "bg-purple-400" },
+                    { id: "meteora-amm-v2", label: "Meteora AMM V2", color: "bg-purple-300" },
+                    { id: "orca", label: "Orca", color: "bg-cyan-500" },
+                    { id: "bonk", label: "Bonk", color: "bg-orange-500" },
+                    { id: "bags", label: "Bags", color: "bg-yellow-500" },
+                    { id: "moonshot", label: "Moonshot", color: "bg-pink-500" },
+                    { id: "heaven", label: "Heaven", color: "bg-indigo-500" },
+                    { id: "daos-fun", label: "Daos.fun", color: "bg-teal-500" },
+                    { id: "candle", label: "Candle", color: "bg-red-500" },
+                    { id: "sugar", label: "Sugar", color: "bg-rose-500" },
+                    { id: "believe", label: "Believe", color: "bg-emerald-500" },
+                    { id: "jupiter-studio", label: "Jupiter Studio", color: "bg-violet-500" },
+                    { id: "moonit", label: "Moonit", color: "bg-sky-500" },
+                    { id: "boop", label: "Boop", color: "bg-lime-500" },
+                    { id: "launchlab", label: "LaunchLab", color: "bg-amber-500" },
+                    { id: "dynamic-bc", label: "Dynamic BC", color: "bg-fuchsia-500" },
+                    { id: "mayhem", label: "Mayhem", color: "bg-red-600" },
+                    { id: "pump-amm", label: "Pump AMM", color: "bg-green-400" },
+                    { id: "wavebreak", label: "Wavebreak", color: "bg-blue-400" },
+                  ].map((protocol) => {
+                    const isSelected = selectedProtocols.includes(protocol.id);
+                    return (
+                      <button
+                        key={protocol.id}
+                        onClick={() => {
+                          setSelectedProtocols((prev) =>
+                            isSelected ? prev.filter((p) => p !== protocol.id) : [...prev, protocol.id]
+                          );
+                        }}
+                        className={`px-3 py-2 rounded-xl text-[10px] font-black italic transition-all cursor-pointer border-2 flex items-center gap-2 ${
+                          isSelected
+                            ? "bg-primary/10 text-white border-primary"
+                            : "bg-white/5 text-gray-500 border-transparent hover:border-white/10"
+                        }`}
+                      >
+                        <div className={`w-2 h-2 rounded-full ${protocol.color} ${isSelected ? "opacity-100 shadow-[0_0_8px_currentColor]" : "opacity-30"}`} />
+                        <span>{protocol.label.toUpperCase()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                onClick={() => setShowProtocolModal(false)}
-                className="px-4 py-2 bg-panel-elev text-gray-300 rounded-lg hover:bg-panel transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
+
+            <div className="mt-12 flex items-center justify-between pt-6 border-t border-white/5">
               <button
                 onClick={() => {
-                  // Refresh data with new protocols
-                  setShowProtocolModal(false);
-                  // Trigger data refresh
-                  refresh();
+                  setSelectedProtocols([]);
+                  setActiveAdvancedFilters([]);
                 }}
-                className="px-4 py-2 bg-primary-dark text-white rounded-lg hover:bg-primary-darker transition-colors cursor-pointer"
+                className="text-xs font-black italic text-muted hover:text-white transition-colors cursor-pointer uppercase tracking-widest"
               >
-                Apply
+                Reset All
               </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowProtocolModal(false)}
+                  className="px-6 py-3 bg-white/5 text-gray-400 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer font-black italic text-xs uppercase"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowProtocolModal(false);
+                    refresh();
+                  }}
+                  className="px-10 py-3 bg-primary text-black rounded-2xl hover:bg-primary-light transition-all cursor-pointer font-black italic text-xs uppercase shadow-neon"
+                >
+                  Apply Filters
+                </button>
+              </div>
             </div>
           </div>
         </DialogContent>

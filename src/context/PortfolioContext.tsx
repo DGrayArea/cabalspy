@@ -45,8 +45,24 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch SOL price (for USD conversion)
   const fetchSolPrice = React.useCallback(async (): Promise<number> => {
+    // Try DexScreener first (best for Solana prices)
     try {
-      // Try CoinGecko first
+      const response = await fetch(
+        "https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112"
+      );
+      if (response.ok) {
+        const data = await response.json();
+        const priceValue = data.pairs?.[0]?.priceUsd;
+        if (priceValue) {
+          return parseFloat(priceValue);
+        }
+      }
+    } catch (error) {
+      console.warn("Failed to fetch SOL price from DexScreener:", error);
+    }
+
+    // Fallback: Try CoinGecko
+    try {
       const response = await fetch(
         "https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd"
       );
@@ -56,17 +72,6 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.warn("Failed to fetch SOL price from CoinGecko:", err);
-    }
-
-    // Fallback: Try Jupiter price API
-    try {
-      const response = await fetch("https://price.jup.ag/v4/price?ids=SOL");
-      if (response.ok) {
-        const data = await response.json();
-        return data.data?.SOL?.price || 0;
-      }
-    } catch (err) {
-      console.warn("Failed to fetch SOL price from Jupiter:", err);
     }
 
     return 0;
@@ -297,23 +302,20 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
                 (t) => t.priceUsd === undefined
               );
               if (tokensNeedingPrice.length > 0) {
-                const ids = tokensNeedingPrice.map((t) => t.mint).join(",");
+                const addresses = tokensNeedingPrice.map((t) => t.mint).join(",");
                 const priceResponse = await fetch(
-                  `https://price.jup.ag/v4/price?ids=${encodeURIComponent(ids)}`
+                  `https://api.dexscreener.com/latest/dex/tokens/${addresses}`
                 );
                 if (priceResponse.ok) {
-                  const priceData = await priceResponse.json();
-                  const priceMap: Record<
-                    string,
-                    { price: number | undefined }
-                  > = priceData.data || {};
-
+                  const data = await priceResponse.json();
+                  const pairs = data.pairs || [];
+                  
                   tokenBalances = tokenBalances.map((token) => {
                     if (token.priceUsd !== undefined) {
                       return token;
                     }
-                    const entry = priceMap[token.mint];
-                    const priceUsd = entry?.price ?? undefined;
+                    const pair = pairs.find((p: any) => p.baseToken.address === token.mint);
+                    const priceUsd = pair?.priceUsd ? parseFloat(pair.priceUsd) : undefined;
                     const valueUsd = priceUsd
                       ? priceUsd * token.amount
                       : undefined;
@@ -339,21 +341,20 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
               (t) => t.priceUsd === undefined
             );
             if (tokensNeedingPrice.length > 0) {
-              const ids = tokensNeedingPrice.map((t) => t.mint).join(",");
+              const addresses = tokensNeedingPrice.map((t) => t.mint).join(",");
               const priceResponse = await fetch(
-                `https://price.jup.ag/v4/price?ids=${encodeURIComponent(ids)}`
+                `https://api.dexscreener.com/latest/dex/tokens/${addresses}`
               );
               if (priceResponse.ok) {
-                const priceData = await priceResponse.json();
-                const priceMap: Record<string, { price: number | undefined }> =
-                  priceData.data || {};
-
+                const data = await priceResponse.json();
+                const pairs = data.pairs || [];
+                
                 tokenBalances = tokenBalances.map((token) => {
                   if (token.priceUsd !== undefined) {
                     return token;
                   }
-                  const entry = priceMap[token.mint];
-                  const priceUsd = entry?.price ?? undefined;
+                  const pair = pairs.find((p: any) => p.baseToken.address === token.mint);
+                  const priceUsd = pair?.priceUsd ? parseFloat(pair.priceUsd) : undefined;
                   const valueUsd = priceUsd
                     ? priceUsd * token.amount
                     : undefined;
@@ -367,7 +368,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
             }
           } catch (fallbackErr) {
             console.warn(
-              "Failed to fetch token prices from Jupiter fallback:",
+              "Failed to fetch token prices from DexScreener fallback:",
               fallbackErr
             );
           }

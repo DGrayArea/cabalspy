@@ -90,12 +90,15 @@ interface AuthContextType {
   turnkeyUser: TurnkeyUser | null;
   turnkeySession: TurnkeySession | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
+  isLoggingIn: boolean;
   login: (provider: "google" | "telegram" | "discord", data: AuthData) => Promise<void>;
   logout: () => void;
   connectWallet: (address: string) => void;
   setTurnkeyUser: (user: TurnkeyUser | null) => void;
   setTurnkeySession: (session: TurnkeySession | null) => void;
   refreshSession: () => Promise<void>;
+  handleAuthCallback: (code: string, state: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -122,6 +125,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const checkSession = useCallback(async () => {
     try {
+      // Check persistent inactivity before validating session
+      const lastActive = localStorage.getItem("lastActive");
+      const fifteenMinutes = 15 * 60 * 1000;
+      
+      if (lastActive && Date.now() - parseInt(lastActive) > fifteenMinutes) {
+        console.log("Inactivity period exceeded, clearing session.");
+        await logout();
+        return;
+      }
+
       const response = await fetch("/api/auth/session");
       if (response.ok) {
         const data = await response.json();
@@ -137,6 +150,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             walletAddress: data.wallet?.address,
             createdAt: new Date(),
           });
+          // Update last active on successful session check
+          localStorage.setItem("lastActive", Date.now().toString());
         } else {
           setUser(null);
         }
@@ -232,6 +247,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const logout = async () => {
     try {
       await fetch("/api/auth/session", { method: "DELETE" });
+      localStorage.removeItem("lastActive");
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -246,17 +262,80 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
+  const handleAuthCallback = useCallback(async (code: string, state: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/auth/callback", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code, state }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Authentication callback failed");
+      }
+
+      // After successful callback, refresh the session to get the updated user data
+      await refreshSession();
+    } catch (error) {
+      console.error("Error handling auth callback:", error);
+      // Optionally, handle error state or redirect to an error page
+    } finally {
+      setIsLoading(false);
+    }
+  }, [refreshSession]);
+
+  // Session management: Inactivity timeout
+  useEffect(() => {
+    // Only track inactivity if user is logged in
+    if (!user && !turnkeyUser) return;
+    
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      
+      // Update persistent last active timestamp
+      localStorage.setItem("lastActive", Date.now().toString());
+
+      // 15 minutes of inactivity = automatic logout
+      timeoutId = setTimeout(() => {
+        logout();
+        alert("Session expired due to inactivity. Please sign in again for security.");
+      }, 15 * 60 * 1000); 
+    };
+
+    // Events that reset the inactivity timer
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+    events.forEach(event => window.addEventListener(event, resetTimer));
+    
+    resetTimer();
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, resetTimer));
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [user, turnkeyUser]);
+
+  const isAuthenticated = !!turnkeySession || !!user;
+  const isLoggingIn = isLoading;
+
   const value = {
     user,
     turnkeyUser,
     turnkeySession,
     isLoading,
+    isAuthenticated,
+    isLoggingIn,
     login,
     logout,
     connectWallet,
     setTurnkeyUser,
     setTurnkeySession,
     refreshSession,
+    handleAuthCallback,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

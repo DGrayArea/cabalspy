@@ -619,7 +619,7 @@ export function WalletSettingsModal({
               className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-700 active:scale-95 text-gray-300 hover:text-white text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
             >
               <Download className="w-4 h-4" />
-              Export
+              Export Private Key
             </button>
           </div>
         </div>

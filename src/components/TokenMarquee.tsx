@@ -5,6 +5,7 @@ import { TokenData } from "@/types/token";
 import { formatCurrency, formatPercentCompact } from "@/utils/format";
 import { TrendingUp, TrendingDown } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { getPlatformLogo, getPlatformIcon, getPlatformName } from "@/utils/platformLogos";
 import { aiPlatformDetector } from "@/services/ai-platform-detector";
 
@@ -109,13 +110,14 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
             const hasPlatformLogoError = platformLogoErrors.has(token.id);
 
             return (
-              <div
+              <Link
                 key={`${token.id}-${index}`}
-                className="flex items-center gap-3 px-4 py-2 bg-panel-elev/50 rounded-lg border border-gray-700/30 hover:border-primary/50 transition-all min-w-[240px] sm:min-w-[280px] flex-shrink-0"
+                href={`/${token.chain}/${token.id}`}
+                className="flex items-center gap-3 px-4 py-2 bg-panel-elev/50 rounded-lg border border-gray-700/30 hover:border-primary/50 transition-all min-w-[240px] sm:min-w-[280px] shrink-0 cursor-pointer group"
               >
                 {/* Token Image/Icon */}
                 {token.image && !hasImageError ? (
-                  <div className="relative w-10 h-10 flex-shrink-0">
+                  <div className="relative w-10 h-10 shrink-0">
                     <div className="w-10 h-10 rounded-full overflow-hidden">
                       <Image
                         src={token.image}
@@ -145,7 +147,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                     )}
                   </div>
                 ) : (
-                  <div className="relative w-10 h-10 flex-shrink-0">
+                  <div className="relative w-10 h-10 shrink-0">
                     <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg">
                       {token.icon || "🪙"}
                     </div>
@@ -196,7 +198,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             );
           })}
       </div>

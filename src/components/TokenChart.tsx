@@ -79,61 +79,40 @@ export function TokenChart({
   const geckoEmbedUrl = `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoEmbedId}?embed=1&footer=0&info=0&swaps=0&grayscale=0&light_chart=0`;
   const geckoPublicUrl = `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoEmbedId}`;
 
+  // Automate source selection: Prefer DexScreener if pairAddress exists, otherwise use GeckoTerminal if its pair address exists.
+  // This removes the need for manual switching.
+  const effectiveIframeSource: IframeSource = pairAddress ? "dexscreener" : (geckoTerminalPairAddress ? "geckoterminal" : "dexscreener");
+  
   // ── Iframe chart (non-native) ───────────────────────────────────────────────
   if (!useNativeChart) {
-    const isGecko = iframeSource === "geckoterminal";
+    const isGecko = effectiveIframeSource === "geckoterminal";
     const embedUrl = isGecko ? geckoEmbedUrl : dexEmbedUrl;
     const publicUrl = isGecko ? geckoPublicUrl : dexPublicUrl;
     const sourceLabel = isGecko ? "GeckoTerminal" : "DexScreener";
 
     return (
-      <div className="h-full w-full flex flex-col gap-2">
-        {/* Header row */}
-        <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
-          {/* Source switcher */}
-          <div className="flex gap-1 bg-panel-elev rounded-lg p-1">
-            <button
-              onClick={() => setIframeSource("dexscreener")}
-              className={`px-2.5 py-1 text-xs rounded transition-colors ${
-                !isGecko
-                  ? "bg-primary text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              DexScreener
-            </button>
-            <button
-              onClick={() => setIframeSource("geckoterminal")}
-              className={`px-2.5 py-1 text-xs rounded transition-colors ${
-                isGecko
-                  ? "bg-primary text-white"
-                  : "text-gray-400 hover:text-white"
-              }`}
-            >
-              GeckoTerminal
-            </button>
-          </div>
-
-          {/* Open external link */}
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs text-primary hover:underline flex items-center gap-1"
-          >
-            Open on {sourceLabel} <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
-
+      <div className="h-full w-full flex flex-col">
         {/* Embed */}
-        <div className="flex-1 w-full bg-panel-elev rounded-lg overflow-hidden border border-gray-800/50 relative aspect-video md:aspect-auto md:min-h-[400px]">
+        <div className="flex-1 w-full bg-panel-elev rounded-3xl overflow-hidden border border-white/10 relative aspect-video md:aspect-auto">
           <iframe
-            key={embedUrl} // re-mount when source changes
+            key={embedUrl}
             src={embedUrl}
             className="absolute inset-0 w-full h-full border-none"
             title={`${tokenSymbol} Chart — ${sourceLabel}`}
             allow="clipboard-write"
           />
+          
+          {/* Subtle source indicator */}
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-black italic text-muted hover:text-primary transition-all flex items-center gap-1.5"
+            >
+              VIEW ON {sourceLabel.toUpperCase()} <ExternalLink className="w-3 h-3" />
+            </a>
+          </div>
         </div>
       </div>
     );
