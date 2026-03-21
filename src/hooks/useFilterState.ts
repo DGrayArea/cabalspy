@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 
-type FilterType = 'trending' | 'new' | 'finalStretch' | 'latest' | 'featured' | 'graduated' | 'marketCap';
+type FilterType = 'trending' | 'new' | 'finalStretch' | 'latest' | 'featured' | 'graduated' | 'marketCap' | 'watchlist';
 
 const STORAGE_KEY = 'cabalspy_filter';
 
@@ -42,6 +42,7 @@ function isValidFilter(value: string): boolean {
     'featured',
     'graduated',
     'marketCap',
+    'watchlist',
   ];
   return validFilters.includes(value as FilterType);
 }

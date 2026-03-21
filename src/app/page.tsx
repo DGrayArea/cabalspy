@@ -20,16 +20,21 @@ import { TokenData } from "@/types/token";
 import { env } from "@/lib/env";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
+import { useWatchlist } from "@/context/WatchlistContext";
 import { useViewport } from "@/context/ViewportContext";
+import { useRouter } from "next/navigation";
+import { verifyNftOwnership } from "@/services/verify-nft";
 import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
 import { SearchModal } from "@/components/SearchModal";
+import TokenComparison from "@/components/TokenComparison";
 import {
   TokenListSkeleton,
   MarqueeSkeleton,
 } from "@/components/TokenCardSkeleton";
 import LaunchpadStatsCard from "@/components/LaunchpadStatsCard";
+import CallsFeed from "@/components/CallsFeed";
 import { pumpFunService } from "@/services/pumpfun";
 import { protocolService } from "@/services/protocols";
 import {
@@ -97,7 +102,7 @@ import {
   Loader2,
   Lock,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useSettings } from "@/context/SettingsContext";
 import Footer from "@/components/Footer";
 import Navbar from "@/components/Navbar";
 
@@ -128,7 +133,9 @@ function AuthCallbackHandler() {
 }
 
 export default function Home() {
-  const { isAuthenticated, user, isLoggingIn } = useAuth();
+  const { isAuthenticated, user, isLoggingIn, isLoading: authLoading } = useAuth();
+  const { watchlist } = useWatchlist();
+  const { displaySettings, setDisplaySettings } = useSettings();
   const router = useRouter();
 
   // Redirect unauthenticated users to auth page
@@ -144,27 +151,12 @@ export default function Home() {
   const [showProtocolModal, setShowProtocolModal] = useState(false);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showDisplaySettings, setShowDisplaySettings] = useState(false);
+  const [comparingToken, setComparingToken] = useState<TokenData | null>(null);
+  const [sortBy, setSortBy] = useState<"marketCap" | "volume" | "priceChange" | "none">("none");
   const [activeAdvancedFilters, setActiveAdvancedFilters] = useState<string[]>([]);
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([]);
   const [slippage, setSlippage] = useState("0.5");
   const [quickBuyAmount, setQuickBuyAmount] = useState("0.1");
-  const [displaySettings, setDisplaySettings] = useState({
-    showChart: true,
-    showLiquidity: true,
-    showMarketCap: true,
-    showVolume: true,
-    showTransactions: true,
-    metricsSize: "small" as const,
-    quickBuySize: "small" as const,
-    grey: false,
-    noDecimals: false,
-    circleImages: true,
-    progressBar: false,
-    showSearchBar: true,
-    showHiddenTokens: false,
-    unhideOnMigrated: true,
-    spacedTables: false,
-  });
 
   const mobulaEnabled = !!env.NEXT_PUBLIC_USE_MOBULA;
   const { 
@@ -182,7 +174,36 @@ export default function Home() {
 
   const tokensToDisplay = useMemo(() => {
     if (!mobulaTokensByFilter) return [];
-    let list = mobulaTokensByFilter[filter] || [];
+    
+    let list;
+    if (filter === "watchlist") {
+      // Convert WatchlistToken to TokenData structure for CompactTokenCard
+      list = watchlist.map(t => ({
+        id: t.mint,
+        symbol: t.symbol,
+        name: t.name,
+        image: t.image,
+        chain: t.network,
+        marketCap: 0, // Placeholder
+        volume: 0,
+        priceChange24h: 0,
+      })) as any[];
+    } else {
+      list = [...(mobulaTokensByFilter[filter] || [])];
+    }
+    
+    // Sort by selected metric
+    if (sortBy === "marketCap") {
+      list.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0));
+    } else if (sortBy === "volume") {
+      list.sort((a, b) => (b.volume || 0) - (a.volume || 0));
+    } else if (sortBy === "priceChange") {
+      list.sort((a, b) => {
+        const aChange = a.priceChange24h || 0;
+        const bChange = b.priceChange24h || 0;
+        return Math.abs(bChange) - Math.abs(aChange);
+      });
+    }
     
     // Filter by chain
     if (chain !== "all") {
@@ -195,7 +216,7 @@ export default function Home() {
     }
 
     return list;
-  }, [filter, chain, mobulaTokensByFilter, selectedProtocols]);
+  }, [filter, chain, mobulaTokensByFilter, selectedProtocols, sortBy]);
 
   const featuredTokens = useMemo(() => {
     if (!mobulaTokensByFilter) return [];
@@ -214,8 +235,42 @@ export default function Home() {
       graduated: mobulaTokensByFilter.graduated.length,
       latest: mobulaTokensByFilter.latest.length,
       marketCap: mobulaTokensByFilter.marketCap.length,
+      watchlist: watchlist.length,
     };
-  }, [mobulaTokensByFilter]);
+  }, [mobulaTokensByFilter, watchlist]);
+
+  // Access Control Guard
+  useEffect(() => {
+    if (authLoading) return;
+
+    const checkAccess = async () => {
+      // If NOT authenticated, we allow homepage view but maybe NOT terminal
+      // However, the user said "they cant see/ acces the terminal without lggin in / signin up"
+      if (!isAuthenticated) {
+        // router.push("/auth"); // Optional: enforce login
+        return;
+      }
+
+      // If authenticated, check roles or NFT
+      const discordUser = user as any;
+      const hasDiscordRole = discordUser?.roles?.some((r: string) => 
+        ["1440085206785720413", "1386648661391441920"].includes(r)
+      );
+
+      if (hasDiscordRole) return; // Access granted
+
+      // Check NFT as fallback
+      if (user?.walletAddress) {
+        const hasNft = await verifyNftOwnership(user.walletAddress);
+        if (hasNft) return; // Access granted
+      }
+
+      // If we reach here, no access
+      router.push("/access-denied");
+    };
+
+    checkAccess();
+  }, [isAuthenticated, authLoading, user, router]);
 
   const getChainLogo = (c: "solana" | "bsc") => {
     if (c === "solana") return "/logos/chains/solana.png";
@@ -247,34 +302,60 @@ export default function Home() {
       <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
 
       {/* Main Content */}
-      <div className="relative z-10 w-full max-w-[90rem] mx-auto px-4 py-8">
+      <div className="relative z-10 w-full max-w-[90rem] mx-auto px-4 pt-20 sm:pt-24 pb-8">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-3 p-1.5 rounded-[2rem] glass border border-white/10 animate-fade-in shadow-xl bg-black/20">
-              {[
-                { id: "all", label: "ALL", logo: null },
-                { id: "sol", label: "SOL", logo: "solana" },
-                { id: "bsc", label: "BSC", logo: "bsc" },
-              ].map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => setChain(c.id as any)}
-                  className={`px-8 py-2.5 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-2 ${
-                    chain === c.id
-                      ? "bg-primary text-black shadow-neon scale-105"
-                      : "text-muted hover:text-white hover:bg-white/5"
-                  }`}
-                >
-                  {c.logo && (
-                    <img
-                      src={getChainLogo(c.logo as any)}
-                      alt={c.label}
-                      className="w-3.5 h-3.5 rounded-full ring-1 ring-white/20"
-                    />
-                  )}
-                  {c.label}
-                </button>
-              ))}
+          {/* Chain & Metric Filters */}
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 mb-8">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+              {/* Chain Filter */}
+              <div className="flex items-center gap-2 p-1.5 rounded-[2rem] glass border border-white/10 shadow-xl bg-black/20">
+                {[
+                  { id: "all", label: "ALL", logo: null },
+                  { id: "sol", label: "SOL", logo: "solana" },
+                  { id: "bsc", label: "BSC", logo: "bsc" },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setChain(c.id as any)}
+                    className={`px-6 py-2.5 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-2 ${
+                      chain === c.id
+                        ? "bg-primary text-black shadow-neon scale-105"
+                        : "text-muted hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {c.logo && (
+                      <img
+                        src={getChainLogo(c.logo as any)}
+                        alt={c.label}
+                        className="w-3.5 h-3.5 rounded-full ring-1 ring-white/20"
+                      />
+                    )}
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Metric Filter */}
+              <div className="flex items-center gap-2 p-1.5 rounded-[2rem] glass border border-white/10 shadow-xl bg-black/20">
+                {[
+                  { id: "none", label: "ALL" },
+                  { id: "marketCap", label: "MCAP" },
+                  { id: "volume", label: "VOL" },
+                  { id: "priceChange", label: "24H" },
+                ].map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setSortBy(m.id as any)}
+                    className={`px-6 py-2.5 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all ${
+                      sortBy === m.id
+                        ? "bg-secondary text-white shadow-secondary-neon scale-105"
+                        : "text-muted hover:text-white hover:bg-white/5"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center gap-2 px-6 py-2 rounded-full glass border border-white/5 bg-primary/5">
@@ -352,6 +433,13 @@ export default function Home() {
                   count: filterCounts.marketCap ?? 0,
                   icon: BarChart3,
                   accent: "muted",
+                },
+                {
+                  id: "watchlist",
+                  label: "WATCHLIST",
+                  count: filterCounts.watchlist ?? 0,
+                  icon: Star,
+                  accent: "primary",
                 },
               ].map(({ id, label, count, icon: Icon, accent }) => (
                 <button
@@ -480,30 +568,65 @@ export default function Home() {
             </div>
           ) : (
             <div className="px-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {tokensToDisplay.map((token: TokenData) => (
-                  <CompactTokenCard
-                    key={token.id}
-                    token={token}
-                    formatCurrency={formatCurrency}
-                    formatNumber={formatNumber}
-                    displaySettings={displaySettings}
-                    quickBuyAmount={quickBuyAmount}
-                  />
-                ))}
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                {/* Left Column: Calls Feed (Hidden on mobile/tablet) */}
+                <aside className="hidden xl:block xl:col-span-3 sticky top-36 h-[calc(100vh-10rem)] overflow-hidden">
+                  <CallsFeed />
+                </aside>
 
-              {/* Infinite scroll sentinel element */}
-              {mobulaEnabled && (
-                <div ref={observerTarget} className="py-8 flex justify-center">
-                  {isLoadingMore && (
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                      <span>Loading more tokens...</span>
+                {/* Center Column: Main Token Grid */}
+                <main className="col-span-1 lg:col-span-8 xl:col-span-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-6">
+                    {tokensToDisplay.map((token: TokenData) => (
+                      <CompactTokenCard
+                        key={token.id}
+                        token={token}
+                        formatCurrency={formatCurrency}
+                        formatNumber={formatNumber}
+                        displaySettings={displaySettings}
+                        quickBuyAmount={quickBuyAmount}
+                        onCompare={() => setComparingToken(token)}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Infinite scroll sentinel element */}
+                  {mobulaEnabled && (
+                    <div ref={observerTarget} className="py-12 flex justify-center">
+                      {isLoadingMore && (
+                        <div className="flex items-center gap-3 text-muted">
+                          <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Scanning blockchain...</span>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              )}
+                </main>
+
+                {/* Right Column: Launchpad Stats (Hidden on mobile) */}
+                <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-36 space-y-6">
+                  <LaunchpadStatsCard />
+                  
+                  {/* Additional Stats / Ads / Info can go here */}
+                  <div className="glass rounded-3xl p-6 border-white/5 bg-primary/5">
+                    <h4 className="text-[10px] font-black italic text-primary uppercase tracking-[0.2em] mb-4">PLATFORM STATUS</h4>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center text-[10px] font-bold">
+                        <span className="text-muted">SOLANA RPC</span>
+                        <span className="text-green-400">OPTIMAL</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold">
+                        <span className="text-muted">JUPITER API</span>
+                        <span className="text-green-400">STABLE</span>
+                      </div>
+                      <div className="flex justify-between items-center text-[10px] font-bold">
+                        <span className="text-muted">SIGNAL NODE</span>
+                        <span className="text-primary">ACTIVE</span>
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+              </div>
             </div>
           )}
         </div>
@@ -673,6 +796,15 @@ export default function Home() {
             onClose={() => setShowWalletSettings(false)}
           />
         </Suspense>
+      )}
+
+      {/* Token Comparison Overlay */}
+      {comparingToken && (
+        <TokenComparison
+          tokenA={comparingToken}
+          availableTokens={tokensToDisplay}
+          onClose={() => setComparingToken(null)}
+        />
       )}
     </div>
   );

@@ -5,6 +5,8 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ViewportProvider } from "@/context/ViewportContext";
 import { TurnkeySolanaContextProvider } from "@/context/TurnkeySolanaContext";
 import { PortfolioProvider } from "@/context/PortfolioContext";
+import { WatchlistProvider } from "@/context/WatchlistContext";
+import { SettingsProvider } from "@/context/SettingsContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { validateEnv } from "@/lib/env";
 import { TurnKeyProvider } from "@/providers/TurnkeyProvider";
@@ -53,9 +55,13 @@ export default function RootLayout({
           <TurnKeyProvider>
             <TurnkeySolanaContextProvider>
               <PortfolioProvider>
-                <ErrorBoundary>
-                  <AuthProvider>{children}</AuthProvider>
-                </ErrorBoundary>
+                <WatchlistProvider>
+                  <SettingsProvider>
+                    <ErrorBoundary>
+                      <AuthProvider>{children}</AuthProvider>
+                    </ErrorBoundary>
+                  </SettingsProvider>
+                </WatchlistProvider>
               </PortfolioProvider>
             </TurnkeySolanaContextProvider>
           </TurnKeyProvider>

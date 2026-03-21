@@ -109,10 +109,13 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
             const platformName = getPlatformName(platform);
             const hasPlatformLogoError = platformLogoErrors.has(token.id);
 
+            const tokenAddress = token.id.includes(":") ? token.id.split(":")[1] : token.id;
+            const tokenChain = (token.chain || (token.id.includes(":") ? token.id.split(":")[0] : "solana")).toLowerCase();
+
             return (
               <Link
                 key={`${token.id}-${index}`}
-                href={`/${token.chain}/${token.id}`}
+                href={`/${tokenChain}/${tokenAddress}`}
                 className="flex items-center gap-3 px-4 py-2 bg-panel-elev/50 rounded-lg border border-gray-700/30 hover:border-primary/50 transition-all min-w-[240px] sm:min-w-[280px] shrink-0 cursor-pointer group"
               >
                 {/* Token Image/Icon */}

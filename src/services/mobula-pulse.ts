@@ -174,6 +174,9 @@ interface MobulaToken {
   // Bonding
   bonded?: boolean;
   bondingPercentage?: number;
+  bonding_percentage?: number;
+  bonding_progress?: number;
+  launchpad_progress?: number;
   bonded_at?: string | null;
 
   // ATH/ATL
@@ -318,7 +321,12 @@ function transformToken(mobulaToken: MobulaToken): TokenData {
     return firstChar || "🪙";
   };
 
-  const bondingPercentage = mobulaToken.bondingPercentage || 0;
+  const bondingPercentage = 
+    mobulaToken.bondingPercentage || 
+    mobulaToken.bonding_percentage || 
+    (mobulaToken.bonding_progress ? mobulaToken.bonding_progress * 100 : 0) || 
+    (mobulaToken.launchpad_progress ? mobulaToken.launchpad_progress * 100 : 0) || 
+    0;
   const bondingProgress = bondingPercentage / 100;
 
   const symbol = mobulaToken.symbol || "UNKNOWN";

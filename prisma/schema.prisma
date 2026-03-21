@@ -18,11 +18,30 @@ model User {
   discordId  String?  @unique
   name       String
   avatar     String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  accessLevel String   @default("user") // 'user', 'holder', 'admin'
+  settings    Json?    @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  wallets  Wallet[]
-  sessions Session[]
+  wallets   Wallet[]
+  sessions  Session[]
+  watchlist Watchlist[]
+}
+
+model Watchlist {
+  id        String   @id @default(uuid())
+  userId    String
+  mint      String
+  symbol    String?
+  name      String?
+  image     String?
+  network   String   @default("solana")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, mint])
+  @@index([userId])
 }
 
 model Wallet {

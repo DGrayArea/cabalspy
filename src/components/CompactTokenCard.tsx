@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Brain,
   Star,
+  ArrowLeftRight,
   ArrowUpRight,
   ArrowDownRight,
   Lock,
@@ -54,6 +55,7 @@ import { aiPlatformDetector } from "@/services/ai-platform-detector";
 import { formatPercent, formatPercentCompact, formatCurrency } from "@/utils/format";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { useAuth } from "@/context/AuthContext";
+import { useWatchlist } from "@/context/WatchlistContext";
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
@@ -85,6 +87,7 @@ interface CompactTokenCardProps {
   };
   connectedGrid?: boolean;
   quickBuyAmount?: string;
+  onCompare?: () => void;
 }
 
 export function CompactTokenCard({
@@ -94,6 +97,7 @@ export function CompactTokenCard({
   displaySettings,
   connectedGrid = false,
   quickBuyAmount = "0.01",
+  onCompare,
 }: CompactTokenCardProps) {
   const [imageError, setImageError] = useState(false);
   const [platformLogoError, setPlatformLogoError] = useState(false);
@@ -216,6 +220,25 @@ export function CompactTokenCard({
     };
   }, [token]);
 
+  const { addToWatchlist, removeFromWatchlist, isInWatchlist } = useWatchlist();
+  const isStarred = isInWatchlist(token.id);
+
+  const toggleWatchlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isStarred) {
+      removeFromWatchlist(token.id);
+    } else {
+      addToWatchlist({
+        mint: token.id,
+        symbol: token.symbol,
+        name: token.name,
+        image: token.image || "",
+        network: token.chain || "solana",
+      });
+    }
+  };
+
   const copyAddress = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
@@ -224,47 +247,73 @@ export function CompactTokenCard({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const onCompareClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onCompare?.();
+  };
+
   return (
     <>
       <Link
         href={`/${chainRoute}/${tokenAddress}`}
-        className="block group relative transition-all duration-500 rounded-[2.5rem] p-6 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl bg-linear-to-br from-white/[0.02] to-transparent"
+        className="block group relative transition-all duration-500 rounded-4xl p-4 sm:p-6 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl bg-linear-to-br from-white/[0.02] to-transparent"
       >
-        <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-500 rounded-[2.5rem]" />
+        <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-500 rounded-4xl" />
+        
+        <button
+          onClick={toggleWatchlist}
+          title="Add to Watchlist"
+          className={`absolute top-4 right-4 z-30 p-2 rounded-xl border transition-all duration-300 ${
+            isStarred 
+              ? "bg-primary/10 border-primary text-primary shadow-neon scale-110" 
+              : "bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/10"
+          }`}
+        >
+          <Star className={`w-4 h-4 ${isStarred ? "fill-primary" : "fill-none"}`} />
+        </button>
+
+        {/* Compare Toggle */}
+        <button
+          onClick={onCompareClick}
+          title="Compare Token"
+          className="absolute top-4 right-14 z-30 p-2 rounded-xl border bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/10 transition-all duration-300"
+        >
+          <ArrowLeftRight className="w-4 h-4" />
+        </button>
         
         <div className="relative z-10 flex items-start gap-5">
           <div className="flex-shrink-0 relative">
             <div className={`w-14 h-14 ${displaySettings?.circleImages ? "rounded-full" : "rounded-3xl"} relative overflow-hidden bg-panel-elev flex-shrink-0 group-hover:scale-105 transition-transform duration-500`}>
-              {/* Circular Bonding Progress Border */}
-              <svg className="absolute inset-0 w-full h-full -rotate-90 z-20 pointer-events-none">
+              {/* Circular Bonding Progress Border - Profound Edition */}
+              <svg className="absolute inset-0 w-full h-full -rotate-90 z-20 pointer-events-none drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]" viewBox="0 0 56 56">
                 <circle
                   cx="28"
                   cy="28"
-                  r="26"
+                  r="25"
                   fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="text-white/5"
+                  stroke="rgba(255,255,255,0.05)"
+                  strokeWidth="6"
                 />
                 <circle
                   cx="28"
                   cy="28"
-                  r="26"
+                  r="25"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="2"
-                  strokeDasharray={`${26 * 2 * Math.PI}`}
-                  strokeDashoffset={`${26 * 2 * Math.PI * (1 - bondingProgress)}`}
+                  strokeWidth="6"
+                  strokeDasharray={`${25 * 2 * Math.PI}`}
+                  strokeDashoffset={`${25 * 2 * Math.PI * (1 - (isTokenMigrated ? 1 : bondingProgress))}`}
                   className={`${
                     isTokenMigrated 
-                      ? "text-primary shadow-neon" 
+                      ? "text-primary drop-shadow-[0_0_10px_rgba(var(--primary-rgb),0.8)]" 
                       : platformInfo.platform === 'pump'
-                        ? "text-[#22c55e] drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]"
+                        ? "text-[#22c55e] drop-shadow-[0_0_10px_rgba(34,197,94,0.7)]"
                         : platformInfo.platform === 'meteora'
-                          ? "text-[#e879f9] drop-shadow-[0_0_8px_rgba(232,121,249,0.5)]"
+                          ? "text-[#e879f9] drop-shadow-[0_0_10px_rgba(232,121,249,0.7)]"
                           : platformInfo.platform === 'moonshot'
-                            ? "text-[#f472b6] drop-shadow-[0_0_8px_rgba(244,114,182,0.5)]"
-                            : "text-secondary"
+                            ? "text-[#f472b6] drop-shadow-[0_0_10px_rgba(244,114,182,0.7)]"
+                            : "text-secondary shadow-neon"
                   } transition-all duration-1000`}
                   strokeLinecap="round"
                 />
@@ -289,8 +338,8 @@ export function CompactTokenCard({
             </div>
 
             {platformInfo.logo && (
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-black rounded-xl border border-white/10 flex items-center justify-center overflow-hidden z-30 shadow-2xl">
-                <Image src={platformInfo.logo} alt={platformInfo.name || "Platform"} fill className="object-cover p-1" unoptimized />
+              <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 h-6 bg-black rounded-lg border border-white/10 flex items-center justify-center overflow-hidden z-30 shadow-2xl p-1" title={platformInfo.name}>
+                <img src={platformInfo.logo} alt={platformInfo.name || "Platform"} className="w-full h-full object-contain" />
               </div>
             )}
           </div>
@@ -311,15 +360,15 @@ export function CompactTokenCard({
 
             <div className="flex items-center gap-4">
               <div className="flex flex-col">
-                <span className="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">MCap</span>
-                <span className="text-xs font-black text-primary font-mono italic">
+                <span className="text-[7px] sm:text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">MCap</span>
+                <span className="text-[10px] sm:text-xs font-black text-primary font-mono italic">
                   {formatCurrency(token.marketCap)}
                 </span>
               </div>
               <div className="w-px h-6 bg-white/5" />
               <div className="flex flex-col">
-                <span className="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">Volume</span>
-                <span className="text-xs font-black text-secondary font-mono italic">
+                <span className="text-[7px] sm:text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">Vol</span>
+                <span className="text-[10px] sm:text-xs font-black text-secondary font-mono italic">
                   {formatCurrency(token.volume)}
                 </span>
               </div>

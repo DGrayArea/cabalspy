@@ -100,7 +100,7 @@ export function PnLCalendar({ data = [], title = "PERFORMANCE CALENDAR" }: PnLCa
                 aspect-square rounded-xl flex flex-col items-center justify-center p-1.5 transition-all cursor-crosshair group relative
                 ${isZero ? "bg-panel-elev/40 border border-white/5" : ""}
                 ${isPositive ? "bg-primary/20 border border-primary/30 hover:bg-primary/30" : ""}
-                {!isPositive && !isZero ? "bg-accent/20 border border-accent/30 hover:bg-accent/30" : ""}
+                ${!isPositive && !isZero ? "bg-accent/20 border border-accent/30 hover:bg-accent/30" : ""}
               `}
             >
               <span className="text-[8px] font-black text-muted/50 mb-1 leading-none absolute top-1 left-1">

@@ -53,7 +53,6 @@ export function TokenChart({
   const [chartType, setChartType] = useState<ChartType>("candlestick");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [iframeSource, setIframeSource] = useState<IframeSource>("dexscreener");
   const [isForcedIframe, setIsForcedIframe] = useState(false);
 
   // Use native chart ONLY for active (not-yet-migrated) pump.fun tokens, unless forced
@@ -93,7 +92,7 @@ export function TokenChart({
     return (
       <div className="h-full w-full flex flex-col">
         {/* Embed */}
-        <div className="flex-1 w-full bg-panel-elev rounded-3xl overflow-hidden border border-white/10 relative aspect-video md:aspect-auto">
+        <div className="flex-1 w-full bg-panel-elev rounded-3xl overflow-hidden border border-white/10 relative h-full min-h-[400px] md:min-h-0">
           <iframe
             key={embedUrl}
             src={embedUrl}
@@ -325,16 +324,16 @@ function NativeChartEffects({
     const series =
       chartType === "candlestick"
         ? chart.addSeries(CandlestickSeries, {
-            upColor: "#10b981",
-            downColor: "#ef4444",
+            upColor: "#00ff9d",
+            downColor: "#ff3131",
             borderVisible: false,
-            wickUpColor: "#10b981",
-            wickDownColor: "#ef4444",
+            wickUpColor: "#00ff9d",
+            wickDownColor: "#ff3131",
             priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
           } as CandlestickSeriesOptions)
         : chart.addSeries(LineSeries, {
-            color: "#3b82f6",
-            lineWidth: 2,
+            color: "#00d2ff",
+            lineWidth: 3,
             priceLineVisible: false,
             lastValueVisible: true,
             priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },

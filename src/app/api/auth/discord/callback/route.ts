@@ -121,6 +121,19 @@ export async function GET(request: NextRequest) {
           avatar: userData.avatar
             ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
             : null,
+          accessLevel: "holder", // Initialized as holder because role check passed
+        },
+      });
+    } else {
+      // Update existing user's accessLevel and profile
+      user = await db.user.update({
+        where: { id: user.id },
+        data: {
+          name: userData.username,
+          avatar: userData.avatar
+            ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
+            : user.avatar,
+          accessLevel: "holder",
         },
       });
     }

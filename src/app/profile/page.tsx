@@ -1,5 +1,5 @@
 "use client";
-
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import WalletManager from "@/components/WalletManager";
@@ -24,13 +24,41 @@ import {
   ExternalLink,
   Zap,
   Lock,
+  Twitter,
+  Send,
+  Link as LinkIcon,
 } from "lucide-react";
+import { usePortfolio } from "@/context/PortfolioContext";
+
+interface PerformanceMetrics {
+  totalPnLUsd: number;
+  totalPnLPercent: number;
+  winRate: number;
+  totalTrades: number;
+  bestTrade: { symbol: string; roi: number };
+  worstTrade: { symbol: string; roi: number };
+}
 
 export default function ProfilePage() {
   const { user, turnkeyUser, turnkeySession, isLoading } = useAuth();
   const { wallets: turnkeyWallets } = useTurnkey();
   const router = useRouter();
+  const { totalValueUsd } = usePortfolio();
+  const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
   const isAuthenticated = user || turnkeyUser || turnkeySession;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetch("/api/analytics/performance")
+        .then(res => res.json())
+        .then(data => {
+          if (!data.error) setMetrics(data);
+        })
+        .catch(err => console.error("Failed to fetch performance metrics", err))
+        .finally(() => setMetricsLoading(false));
+    }
+  }, [isAuthenticated]);
 
   if (isLoading) {
     return (
@@ -152,13 +180,36 @@ export default function ProfilePage() {
             </div>
           </section>
 
-          {/* Key Stats */}
           <section className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {[
-              { label: "CONNECTED WALLETS", value: hasWallets ? (turnkeyWallets?.length || Object.keys(user?.wallets || {}).length) : 0, icon: Wallet, color: "text-primary", shadow: "shadow-neon" },
-              { label: "LIFETIME TRADES", value: "0", icon: Activity, color: "text-secondary", shadow: "shadow-secondary-neon" },
-              { label: "PORTFOLIO VALUE", value: "$0.00", icon: DollarSign, color: "text-accent", shadow: "shadow-accent-neon" },
-              { label: "PERFORMANCE", value: "0%", icon: TrendingUp, color: "text-white", shadow: "shadow-white-neon" }
+              { 
+                label: "CONNECTED WALLETS", 
+                value: hasWallets ? (turnkeyWallets?.length || Object.keys(user?.wallets || {}).length) : 0, 
+                icon: Wallet, 
+                color: "text-primary", 
+                shadow: "shadow-neon" 
+              },
+              { 
+                label: "LIFETIME TRADES", 
+                value: metricsLoading ? "..." : metrics?.totalTrades || 0, 
+                icon: Activity, 
+                color: "text-secondary", 
+                shadow: "shadow-secondary-neon" 
+              },
+              { 
+                label: "PORTFOLIO VALUE", 
+                value: `$${totalValueUsd.toFixed(2)}`, 
+                icon: DollarSign, 
+                color: "text-accent", 
+                shadow: "shadow-accent-neon" 
+              },
+              { 
+                label: "WIN RATE", 
+                value: metricsLoading ? "..." : `${(metrics?.winRate || 0).toFixed(1)}%`, 
+                icon: TrendingUp, 
+                color: (metrics?.winRate || 0) > 50 ? "text-green-400" : "text-white", 
+                shadow: "shadow-white-neon" 
+              }
             ].map((stat, i) => (
               <div key={i} className="glass rounded-[2rem] p-8 border border-white/10 group hover:border-white/20 transition-all">
                 <div className="flex items-center justify-between mb-6">
@@ -250,15 +301,42 @@ export default function ProfilePage() {
                         </div>
                       </div>
                     )}
-                    {user?.telegramId && (
-                      <div className="flex items-center gap-4 p-5 bg-blue-500/5 border border-blue-500/20 rounded-[1.5rem]">
-                        <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-[10px] font-black">T</div>
-                        <div>
-                          <p className="text-[10px] font-black text-white uppercase tracking-widest">TELEGRAM</p>
-                          <p className="text-[10px] font-bold text-blue-400 uppercase">LINKED</p>
+                    {/* Verified Social Links */}
+                    <div className="space-y-4">
+                      {[
+                        { 
+                          label: "X (TWITTER)", 
+                          icon: Twitter, 
+                          color: "text-white", 
+                          status: user?.discordId ? "VERIFIED" : "UNLINKED", 
+                          handle: user?.discordId ? `@${user.name}` : "NOT CONNECTED" 
+                        },
+                        { 
+                          label: "TELEGRAM", 
+                          icon: Send, 
+                          color: "text-blue-400", 
+                          status: user?.telegramId ? "VERIFIED" : "UNLINKED", 
+                          handle: user?.telegramId ? `@${user.name}` : "NOT CONNECTED" 
+                        }
+                      ].map((social, i) => (
+                        <div key={i} className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-[1.5rem] group hover:border-primary/30 transition-all">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5`}>
+                              <social.icon className={`w-5 h-5 ${social.color}`} />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-black text-muted uppercase tracking-widest">{social.label}</p>
+                              <p className="text-xs font-bold text-white uppercase italic">{social.handle}</p>
+                            </div>
+                          </div>
+                          <div className={`px-3 py-1 rounded-full text-[8px] font-black ${
+                            social.status === "VERIFIED" ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
+                          }`}>
+                            {social.status}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 </div>
               </section>

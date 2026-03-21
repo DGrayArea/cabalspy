@@ -19,6 +19,8 @@ export interface PortfolioData {
   solBalanceUsd: number;
   tokenBalances: TokenBalance[];
   totalValueUsd: number;
+  totalPnL24hUsd: number;
+  totalPnL24hPercent: number;
   isLoading: boolean;
   error: Error | null;
   lastUpdated: number | null;
@@ -38,6 +40,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     solBalanceUsd: 0,
     tokenBalances: [],
     totalValueUsd: 0,
+    totalPnL24hUsd: 0,
+    totalPnL24hPercent: 0,
     isLoading: false,
     error: null,
     lastUpdated: null,
@@ -89,6 +93,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         solBalanceUsd: 0,
         tokenBalances: [],
         totalValueUsd: 0,
+        totalPnL24hUsd: 0,
+        totalPnL24hPercent: 0,
         isLoading: false,
         error: null,
       }));
@@ -448,13 +454,38 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         (sum, t) => sum + (t.valueUsd ?? 0),
         0
       );
+      
+      // Fetch 24h Price Change for SOL (fallback to 0)
+      let solPriceChange24h = 0;
+      try {
+        const solHistoryRes = await fetch("https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112");
+        if (solHistoryRes.ok) {
+          const solData = await solHistoryRes.json();
+          solPriceChange24h = parseFloat(solData.pairs?.[0]?.priceChange?.h24 || "0");
+        }
+      } catch (e) {
+        console.warn("Failed to fetch SOL 24h change");
+      }
+
+      const solPnL24h = (solBalanceUsd * solPriceChange24h) / 100;
+      
+      // Calculate PnL for tokens using priceChange24h from Mobula/DexScreener if available
+      const tokensPnL24h = tokenBalances.reduce((sum, t) => {
+        const change = (t as any).priceChange24h || 0; 
+        return sum + (t.valueUsd ? (t.valueUsd * change / 100) : 0);
+      }, 0);
+
       const totalValueUsd = solBalanceUsd + tokensTotalUsd;
+      const totalPnL24hUsd = solPnL24h + tokensPnL24h;
+      const totalPnL24hPercent = totalValueUsd > 0 ? (totalPnL24hUsd / (totalValueUsd - totalPnL24hUsd)) * 100 : 0;
 
       setPortfolio({
         solBalance,
         solBalanceUsd,
         tokenBalances,
         totalValueUsd,
+        totalPnL24hUsd,
+        totalPnL24hPercent,
         isLoading: false,
         error: null,
         lastUpdated: Date.now(),

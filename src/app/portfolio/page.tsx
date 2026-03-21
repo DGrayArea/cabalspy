@@ -43,6 +43,8 @@ export default function PortfolioPage() {
     solBalanceUsd,
     tokenBalances,
     totalValueUsd,
+    totalPnL24hUsd,
+    totalPnL24hPercent,
     isLoading,
     error,
     refreshPortfolio,
@@ -111,7 +113,7 @@ export default function PortfolioPage() {
         onWalletSettingsClick={() => setShowWalletSettings(!showWalletSettings)}
       />
 
-      <div className="w-full py-4 sm:py-6 px-3 sm:px-4">
+      <div className="w-full max-w-5xl mx-auto px-4 pt-20 sm:pt-24 pb-20">
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -155,7 +157,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Summary card ────────────────────────────────────────────────── */}
-        <div className="bg-panel border border-gray-800/60 rounded-2xl p-5 sm:p-6 mb-4 relative overflow-hidden">
+        <div className="glass border border-white/10 rounded-3xl p-6 sm:p-8 mb-6 relative overflow-hidden bg-linear-to-br from-white/[0.03] to-transparent shadow-2xl">
           {/* Subtle glow */}
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 
@@ -166,8 +168,20 @@ export default function PortfolioPage() {
             {isLoading ? (
               <div className="h-12 w-44 bg-gray-800 rounded-xl animate-pulse mb-4" />
             ) : (
-              <div className="text-4xl sm:text-5xl font-bold mb-4">
-                {formatCurrency(totalValueUsd)}
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4 mb-4">
+                <div className="text-4xl sm:text-6xl font-black italic tracking-tighter text-white drop-shadow-neon">
+                  {formatCurrency(totalValueUsd)}
+                </div>
+                {!isLoading && (
+                  <div className={`text-lg sm:text-xl font-black italic mt-1 sm:mt-0 ${
+                    totalPnL24hUsd >= 0 ? "text-primary shadow-neon-sm" : "text-red-500"
+                  }`}>
+                    {totalPnL24hUsd >= 0 ? "+" : ""}{formatCurrency(totalPnL24hUsd)} 
+                    <span className="ml-2 opacity-80">
+                      ({totalPnL24hUsd >= 0 ? "+" : ""}{totalPnL24hPercent.toFixed(2)}%)
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -217,20 +231,20 @@ export default function PortfolioPage() {
         </div>
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
-        <div className="flex border-b border-white/10 mb-6">
+        <div className="flex border-b border-white/10 mb-8 bg-black/20 rounded-t-2xl overflow-hidden">
           {(["assets", "history"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 sm:flex-none px-8 py-4 text-[11px] sm:text-sm font-black tracking-[0.2em] transition-all cursor-pointer uppercase relative ${
+              className={`flex-1 sm:flex-none px-10 py-4 text-[11px] sm:text-xs font-black tracking-[0.2em] transition-all cursor-pointer uppercase relative ${
                 activeTab === tab
-                  ? "text-primary bg-primary/5"
+                  ? "text-primary bg-white/5"
                   : "text-muted hover:text-white hover:bg-white/5"
               }`}
             >
-              {tab}
+              <span className="relative z-10">{tab}</span>
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary shadow-neon rounded-t-full" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-neon" />
               )}
             </button>
           ))}

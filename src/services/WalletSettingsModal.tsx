@@ -43,6 +43,7 @@ interface TurnkeyWallet {
   imported?: boolean;
   walletId?: string;
   walletName?: string;
+  walletSetId?: string;
   accounts?: TurnkeyAccount[];
 }
 
@@ -118,6 +119,7 @@ export function WalletSettingsModal({
       address: solanaAccount.address,
       walletId: wallet.walletId,
       walletName: wallet.walletName,
+      walletSetId: (wallet as any).walletSetId,
     };
   }, [turnkeyWallets]);
 
@@ -163,7 +165,8 @@ export function WalletSettingsModal({
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const { createWallet, refreshWallets, handleExportWallet } = useTurnkey();
+  const { createWallet, refreshWallets, handleExportWallet, handleExportWalletSet } = useTurnkey() as any;
+  const [exportType, setExportType] = useState<"privateKey" | "recoveryPhrase">("privateKey");
   
   // Use portfolio context for balance data
   const {
@@ -326,10 +329,16 @@ export function WalletSettingsModal({
             walletId: embeddedSolanaWallet.walletId,
           });
 
-          // handleExportWallet opens a new window to export.turnkey.com
-          await handleExportWallet({
-            walletId: embeddedSolanaWallet.walletId as string,
-          });
+          // Handle both private key and recovery phrase exports
+          if (exportType === "recoveryPhrase" && embeddedSolanaWallet.walletSetId && handleExportWalletSet) {
+            await handleExportWalletSet({
+              walletSetId: embeddedSolanaWallet.walletSetId,
+            });
+          } else {
+            await handleExportWallet({
+              walletId: embeddedSolanaWallet.walletId as string,
+            });
+          }
 
           console.log("✅ Wallet export initiated");
           // Note: The CORS/origin mismatch warnings are expected and can be ignored
@@ -614,12 +623,26 @@ export function WalletSettingsModal({
               )}
             </button>
             <button
-              onClick={handleExportWalletClick}
+              onClick={() => {
+                setExportType("privateKey");
+                handleExportWalletClick();
+              }}
               disabled={!embeddedSolanaWallet?.walletId}
-              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-gray-700 active:scale-95 text-gray-300 hover:text-white text-sm font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2"
+              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-gray-300 hover:text-white text-[10px] font-black italic rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-tight"
             >
-              <Download className="w-4 h-4" />
-              Export Private Key
+              <Download className="w-3.5 h-3.5" />
+              Private Key
+            </button>
+            <button
+              onClick={() => {
+                setExportType("recoveryPhrase");
+                handleExportWalletClick();
+              }}
+              disabled={!(embeddedSolanaWallet as any)?.walletSetId}
+              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-gray-300 hover:text-white text-[10px] font-black italic rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-tight"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Recovery Phrase
             </button>
           </div>
         </div>
@@ -642,8 +665,8 @@ export function WalletSettingsModal({
               Exporting your wallet will reveal your private key or seed phrase. This allows anyone with access to control your wallet and funds.
             </DialogDescription>
             <div className="text-gray-300 pt-2 space-y-3">
-              <p className="font-semibold">
-                Exporting your wallet will reveal your private key or seed phrase.
+              <p className="font-semibold text-sm">
+                Exporting your {exportType === "privateKey" ? "private key" : "recovery phrase"} will reveal your sensitive credentials.
               </p>
               
               <div className="space-y-2">
