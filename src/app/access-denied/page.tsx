@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ShieldOff, ExternalLink, ArrowLeft, CheckCircle2, Lock, AlertCircle, Sparkles, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function AccessDeniedPage() {
+function AccessDeniedContent() {
   const { isAuthenticated, user, isLoggingIn } = useAuth();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
@@ -166,5 +166,13 @@ export default function AccessDeniedPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AccessDeniedPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-app flex items-center justify-center text-white"><div className="w-8 h-8 rounded-full bg-primary animate-pulse shadow-neon-sm" /></div>}>
+      <AccessDeniedContent />
+    </Suspense>
   );
 }
