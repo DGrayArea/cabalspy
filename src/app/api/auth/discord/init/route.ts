@@ -11,11 +11,15 @@ export async function GET(request: NextRequest) {
   try {
     const clientId = process.env.DISCORD_CLIENT_ID;
     
-    // Determine the base URL for the callback
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
-                    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+    // Determine the base URL for the callback (must match the one used in init)
+    const rawBaseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
     
-    const redirectUri = `${baseUrl}/api/auth/discord/callback`;
+    // Safety: strip any trailing slashes to prevent // in the path
+    const baseUrl = rawBaseUrl.replace(/\/$/, "");
+    
+    // Prioritize the specific redirect URI if provided, otherwise construct it
+    const redirectUri = process.env.NEXT_PUBLIC_DISCORD_REDIRECT_URI || `${baseUrl}/api/auth/discord/callback`;
     
     if (!clientId) {
       logger.error("Discord auth configuration missing: client ID is required");

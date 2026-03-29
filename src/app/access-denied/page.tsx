@@ -1,10 +1,41 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import { ShieldOff, ExternalLink, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { ShieldOff, ExternalLink, ArrowLeft, CheckCircle2, Lock, AlertCircle, Sparkles, MessageSquare } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function AccessDeniedPage() {
+  const { isAuthenticated, user, isLoggingIn } = useAuth();
+  const searchParams = useSearchParams();
+  const error = searchParams.get("error");
+
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (error === "missing_role") {
+      setErrorMsg("Verification Failed: Required Discord roles not found.");
+    } else if (error === "not_in_server") {
+      setErrorMsg("Verification Failed: You must be in the CabalSpy Discord server.");
+    } else if (error === "already_linked") {
+      setErrorMsg("Verification Failed: This Discord account is already linked to another user.");
+    }
+  }, [error]);
+
+  const onLinkDiscord = async () => {
+    try {
+      const response = await fetch("/api/auth/discord/init");
+      const data = await response.json();
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
+      }
+    } catch (error) {
+      console.error("Discord link error:", error);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-app text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background glow */}
@@ -14,90 +45,125 @@ export default function AccessDeniedPage() {
       {/* Back Link */}
       <Link
         href="/auth"
-        className="absolute top-8 left-8 flex items-center gap-2 text-muted hover:text-white transition-colors group z-20"
+        className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-muted hover:text-white transition-colors group z-20"
       >
-        <div className="p-2 rounded-full bg-white/5 border border-white/10 group-hover:border-white/30 transition-all">
-          <ArrowLeft className="w-4 h-4" />
+        <div className="p-1.5 sm:p-2 rounded-full bg-white/5 border border-white/10 group-hover:border-white/30 transition-all">
+          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
-        <span className="text-sm font-bold uppercase tracking-widest">Back to Login</span>
+        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Back to Login</span>
       </Link>
 
-      <div className="relative z-10 w-full max-w-lg animate-fade-in">
+      <div className="relative z-10 w-full max-w-[90%] sm:max-w-lg animate-fade-in py-8">
         {/* Icon */}
-        <div className="flex justify-center mb-8">
-          <div className="relative">
-            <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full" />
-            <div className="relative p-6 rounded-[2rem] glass border border-accent/30">
-              <ShieldOff className="w-16 h-16 text-accent" />
+        <div className="flex justify-center mb-6 sm:mb-8">
+          <div className="relative group">
+            <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full group-hover:bg-accent/40 transition-colors" />
+            <div className="relative p-5 sm:p-6 rounded-3xl sm:rounded-4xl glass border border-accent/30 shadow-2xl">
+              <ShieldOff className="w-10 h-10 sm:w-16 sm:h-16 text-accent" />
             </div>
           </div>
         </div>
 
         {/* Card */}
-        <div className="glass rounded-[3rem] p-10 border border-white/10 text-center space-y-6">
+        <div className="glass rounded-4xl sm:rounded-4xl p-6 sm:p-10 border border-white/10 text-center space-y-4 sm:space-y-6 shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           <div>
-            <h1 className="text-4xl font-black italic tracking-tighter text-white mb-2">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="h-px w-8 bg-accent/30" />
+              <span className="text-[10px] sm:text-xs font-black text-accent uppercase tracking-[0.3em]">Restricted Access</span>
+              <span className="h-px w-8 bg-accent/30" />
+            </div>
+            <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-white mb-2">
               ACCESS <span className="text-accent">DENIED</span>
             </h1>
-            <p className="text-muted text-sm font-medium leading-relaxed">
-              CabalSpy is an exclusive trading terminal. Access requires holding the <strong className="text-white">CabalSpy NFT</strong> or having the <strong className="text-white">Holder role</strong> in our Discord server.
+            <p className="text-muted text-[11px] sm:text-sm font-medium leading-relaxed max-w-[320px] mx-auto">
+              CabalSpy is an exclusive terminal. Verify your <strong className="text-white">Holder roles</strong> or <strong className="text-white">NFT ownership</strong> to enter.
             </p>
           </div>
 
-          <div className="h-px bg-white/10" />
+          {errorMsg && (
+            <div className="py-3 px-4 rounded-xl bg-accent/10 border border-accent/20 flex items-center gap-3 animate-shake">
+              <AlertCircle className="w-4 h-4 text-accent shrink-0" />
+              <p className="text-[10px] sm:text-xs font-bold text-accent text-left">{errorMsg}</p>
+            </div>
+          )}
 
-          {/* Steps */}
-          <div className="space-y-4 text-left">
-            <p className="text-[10px] font-black text-muted uppercase tracking-[0.2em] text-center">How to get access</p>
+          <div className="h-px bg-white/5" />
 
-            {[
-              { step: "1", text: "Join the CabalSpy Discord server" },
-              { step: "2", text: "Acquire a CabalSpy NFT or Pre-Sale pass" },
-              { step: "3", text: "Your Holder role will be assigned automatically" },
-              { step: "4", text: "Return here and sign in with Discord" },
-            ].map(({ step, text }) => (
-              <div key={step} className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-center shrink-0">
-                  <span className="text-[10px] font-black text-primary">{step}</span>
+          {isAuthenticated ? (
+            <div className="space-y-6">
+              <div className="text-left space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-neon-sm" />
+                  <p className="text-[10px] sm:text-xs font-black text-white uppercase tracking-widest">Logged in as {user?.name || 'Turnkey User'}</p>
                 </div>
-                <span className="text-sm font-medium text-gray-300 pt-1.5">{text}</span>
+                <p className="text-muted text-[11px] sm:text-xs leading-relaxed">
+                  To access the terminal, you need to link your Discord account and verify you have the <span className="text-white font-bold">Holder</span> or <span className="text-white font-bold">Pre-Sale</span> role.
+                </p>
               </div>
-            ))}
-          </div>
 
-          <div className="h-px bg-white/10" />
+              <div className="space-y-3">
+                <Button
+                  onClick={onLinkDiscord}
+                  className="w-full py-6 sm:py-7 rounded-2xl bg-primary text-black font-black text-xs sm:text-sm tracking-widest hover:bg-primary/90 shadow-neon active:scale-95 transition-all group"
+                >
+                  <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-12 transition-transform" />
+                  LINK DISCORD ACCOUNT
+                </Button>
+                
+                <a
+                  href="https://discord.gg/8ckMqGnnAP"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 text-muted hover:text-white text-[10px] font-bold uppercase tracking-widest transition-colors"
+                >
+                  Join Discord Server <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="space-y-3 sm:space-y-4 text-left bg-white/5 p-5 rounded-[2rem] border border-white/5">
+                <p className="text-[9px] sm:text-[10px] font-black text-muted uppercase tracking-[0.2em] text-center mb-2">Instructions</p>
+                {[
+                  { icon: ShieldOff, text: "Join the CabalSpy Discord" },
+                  { icon: Sparkles, text: "Acquire Holder or Pre-Sale role" },
+                  { icon: CheckCircle2, text: "Sign in using verified Discord" },
+                ].map(({ icon: Icon, text }, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-lg bg-white/5 flex items-center justify-center">
+                      <Icon className="w-3 h-3 text-primary" />
+                    </div>
+                    <span className="text-[11px] sm:text-xs font-medium text-gray-400">{text}</span>
+                  </div>
+                ))}
+              </div>
 
-          {/* CTA */}
-          <div className="space-y-3">
-            <a
-              href="https://discord.gg/cabalspy"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl font-black text-sm tracking-widest bg-[#5865F2]/10 border-2 border-[#5865F2] text-[#7289DA] hover:bg-[#5865F2]/20 hover:shadow-[0_0_20px_rgba(88,101,242,0.4)] active:scale-95 transition-all cursor-pointer"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M20.317 4.3698a19.7913 19.7913 0 00-4.8851-1.5152.0741.0741 0 00-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 00-.0785-.037 19.7363 19.7363 0 00-4.8852 1.515.0699.0699 0 00-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 00.0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 00.0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 00-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 01-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 01.0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 01.0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 01-.0066.1276 12.2986 12.2986 0 01-1.873.8914.0766.0766 0 00-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 00.0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 00.0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 00-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.419-2.1568 2.419zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.419-2.1568 2.419z"/>
-              </svg>
-              JOIN CABALSPY DISCORD
-              <ExternalLink className="w-4 h-4" />
-            </a>
+              <div className="space-y-3">
+                <Link
+                  href="/auth"
+                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-white text-black font-black text-xs sm:text-sm tracking-widest hover:bg-primary transition-all active:scale-95 shadow-xl"
+                >
+                  <Lock className="w-4 h-4" />
+                  PROCEED TO LOGIN
+                </Link>
+                <a
+                  href="https://discord.gg/8ckMqGnnAP"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#7289DA] rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#5865F2]/20 transition-all"
+                >
+                  DISCORD COMMUNITY <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            </div>
+          )}
 
-            <Link
-              href="/auth"
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl font-black text-sm tracking-widest bg-white/5 border border-white/10 text-muted hover:text-white hover:border-white/30 active:scale-95 transition-all cursor-pointer"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              I HAVE ACCESS — TRY AGAIN
-            </Link>
-          </div>
+          <div className="h-px bg-white/5" />
+          
+          <p className="text-[10px] font-medium text-muted/50 uppercase tracking-widest">
+            Protected by CabalSpy Guardian System
+          </p>
         </div>
-
-        <p className="text-center text-xs text-muted mt-6 font-medium">
-          Already have access?{" "}
-          <Link href="/auth" className="text-primary hover:underline">
-            Sign in with Discord
-          </Link>
-        </p>
       </div>
     </div>
   );

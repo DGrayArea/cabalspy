@@ -114,20 +114,37 @@ const DisplaySettingsModal = lazy(() => import("@/components/DisplaySettingsModa
 const WalletSettingsModal = lazy(() => import("@/services/WalletSettingsModal").then(module => ({ default: module.WalletSettingsModal })));
 
 function AuthCallbackHandler() {
-  const { handleAuthCallback } = useAuth();
+  const { handleAuthCallback, refreshSession, login } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
 
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
+    const discordAuth = searchParams.get("discord_auth");
+    const dataStr = searchParams.get("data");
 
     if (code && state) {
       handleAuthCallback(code, state).finally(() => {
         router.replace("/");
       });
+    } else if (discordAuth === "success") {
+      // Logic for Discord linking/login success
+      if (dataStr) {
+        try {
+          const userData = JSON.parse(decodeURIComponent(dataStr));
+          login("discord", userData).then(() => {
+             router.replace("/");
+          });
+        } catch (e) {
+          console.error("Failed to parse discord data", e);
+          refreshSession().finally(() => router.replace("/"));
+        }
+      } else {
+        refreshSession().finally(() => router.replace("/"));
+      }
     }
-  }, [searchParams, handleAuthCallback, router]);
+  }, [searchParams, handleAuthCallback, refreshSession, login, router]);
 
   return null;
 }
@@ -239,30 +256,36 @@ export default function Home() {
     };
   }, [mobulaTokensByFilter, watchlist]);
 
+  const [isAuthorizing, setIsAuthorizing] = useState(true);
+
   // Access Control Guard
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || !isAuthenticated) return;
 
     const checkAccess = async () => {
-      // If NOT authenticated, we allow homepage view but maybe NOT terminal
-      // However, the user said "they cant see/ acces the terminal without lggin in / signin up"
-      if (!isAuthenticated) {
-        // router.push("/auth"); // Optional: enforce login
-        return;
+      // If authenticated, check roles, NFT, or admin level
+      if (user?.accessLevel === 'admin' || user?.accessLevel === 'holder') {
+        setIsAuthorizing(false);
+        return; // Access granted
       }
 
-      // If authenticated, check roles or NFT
       const discordUser = user as any;
       const hasDiscordRole = discordUser?.roles?.some((r: string) => 
         ["1440085206785720413", "1386648661391441920"].includes(r)
       );
 
-      if (hasDiscordRole) return; // Access granted
+      if (hasDiscordRole) {
+        setIsAuthorizing(false);
+        return; // Access granted
+      }
 
       // Check NFT as fallback
       if (user?.walletAddress) {
         const hasNft = await verifyNftOwnership(user.walletAddress);
-        if (hasNft) return; // Access granted
+        if (hasNft) {
+          setIsAuthorizing(false);
+          return; // Access granted
+        }
       }
 
       // If we reach here, no access
@@ -273,13 +296,21 @@ export default function Home() {
   }, [isAuthenticated, authLoading, user, router]);
 
   const getChainLogo = (c: "solana" | "bsc") => {
-    if (c === "solana") return "/logos/chains/solana.png";
-    if (c === "bsc") return "/logos/chains/bsc.png";
-    return "";
+    // Current logos are missing in public, using null to trigger fallback icons
+    return null;
   };
 
   const formatCurrency = formatCurrencyUtil;
   const formatNumber = formatNumberUtil;
+
+  // Prevent Flash of Unauthenticated Content (FOUC)
+  if (authLoading || isLoggingIn || !isAuthenticated || isAuthorizing) {
+    return (
+      <div className="min-h-screen bg-app flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-app text-white pb-16">
@@ -301,14 +332,14 @@ export default function Home() {
 
       <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
 
-      {/* Main Content */}
-      <div className="relative z-10 w-full max-w-[90rem] mx-auto px-4 pt-20 sm:pt-24 pb-8">
+      {/* Overall Terminal Container - Full Fluid Width */}
+      <div className="relative z-10 w-full px-2 sm:px-6 pt-20 sm:pt-24 pb-8">
         <div className="flex flex-col gap-4">
-          {/* Chain & Metric Filters */}
-          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 mb-8">
-            <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
+          {/* Chain & Metric Filters - Edge-to-Edge Alignment */}
+          <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 mb-8 w-full">
+            <div className="flex flex-col sm:flex-row items-center gap-4 w-full">
               {/* Chain Filter */}
-              <div className="flex items-center gap-2 p-1.5 rounded-[2rem] glass border border-white/10 shadow-xl bg-black/20">
+              <div className="flex items-center gap-2 p-1.5 rounded-[2rem] glass border border-white/10 shadow-xl bg-black/20 shrink-0">
                 {[
                   { id: "all", label: "ALL", logo: null },
                   { id: "sol", label: "SOL", logo: "solana" },
@@ -317,19 +348,14 @@ export default function Home() {
                   <button
                     key={c.id}
                     onClick={() => setChain(c.id as any)}
-                    className={`px-6 py-2.5 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-2 ${
+                    className={`px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-1.5 sm:gap-2 ${
                       chain === c.id
                         ? "bg-primary text-black shadow-neon scale-105"
                         : "text-muted hover:text-white hover:bg-white/5"
                     }`}
                   >
-                    {c.logo && (
-                      <img
-                        src={getChainLogo(c.logo as any)}
-                        alt={c.label}
-                        className="w-3.5 h-3.5 rounded-full ring-1 ring-white/20"
-                      />
-                    )}
+                    {c.id === "sol" && <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-primary/20 rounded-full flex items-center justify-center text-[8px] font-bold">S</div>}
+                    {c.id === "bsc" && <div className="w-3 h-3 sm:w-3.5 sm:h-3.5 bg-secondary/20 rounded-full flex items-center justify-center text-[8px] font-bold">B</div>}
                     {c.label}
                   </button>
                 ))}
@@ -346,7 +372,7 @@ export default function Home() {
                   <button
                     key={m.id}
                     onClick={() => setSortBy(m.id as any)}
-                    className={`px-6 py-2.5 rounded-[1.5rem] text-[9px] font-black tracking-[0.2em] transition-all ${
+                    className={`px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all ${
                       sortBy === m.id
                         ? "bg-secondary text-white shadow-secondary-neon scale-105"
                         : "text-muted hover:text-white hover:bg-white/5"
@@ -371,26 +397,26 @@ export default function Home() {
         </div>
 
         {/* Top Featured Tokens Marquee */}
-        <div className="mb-16 animate-fade-in mt-8">
-          <div className="px-4 mb-4 flex items-center gap-3">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-xl font-black italic tracking-tight">
+        <div className="mb-8 sm:mb-16 animate-fade-in mt-4 sm:mt-8">
+          <div className="px-4 mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
+            <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <h2 className="text-lg sm:text-xl font-black italic tracking-tight">
               TOP FEATURED
             </h2>
           </div>
           {featuredTokens.length > 0 ? (
-            <div className="glass rounded-[2rem] p-4 border-white/5">
-              <TokenMarquee tokens={featuredTokens} speed="normal" />
+            <div className="glass rounded-3xl p-3 sm:p-4 border border-white/10 overflow-hidden">
+              <TokenMarquee tokens={featuredTokens} speed="slow" />
             </div>
           ) : (
             <MarqueeSkeleton />
           )}
         </div>
 
-        {/* Filter Tabs with Counts - Sticky below Navbar */}
-        <div className="mb-12 w-full sticky top-14 sm:top-16 bg-app/90 backdrop-blur-2xl z-40 py-2 -mx-4 px-4 border-y border-white/5 shadow-2xl overflow-hidden">
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-2 snap-x px-2">
+        {/* Filter Tabs with Counts - Sticky below Navbar - Full Width Expansion */}
+        <div className="mb-12 w-full sticky top-14 sm:top-16 bg-app/90 backdrop-blur-2xl z-40 py-2 -mx-2 sm:-mx-6 px-2 sm:px-6 border-y border-white/5 shadow-2xl overflow-hidden">
+          <div className="w-full flex items-center justify-between gap-4 h-12">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x px-2 h-full">
               {[
                 {
                   id: "trending",
@@ -445,7 +471,7 @@ export default function Home() {
                 <button
                   key={id}
                   onClick={() => setFilter(id as typeof filter)}
-                  className={`group shrink-0 relative px-4 sm:px-5 py-3 rounded-2xl transition-all flex items-center gap-2 sm:gap-3 whitespace-nowrap overflow-hidden snap-start ${
+                  className={`group shrink-0 relative px-3 sm:px-5 rounded-xl sm:rounded-2xl transition-all flex items-center gap-2 sm:gap-3 whitespace-nowrap overflow-hidden snap-start h-10 sm:h-11 ${
                     filter === id ? "text-white" : "text-muted hover:text-white"
                   }`}
                 >
@@ -455,13 +481,13 @@ export default function Home() {
                     />
                   )}
                   <Icon
-                    className={`w-4 h-4 relative z-10 ${filter === id ? `text-${accent}` : "opacity-50"}`}
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 ${filter === id ? `text-${accent}` : "opacity-50"}`}
                   />
                   <div className="flex flex-col items-start relative z-10">
-                    <span className="text-[10px] font-black tracking-[0.1em]">
+                    <span className="text-[9px] sm:text-[10px] font-black tracking-[0.1em]">
                       {label}
                     </span>
-                    <span className="text-[9px] font-bold opacity-40 group-hover:opacity-60 transition-opacity">
+                    <span className="text-[8px] sm:text-[9px] font-bold opacity-40 group-hover:opacity-60 transition-opacity">
                       {count.toLocaleString()} ITEMS
                     </span>
                   </div>
@@ -474,10 +500,10 @@ export default function Home() {
               ))}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 self-center sm:self-auto py-1">
               <button
                 onClick={() => setShowProtocolModal(true)}
-                className={`p-3 glass rounded-2xl transition-all group relative ${
+                className={`p-3 glass rounded-2xl transition-all group relative h-11 flex items-center justify-center ${
                   selectedProtocols.length > 0 && selectedProtocols.length < 22 ? "border-primary/60 shadow-neon-sm" : "hover:border-primary/40"
                 }`}
                 title="Protocol Filters"
@@ -493,7 +519,7 @@ export default function Home() {
               </button>
               <div className="h-8 w-px bg-white/5 mx-1" />
               <button
-                className="p-3 glass rounded-2xl hover:border-white/20 transition-all opacity-50 hover:opacity-100"
+                className="p-3 glass rounded-2xl hover:border-white/20 transition-all opacity-50 hover:opacity-100 h-11 flex items-center justify-center"
                 title="Notifications"
               >
                 <Bell className="w-4 h-4 text-muted" />
@@ -523,7 +549,7 @@ export default function Home() {
           <div className="relative">
             <button
               onClick={() => setShowDisplaySettings(!showDisplaySettings)}
-              className={`px-6 py-3 bg-panel border rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-3 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 bg-panel border rounded-xl sm:rounded-2xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 sm:gap-3 ${
                 showDisplaySettings
                   ? "border-primary text-primary bg-primary/5 shadow-neon"
                   : "border-white/10 text-muted hover:border-white/20 hover:text-white"
@@ -531,7 +557,7 @@ export default function Home() {
             >
               Terminal Settings
               <ChevronDownIcon
-                className={`w-3 h-3 transition-transform duration-300 ${showDisplaySettings ? "rotate-180" : ""}`}
+                className={`w-2.5 h-2.5 sm:w-3 sm:h-3 transition-transform duration-300 ${showDisplaySettings ? "rotate-180" : ""}`}
               />
             </button>
             {showDisplaySettings && (
@@ -555,7 +581,7 @@ export default function Home() {
               <TokenListSkeleton count={12} />
             </div>
           ) : tokensToDisplay.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-32 glass rounded-[3rem] border-white/5 mx-4">
+            <div className="flex flex-col items-center justify-center py-32 glass rounded-4xl border-white/5 mx-4">
               <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-6">
                 <Activity className="w-10 h-10 text-muted" />
               </div>
@@ -567,66 +593,35 @@ export default function Home() {
               </p>
             </div>
           ) : (
-            <div className="px-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                {/* Left Column: Calls Feed (Hidden on mobile/tablet) */}
-                <aside className="hidden xl:block xl:col-span-3 sticky top-36 h-[calc(100vh-10rem)] overflow-hidden">
-                  <CallsFeed />
-                </aside>
+            <div className="w-full">
+              {/* Full Width Token Grid - No Sidebars */}
+              <main className="w-full">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
+                  {tokensToDisplay.map((token: TokenData) => (
+                    <CompactTokenCard
+                      key={token.id}
+                      token={token}
+                      formatCurrency={formatCurrency}
+                      formatNumber={formatNumber}
+                      displaySettings={displaySettings}
+                      quickBuyAmount={quickBuyAmount}
+                      onCompare={() => setComparingToken(token)}
+                    />
+                  ))}
+                </div>
 
-                {/* Center Column: Main Token Grid */}
-                <main className="col-span-1 lg:col-span-8 xl:col-span-6">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-2 gap-6">
-                    {tokensToDisplay.map((token: TokenData) => (
-                      <CompactTokenCard
-                        key={token.id}
-                        token={token}
-                        formatCurrency={formatCurrency}
-                        formatNumber={formatNumber}
-                        displaySettings={displaySettings}
-                        quickBuyAmount={quickBuyAmount}
-                        onCompare={() => setComparingToken(token)}
-                      />
-                    ))}
+                {/* Infinite scroll sentinel element */}
+                {mobulaEnabled && (
+                  <div ref={observerTarget} className="py-12 flex justify-center">
+                    {isLoadingMore && (
+                      <div className="flex items-center gap-3 text-muted">
+                        <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">Scanning blockchain...</span>
+                      </div>
+                    )}
                   </div>
-
-                  {/* Infinite scroll sentinel element */}
-                  {mobulaEnabled && (
-                    <div ref={observerTarget} className="py-12 flex justify-center">
-                      {isLoadingMore && (
-                        <div className="flex items-center gap-3 text-muted">
-                          <RefreshCw className="w-5 h-5 animate-spin text-primary" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Scanning blockchain...</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </main>
-
-                {/* Right Column: Launchpad Stats (Hidden on mobile) */}
-                <aside className="hidden lg:block lg:col-span-4 xl:col-span-3 sticky top-36 space-y-6">
-                  <LaunchpadStatsCard />
-                  
-                  {/* Additional Stats / Ads / Info can go here */}
-                  <div className="glass rounded-3xl p-6 border-white/5 bg-primary/5">
-                    <h4 className="text-[10px] font-black italic text-primary uppercase tracking-[0.2em] mb-4">PLATFORM STATUS</h4>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center text-[10px] font-bold">
-                        <span className="text-muted">SOLANA RPC</span>
-                        <span className="text-green-400">OPTIMAL</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] font-bold">
-                        <span className="text-muted">JUPITER API</span>
-                        <span className="text-green-400">STABLE</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px] font-bold">
-                        <span className="text-muted">SIGNAL NODE</span>
-                        <span className="text-primary">ACTIVE</span>
-                      </div>
-                    </div>
-                  </div>
-                </aside>
-              </div>
+                )}
+              </main>
             </div>
           )}
         </div>

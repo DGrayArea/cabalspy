@@ -54,15 +54,17 @@ export default function RootLayout({
         <ViewportProvider>
           <TurnKeyProvider>
             <TurnkeySolanaContextProvider>
-              <PortfolioProvider>
-                <WatchlistProvider>
-                  <SettingsProvider>
-                    <ErrorBoundary>
-                      <AuthProvider>{children}</AuthProvider>
-                    </ErrorBoundary>
-                  </SettingsProvider>
-                </WatchlistProvider>
-              </PortfolioProvider>
+              <AuthProvider>
+                <PortfolioProvider>
+                  <WatchlistProvider>
+                    <SettingsProvider>
+                      <ErrorBoundary>
+                        {children}
+                      </ErrorBoundary>
+                    </SettingsProvider>
+                  </WatchlistProvider>
+                </PortfolioProvider>
+              </AuthProvider>
             </TurnkeySolanaContextProvider>
           </TurnKeyProvider>
         </ViewportProvider>

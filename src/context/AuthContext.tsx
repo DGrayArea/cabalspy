@@ -8,6 +8,7 @@ import {
   useCallback,
   ReactNode,
 } from "react";
+import { useTurnkey } from "@turnkey/react-wallet-kit";
 
 export interface User {
   id: string;
@@ -17,6 +18,7 @@ export interface User {
   discordId?: string;
   googleId?: string;
   avatar?: string;
+  accessLevel?: string;
   walletAddress?: string;
   wallets?: {
     solana?: {
@@ -122,6 +124,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     null
   );
   const [isLoading, setIsLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const { user: tkUser, authState } = useTurnkey();
+
+  // Sync with Turnkey's internal state
+  useEffect(() => {
+    console.log("🔑 Turnkey State Check:", { authState, hasTkUser: !!tkUser });
+    if (tkUser && authState === "authenticated") {
+      setTurnkeyUser(tkUser as any);
+    } else {
+      setTurnkeyUser(null);
+    }
+  }, [tkUser, authState]);
 
   const checkSession = useCallback(async () => {
     try {
@@ -147,6 +161,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             discordId: data.user.discordId,
             googleId: data.user.googleId,
             avatar: data.user.avatar,
+            accessLevel: data.user.accessLevel,
             walletAddress: data.wallet?.address,
             createdAt: new Date(),
           });
@@ -166,6 +181,52 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     checkSession();
   }, [checkSession]);
+
+  // Sync Turnkey with Backend
+  const syncBackendSession = useCallback(async (tkUser: any) => {
+    if (isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      const response = await fetch("/api/auth/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tkUserId: tkUser.userId,
+          email: tkUser.userEmail,
+          name: tkUser.userName,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.user) {
+          setUser({
+            id: data.user.id,
+            name: data.user.name,
+            email: data.user.email,
+            telegramId: data.user.telegramId,
+            discordId: data.user.discordId,
+            googleId: data.user.googleId,
+            avatar: data.user.avatar,
+            accessLevel: data.user.accessLevel,
+            createdAt: new Date(),
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error syncing Turnkey session:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing]);
+
+  useEffect(() => {
+    if (authState === "authenticated" && tkUser && !user && !isSyncing) {
+      console.log("🔄 Detected Turnkey auth, syncing with backend...");
+      syncBackendSession(tkUser);
+    }
+  }, [authState, tkUser, user, isSyncing, syncBackendSession]);
 
   const refreshSession = useCallback(async () => {
     setIsLoading(true);
@@ -319,8 +380,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, [user, turnkeyUser]);
 
-  const isAuthenticated = !!turnkeySession || !!user;
-  const isLoggingIn = isLoading;
+  const isAuthenticated = !!turnkeySession || !!user || !!turnkeyUser;
+  
+  // isLoggingIn should be true if:
+  // 1. Initial session check is running (isLoading)
+  // 2. Metadata sync with backend is running (isSyncing)
+  const isLoggingIn = isLoading || isSyncing;
 
   const value = {
     user,

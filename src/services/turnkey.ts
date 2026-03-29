@@ -88,37 +88,32 @@ export class TurnkeyService {
               },
             ];
 
-      const accountsPayload = accounts.map((acc) => ({
-        curve: acc.curve,
-        pathFormat: acc.pathFormat,
-        path: acc.path,
-        addressFormat: acc.addressFormat,
-      }));
-
       const response = await this.client.createWallet({
         type: "ACTIVITY_TYPE_CREATE_WALLET",
         timestampMs: Date.now().toString(),
         organizationId: process.env.NEXT_PUBLIC_ORGANIZATION_ID || "",
         parameters: {
           walletName: walletName || `Wallet for ${userId}`,
-          accounts: accountsPayload as any, // Type assertion needed due to strict union types
+          accounts: accounts.map(acc => ({
+            curve: acc.curve as any,
+            pathFormat: acc.pathFormat as any,
+            path: acc.path,
+            addressFormat: acc.addressFormat as any,
+          })),
         },
       });
 
       const walletId =
-        (response as { wallet?: { walletId?: string } }).wallet?.walletId ||
-        (response as { walletId?: string }).walletId ||
-        (
-          response as {
-            activity?: { result?: { wallet?: { walletId?: string } } };
-          }
-        ).activity?.result?.wallet?.walletId;
+        (response as any).wallet?.walletId ||
+        (response as any).walletId ||
+        (response as any).activity?.result?.createWalletResult?.walletId ||
+        (response as any).activity?.result?.wallet?.walletId;
 
       if (walletId) {
         return walletId;
       }
 
-      throw new Error("Failed to create wallet: No wallet returned from Turnkey");
+      throw new Error(`Failed to create wallet: No walletId found in response. Response: ${JSON.stringify(response)}`);
     } catch (error) {
       logger.error("Error creating wallet", error, {
         userId,

@@ -61,7 +61,7 @@ const turnkeyConfig: TurnkeyProviderConfig = {
     // Auth method order (Google first)
     methodOrder: ["socials", "email", "sms", "passkey", "wallet"],
     oauthConfig: {
-      openOauthInPage: true,
+      openOauthInPage: false,
       // Note: When using Turnkey Auth Proxy, the redirect URI is handled by Turnkey
       // You need to add Turnkey's redirect URI to Google Cloud Console
       // Typically: https://auth.turnkey.com/oauth/callback

@@ -23,9 +23,9 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
 
   // Speed configuration
   const speedConfig = {
-    slow: "60s",
-    normal: "40s",
-    fast: "25s",
+    slow: "120s",
+    normal: "80s",
+    fast: "50s",
   };
 
   const animationDuration = speedConfig[speed];
@@ -65,7 +65,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   return (
     <div className="relative w-full bg-panel/50 border-y border-gray-800/50 py-3 overflow-hidden">
       <div
-        className="flex gap-3"
+        className="flex gap-4 sm:gap-6"
         style={{
           animation: `tokenMarquee ${animationDuration} linear infinite`,
           willChange: "transform",

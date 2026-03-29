@@ -257,34 +257,15 @@ export function CompactTokenCard({
     <>
       <Link
         href={`/${chainRoute}/${tokenAddress}`}
-        className="block group relative transition-all duration-500 rounded-4xl p-4 sm:p-6 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl bg-linear-to-br from-white/[0.02] to-transparent"
+        className="block group relative transition-all duration-500 rounded-4xl p-4 sm:p-6 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl bg-linear-to-br from-white/2 to-transparent"
       >
         <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-500 rounded-4xl" />
         
-        <button
-          onClick={toggleWatchlist}
-          title="Add to Watchlist"
-          className={`absolute top-4 right-4 z-30 p-2 rounded-xl border transition-all duration-300 ${
-            isStarred 
-              ? "bg-primary/10 border-primary text-primary shadow-neon scale-110" 
-              : "bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/10"
-          }`}
-        >
-          <Star className={`w-4 h-4 ${isStarred ? "fill-primary" : "fill-none"}`} />
-        </button>
-
-        {/* Compare Toggle */}
-        <button
-          onClick={onCompareClick}
-          title="Compare Token"
-          className="absolute top-4 right-14 z-30 p-2 rounded-xl border bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/10 transition-all duration-300"
-        >
-          <ArrowLeftRight className="w-4 h-4" />
-        </button>
+        {/* Top-right badges/actions cleared for % change */}
         
-        <div className="relative z-10 flex items-start gap-5">
+        <div className="relative z-10 flex items-start gap-3 sm:gap-5">
           <div className="flex-shrink-0 relative">
-            <div className={`w-14 h-14 ${displaySettings?.circleImages ? "rounded-full" : "rounded-3xl"} relative overflow-hidden bg-panel-elev flex-shrink-0 group-hover:scale-105 transition-transform duration-500`}>
+            <div className={`w-12 h-12 sm:w-14 sm:h-14 ${displaySettings?.circleImages ? "rounded-full" : "rounded-2xl sm:rounded-3xl"} relative overflow-hidden bg-panel-elev flex-shrink-0 group-hover:scale-105 transition-transform duration-500`}>
               {/* Circular Bonding Progress Border - Profound Edition */}
               <svg className="absolute inset-0 w-full h-full -rotate-90 z-20 pointer-events-none drop-shadow-[0_0_8px_rgba(0,0,0,0.5)]" viewBox="0 0 56 56">
                 <circle
@@ -330,7 +311,7 @@ export function CompactTokenCard({
                     unoptimized
                   />
                 ) : (
-                  <div className="w-full h-full bg-panel-elev flex items-center justify-center text-xl font-black italic text-gradient">
+                  <div className="w-full h-full bg-panel-elev flex items-center justify-center text-lg sm:text-xl font-black italic text-gradient">
                     {token.symbol?.charAt(0)}
                   </div>
                 )}
@@ -338,46 +319,46 @@ export function CompactTokenCard({
             </div>
 
             {platformInfo.logo && (
-              <div className="absolute -bottom-1 -right-1 w-5 h-5 sm:w-6 h-6 bg-black rounded-lg border border-white/10 flex items-center justify-center overflow-hidden z-30 shadow-2xl p-1" title={platformInfo.name}>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-6 sm:h-6 bg-black rounded-lg border border-white/10 flex items-center justify-center overflow-hidden z-30 shadow-2xl p-0.5 sm:p-1" title={platformInfo.name}>
                 <img src={platformInfo.logo} alt={platformInfo.name || "Platform"} className="w-full h-full object-contain" />
               </div>
             )}
           </div>
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-black text-lg tracking-tighter text-white truncate italic uppercase leading-none">
+            <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+              <h3 className="font-black text-base sm:text-lg tracking-tighter text-white truncate italic uppercase leading-none">
                 {token.symbol}
               </h3>
-              <div className="h-3 w-px bg-white/10" />
-              <div className="flex items-center gap-1 bg-white/5 px-2 py-0.5 rounded-lg">
-                <Clock className="w-3 h-3 text-primary" />
-                <span className="text-[9px] text-muted font-black uppercase tracking-widest">
+              <div className="h-2.5 w-px bg-white/10" />
+              <div className="flex items-center gap-1 bg-white/5 px-1.5 sm:px-2 py-0.5 rounded-lg">
+                <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary" />
+                <span className="text-[8px] sm:text-[9px] text-muted font-black uppercase tracking-widest">
                   {typeof currentTime === "object" ? currentTime.display : currentTime}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex flex-col">
-                <span className="text-[7px] sm:text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">MCap</span>
-                <span className="text-[10px] sm:text-xs font-black text-primary font-mono italic">
+                <span className="text-[7px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">MCap</span>
+                <span className="text-[9px] sm:text-xs font-black text-primary font-mono italic">
                   {formatCurrency(token.marketCap)}
                 </span>
               </div>
-              <div className="w-px h-6 bg-white/5" />
+              <div className="w-px h-5 sm:h-6 bg-white/5" />
               <div className="flex flex-col">
-                <span className="text-[7px] sm:text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">Vol</span>
-                <span className="text-[10px] sm:text-xs font-black text-secondary font-mono italic">
+                <span className="text-[7px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">Vol</span>
+                <span className="text-[9px] sm:text-xs font-black text-secondary font-mono italic">
                   {formatCurrency(token.volume)}
                 </span>
               </div>
               {liquidity > 0 && (
                 <>
-                  <div className="w-px h-6 bg-white/5" />
+                  <div className="w-px h-5 sm:h-6 bg-white/5" />
                   <div className="flex flex-col">
-                    <span className="text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">Liq</span>
-                    <span className="text-xs font-black text-accent font-mono italic">
+                    <span className="text-[7px] sm:text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">Liq</span>
+                    <span className="text-[9px] sm:text-xs font-black text-accent font-mono italic">
                       {formatCurrency(liquidity)}
                     </span>
                   </div>
@@ -386,15 +367,15 @@ export function CompactTokenCard({
             </div>
           </div>
 
-          <div className="flex flex-col items-end gap-2 text-right">
-            <div className={`text-[11px] font-black px-3 py-1 rounded-xl italic tracking-tighter ${isPositive ? "bg-primary/10 text-primary shadow-neon" : "bg-accent/10 text-accent shadow-accent-neon"}`}>
+          <div className="flex flex-col items-end gap-1.5 sm:gap-2 text-right">
+            <div className={`text-[10px] sm:text-[11px] font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl italic tracking-tighter ${isPositive ? "bg-primary/10 text-primary shadow-neon" : "bg-accent/10 text-accent shadow-accent-neon"}`}>
               {formatPercent(priceChange24h)}
             </div>
             
             {/* Social Icons */}
             {socialLinks.length > 0 && (
-              <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
-                {socialLinks.map((link, idx) => (
+              <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/5 rounded-lg border border-white/5">
+                {socialLinks.slice(0, 3).map((link, idx) => (
                   <Link 
                     key={idx} 
                     href={link.url} 
@@ -403,9 +384,9 @@ export function CompactTokenCard({
                     onClick={(e) => e.stopPropagation()}
                     className="text-muted hover:text-white transition-colors"
                   >
-                    {link.type === 'twitter' && <Twitter className="w-3 h-3" />}
-                    {link.type === 'telegram' && <Send className="w-3 h-3" />}
-                    {link.type === 'website' && <Globe className="w-3 h-3" />}
+                    {link.type === 'twitter' && <Twitter className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                    {link.type === 'telegram' && <Send className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                    {link.type === 'website' && <Globe className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                   </Link>
                 ))}
               </div>
@@ -413,106 +394,114 @@ export function CompactTokenCard({
           </div>
         </div>
 
-        <div className="mt-8 grid grid-cols-2 gap-4">
-          <div className="flex items-center gap-4 bg-white/[0.03] p-3 rounded-2xl border border-white/5">
-            <div className="flex flex-col">
-              <span className="text-[7px] font-black text-muted uppercase tracking-widest">Holders</span>
-              <span className="text-[10px] font-black italic text-white">{holders.toLocaleString()}</span>
+        <div className="mt-4 sm:mt-8 grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 bg-white/3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-white/5 min-w-0">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[6px] sm:text-[7px] font-black text-muted uppercase tracking-widest truncate">Holders</span>
+              <span className="text-[9px] sm:text-[10px] font-black italic text-white truncate">{holders.toLocaleString()}</span>
             </div>
-            <div className="w-px h-4 bg-white/10" />
-            <div className="flex flex-col">
-              <span className="text-[7px] font-black text-muted uppercase tracking-widest">Trades</span>
-              <span className="text-[10px] font-black italic text-white">{trades.toLocaleString()}</span>
+            <div className="w-px h-3 sm:h-4 bg-white/10" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-[6px] sm:text-[7px] font-black text-muted uppercase tracking-widest truncate">Trades</span>
+              <span className="text-[9px] sm:text-[10px] font-black italic text-white truncate">{trades.toLocaleString()}</span>
             </div>
           </div>
           
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1.5 sm:gap-2">
             <button 
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setShowTradingPanel(true);
               }}
-              className="px-6 py-2.5 rounded-2xl bg-white text-black text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 italic shadow-lg shadow-white/5"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 italic shadow-lg shadow-white/5"
             >
               TRADE
             </button>
             <button 
               onClick={copyAddress}
-              className="p-2.5 rounded-2xl glass border border-white/10 hover:border-white/20 transition-all active:scale-90"
+              className="p-2 sm:p-2.5 rounded-xl sm:rounded-2xl glass border border-white/10 hover:border-white/20 transition-all active:scale-90"
             >
-              {copied ? <Check className="w-4 h-4 text-primary" /> : <Copy className="w-4 h-4 text-muted" />}
+              {copied ? <Check className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" /> : <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-muted" />}
             </button>
           </div>
         </div>
 
-
-
-        {/* Floating Tooltip Data - Restored with rich icons and tooltips */}
+        {/* Bottom Metadata & Actions Row */}
         <TooltipProvider>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {mobulaData?.security?.noMintAuthority && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="px-2 py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-[8px] font-black text-green-400 uppercase tracking-widest flex items-center gap-1 cursor-help">
-                    <Shield className="w-2.5 h-2.5" /> MINT REVOKED
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="glass border-white/10">
-                  <p className="text-[10px] font-bold">Contract ownership renounced. No more tokens can be minted.</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+          <div className="mt-4 sm:mt-6 flex items-center justify-between gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {mobulaData?.security?.noMintAuthority && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-[7px] sm:text-[8px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                      <Shield className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> MINT REVOKED
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="glass border-white/10">
+                    <p className="text-[10px] font-bold">Contract ownership renounced. No more tokens can be minted.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
-            {mobulaData?.smartTradersCount > 0 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="px-2 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[8px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-1 cursor-help">
-                    <Brain className="w-2.5 h-2.5" /> {mobulaData.smartTradersCount} SMART MONEY
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="glass border-white/10">
-                  <p className="text-[10px] font-bold">{mobulaData.smartTradersCount} whale/smart wallets are holding this token.</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+              {mobulaData?.smartTradersCount > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[7px] sm:text-[8px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                      <Brain className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> {mobulaData.smartTradersCount} SMART
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="glass border-white/10">
+                    <p className="text-[10px] font-bold">{mobulaData.smartTradersCount} whale/smart wallets are holding this token.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
 
-            {isTokenMigrated ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="px-2 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-black text-primary uppercase tracking-widest flex items-center gap-1 cursor-help">
-                    <Zap className="w-2.5 h-2.5" /> GRADUATED
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="glass border-white/10">
-                  <p className="text-[10px] font-bold">This token has launched on Raydium/DEX.</p>
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="px-2 py-1 rounded-lg bg-secondary/10 border border-secondary/20 text-[8px] font-black text-secondary uppercase tracking-widest flex items-center gap-1 cursor-help">
-                    <Activity className="w-2.5 h-2.5" /> INCUBATING
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="glass border-white/10">
-                  <p className="text-[10px] font-bold">In bonding curve phase on Pump.fun.</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+              {isTokenMigrated ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-primary/10 border border-primary/20 text-[7px] sm:text-[8px] font-black text-primary uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                      <Zap className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> GRADUATED
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="glass border-white/10">
+                    <p className="text-[10px] font-bold">This token has launched on Raydium/DEX.</p>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-secondary/10 border border-secondary/20 text-[7px] sm:text-[8px] font-black text-secondary uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                      <Activity className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> BONDING
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent className="glass border-white/10">
+                    <p className="text-[10px] font-bold">In bonding curve phase on Pump.fun.</p>
+                  </TooltipContent>
+                </Tooltip>
+              )}
+            </div>
 
-            {token.volume > 50000 && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                   <div className="px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-[8px] font-black text-accent uppercase tracking-widest flex items-center gap-1 cursor-help">
-                    <Flame className="w-2.5 h-2.5" /> HIGH VELOCITY
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="glass border-white/10">
-                  <p className="text-[10px] font-bold">Extremely high trading volume detected.</p>
-                </TooltipContent>
-              </Tooltip>
-            )}
+            {/* Final placement for Star and Compare to utilize bottom-right space */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onCompareClick}
+                title="Compare Token"
+                className="p-1.5 rounded-lg glass border border-white/10 text-gray-400 hover:text-white transition-all active:scale-90"
+              >
+                <ArrowLeftRight className="w-3 h-3" />
+              </button>
+              <button
+                onClick={toggleWatchlist}
+                className={`p-1.5 rounded-lg border transition-all duration-300 ${
+                  isStarred 
+                    ? "bg-primary/10 border-primary text-primary shadow-neon active:scale-95" 
+                    : "bg-white/5 border-white/10 text-gray-500 hover:text-white"
+                }`}
+              >
+                <Star className={`w-3 h-3 ${isStarred ? "fill-primary" : "fill-none"}`} />
+              </button>
+            </div>
           </div>
         </TooltipProvider>
       </Link>

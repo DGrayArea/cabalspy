@@ -157,7 +157,7 @@ export default function PortfolioPage() {
         )}
 
         {/* ── Summary card ────────────────────────────────────────────────── */}
-        <div className="glass border border-white/10 rounded-3xl p-6 sm:p-8 mb-6 relative overflow-hidden bg-linear-to-br from-white/[0.03] to-transparent shadow-2xl">
+        <div className="glass border border-white/10 rounded-3xl p-6 sm:p-8 mb-6 relative overflow-hidden bg-linear-to-br from-white/3 to-transparent shadow-2xl">
           {/* Subtle glow */}
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
 

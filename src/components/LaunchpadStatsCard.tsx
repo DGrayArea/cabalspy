@@ -157,7 +157,7 @@ export default function LaunchpadStatsCard() {
   };
 
   return (
-    <div className="glass border border-white/10 rounded-2xl p-4 shadow-2xl bg-linear-to-br from-white/[0.02] to-transparent hover:border-primary/20 transition-all duration-500">
+    <div className="glass border border-white/10 rounded-2xl p-4 shadow-2xl bg-linear-to-br from-white/2 to-transparent hover:border-primary/20 transition-all duration-500">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>

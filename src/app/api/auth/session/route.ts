@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         telegramId: user.telegramId,
         googleId: user.googleId,
         discordId: user.discordId,
+        accessLevel: user.accessLevel,
       },
       wallet: wallet ? {
         address: wallet.address,

@@ -113,7 +113,8 @@ export interface DexScreenerTokenInfo {
 }
 
 export class DexScreenerService {
-  private baseUrl = "https://api.dexscreener.com/latest/dex";
+  baseUrl = "https://api.dexscreener.com/latest/dex";
+  private tokenV1Url = "https://api.dexscreener.com/tokens/v1";
   private cache: Map<
     string,
     { data: DexScreenerTokenInfo; timestamp: number }
@@ -255,6 +256,73 @@ export class DexScreenerService {
         `Failed to fetch DexScreener data for ${chain}:${address}:`,
         error
       );
+      return null;
+    }
+  }
+
+  /**
+   * Fetch token info using the direct /tokens/v1/{chain}/{address} endpoint
+   * More reliable than search — returns all pairs for a token address directly
+   */
+  async fetchTokenPairs(
+    chain: "solana" | "bsc" | "ethereum" | "base",
+    address: string
+  ): Promise<DexScreenerTokenInfo | null> {
+    const cacheKey = `v1:${chain}:${address}`;
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
+      return cached.data;
+    }
+
+    try {
+      const dexChain = chain === "bsc" ? "bsc" : chain === "ethereum" ? "ethereum" : chain === "base" ? "base" : "solana";
+      const url = `${this.tokenV1Url}/${dexChain}/${address}`;
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) return null;
+
+      const pairs: DexScreenerPair[] = await res.json();
+      if (!pairs || pairs.length === 0) return null;
+
+      // Pick the pair with most liquidity
+      const pair = [...pairs].sort(
+        (a, b) => (b.liquidity?.usd || 0) - (a.liquidity?.usd || 0)
+      )[0];
+
+      const tokenInfo: DexScreenerTokenInfo = {
+        logo: pair.info?.imageUrl,
+        priceUsd: pair.priceUsd ? parseFloat(pair.priceUsd) : undefined,
+        priceNative: pair.priceNative ? parseFloat(pair.priceNative) : undefined,
+        priceChange24h: pair.priceChange?.h24,
+        priceChange6h: pair.priceChange?.h6,
+        priceChange1h: pair.priceChange?.h1,
+        priceChange5m: pair.priceChange?.m5,
+        volume24h: pair.volume?.h24,
+        volume6h: pair.volume?.h6,
+        volume1h: pair.volume?.h1,
+        volume5m: pair.volume?.m5,
+        liquidity: pair.liquidity?.usd,
+        fdv: pair.fdv,
+        socials: pair.info?.socials,
+        websites: pair.info?.websites,
+        dexUrl: pair.url,
+        dexId: pair.dexId,
+        pairAddress: pair.pairAddress,
+        pairCreatedAt: pair.pairCreatedAt,
+        txns24h: pair.txns?.h24 ? { buys: pair.txns.h24.buys, sells: pair.txns.h24.sells, total: pair.txns.h24.buys + pair.txns.h24.sells } : undefined,
+        txns6h: pair.txns?.h6 ? { buys: pair.txns.h6.buys, sells: pair.txns.h6.sells, total: pair.txns.h6.buys + pair.txns.h6.sells } : undefined,
+        txns1h: pair.txns?.h1 ? { buys: pair.txns.h1.buys, sells: pair.txns.h1.sells, total: pair.txns.h1.buys + pair.txns.h1.sells } : undefined,
+        txns5m: pair.txns?.m5 ? { buys: pair.txns.m5.buys, sells: pair.txns.m5.sells, total: pair.txns.m5.buys + pair.txns.m5.sells } : undefined,
+        baseToken: pair.baseToken,
+        quoteToken: pair.quoteToken,
+        isPaid: false,
+        // Store all pairs for multi-dex display
+        allPairs: pairs,
+      } as DexScreenerTokenInfo & { allPairs: DexScreenerPair[] };
+
+      this.cache.set(cacheKey, { data: tokenInfo, timestamp: Date.now() });
+      return tokenInfo;
+    } catch (error) {
+      console.error(`Failed to fetch DexScreener v1 data for ${chain}:${address}:`, error);
       return null;
     }
   }

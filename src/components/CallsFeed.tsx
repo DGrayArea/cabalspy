@@ -44,7 +44,7 @@ export default function CallsFeed() {
   return (
     <div className="flex flex-col h-full bg-panel/30 border border-white/5 rounded-3xl overflow-hidden backdrop-blur-sm">
       {/* Header */}
-      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+      <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/2">
         <div className="flex items-center gap-2">
           <div className="relative flex h-2 w-2">
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
@@ -81,10 +81,10 @@ export default function CallsFeed() {
                 initial={{ opacity: 0, x: -20, height: 0 }}
                 animate={{ opacity: 1, x: 0, height: "auto" }}
                 exit={{ opacity: 0, x: 20 }}
-                className="relative group bg-white/[0.03] border border-white/5 rounded-2xl p-3 hover:bg-white/[0.06] hover:border-primary/20 transition-all cursor-pointer overflow-hidden"
+                className="relative group bg-white/3 border border-white/5 rounded-2xl p-3 hover:bg-white/6 hover:border-primary/20 transition-all cursor-pointer overflow-hidden"
               >
                 {/* Glow Background */}
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/[0.02] transition-colors" />
+                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/2 transition-colors" />
                 
                 <div className="flex items-start justify-between relative z-10">
                   <div className="flex items-center gap-3">

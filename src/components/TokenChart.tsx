@@ -1,22 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import {
-  createChart,
-  IChartApi,
-  ISeriesApi,
-  CandlestickData,
-  LineData,
-  Time,
-  CandlestickSeries,
-  LineSeries,
-} from "lightweight-charts";
-import type {
-  CandlestickSeriesOptions,
-  LineSeriesOptions,
-} from "lightweight-charts";
-import { ExternalLink, Loader2 } from "lucide-react";
-import { pumpFunService } from "@/services/pumpfun";
+import { ExternalLink } from "lucide-react";
 
 interface TokenChartProps {
   mintAddress: string;
@@ -31,8 +15,6 @@ interface TokenChartProps {
   geckoTerminalPairAddress?: string;
 }
 
-type Timeframe = "1m" | "5m" | "15m" | "1h" | "4h" | "6h" | "12h" | "24h";
-type ChartType = "candlestick" | "line";
 type IframeSource = "dexscreener" | "geckoterminal";
 
 export function TokenChart({
@@ -45,19 +27,6 @@ export function TokenChart({
   pairAddress,
   geckoTerminalPairAddress,
 }: TokenChartProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<"Candlestick" | "Line"> | null>(null);
-  const [timeframe, setTimeframe] = useState<Timeframe>("1h");
-  const [currency, setCurrency] = useState<"USD" | "SOL">("USD");
-  const [chartType, setChartType] = useState<ChartType>("candlestick");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [isForcedIframe, setIsForcedIframe] = useState(false);
-
-  // Use native chart ONLY for active (not-yet-migrated) pump.fun tokens, unless forced
-  const useNativeChart = isPumpFun && !isMigrated && !isForcedIframe;
-
   // Normalised chain string for DexScreener
   const dexChain =
     chainId === "sol" || chainId === "solana" ? "solana" : chainId;
@@ -78,357 +47,39 @@ export function TokenChart({
   const geckoEmbedUrl = `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoEmbedId}?embed=1&footer=0&info=0&swaps=0&grayscale=0&light_chart=0`;
   const geckoPublicUrl = `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoEmbedId}`;
 
-  // Automate source selection: Prefer DexScreener if pairAddress exists, otherwise use GeckoTerminal if its pair address exists.
-  // This removes the need for manual switching.
+  // Automate source selection: Prefer DexScreener if pairAddress exists
   const effectiveIframeSource: IframeSource = pairAddress ? "dexscreener" : (geckoTerminalPairAddress ? "geckoterminal" : "dexscreener");
   
-  // ── Iframe chart (non-native) ───────────────────────────────────────────────
-  if (!useNativeChart) {
-    const isGecko = effectiveIframeSource === "geckoterminal";
-    const embedUrl = isGecko ? geckoEmbedUrl : dexEmbedUrl;
-    const publicUrl = isGecko ? geckoPublicUrl : dexPublicUrl;
-    const sourceLabel = isGecko ? "GeckoTerminal" : "DexScreener";
+  const isGecko = effectiveIframeSource === "geckoterminal";
+  const embedUrl = isGecko ? geckoEmbedUrl : dexEmbedUrl;
+  const publicUrl = isGecko ? geckoPublicUrl : dexPublicUrl;
+  const sourceLabel = isGecko ? "GeckoTerminal" : "DexScreener";
 
-    return (
-      <div className="h-full w-full flex flex-col">
-        {/* Embed */}
-        <div className="flex-1 w-full bg-panel-elev rounded-3xl overflow-hidden border border-white/10 relative h-full min-h-[400px] md:min-h-0">
-          <iframe
-            key={embedUrl}
-            src={embedUrl}
-            className="absolute inset-0 w-full h-full border-none"
-            title={`${tokenSymbol} Chart — ${sourceLabel}`}
-            allow="clipboard-write"
-          />
-          
-          {/* Subtle source indicator */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-            <a
-              href={publicUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-black italic text-muted hover:text-primary transition-all flex items-center gap-1.5"
-            >
-              VIEW ON {sourceLabel.toUpperCase()} <ExternalLink className="w-3 h-3" />
-            </a>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Native lightweight-charts (active pump.fun only) ───────────────────────
   return (
-    <div className="h-full w-full flex flex-col" style={{ height: "100%", width: "100%" }}>
-      {/* Chart Title and Controls */}
-      <div className="mb-2 sm:mb-4 shrink-0">
-        <h3 className="text-sm sm:text-base md:text-lg font-semibold mb-1.5 sm:mb-3">
-          {tokenSymbol}/{currency === "USD" ? "SOL" : "SOL"} Market Cap ({currency})
-        </h3>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2">
-          {/* Chart Type and Timeframe */}
-          <div className="flex items-center gap-2 sm:gap-2 min-w-0 flex-1">
-            {/* Chart Type Toggle */}
-            <div className="flex gap-1 sm:mr-2 sm:border-r sm:border-gray-800/50 sm:pr-2 shrink-0">
-              <button
-                onClick={() => setChartType("candlestick")}
-                className={`px-2 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation ${
-                  chartType === "candlestick"
-                    ? "bg-primary text-white"
-                    : "bg-panel-elev text-gray-400 hover:text-white"
-                }`}
-                title="Candlestick Chart"
-              >
-                📊
-              </button>
-              <button
-                onClick={() => setChartType("line")}
-                className={`px-2 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation ${
-                  chartType === "line"
-                    ? "bg-primary text-white"
-                    : "bg-panel-elev text-gray-400 hover:text-white"
-                }`}
-                title="Line Chart"
-              >
-                📈
-              </button>
-            </div>
-
-            {/* Timeframe */}
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
-                Timeframe:
-              </span>
-              <div className="flex gap-1 overflow-x-auto scrollbar-hide flex-1 min-w-0">
-                {(["1m", "5m", "15m", "1h", "4h", "6h", "12h", "24h"] as Timeframe[]).map((tf) => (
-                  <button
-                    key={tf}
-                    onClick={() => setTimeframe(tf)}
-                    className={`px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation whitespace-nowrap shrink-0 ${
-                      timeframe === tf
-                        ? "bg-primary text-white"
-                        : "bg-panel-elev text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {tf}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Currency and Embed Toggle */}
-          <div className="flex items-center gap-3 sm:shrink-0">
-            <button
-              onClick={() => setIsForcedIframe(true)}
-              className="px-2.5 py-1.5 sm:px-3 sm:py-1 text-[10px] font-black italic rounded-lg bg-white/5 border border-white/10 text-muted hover:text-primary transition-all flex items-center gap-1.5"
-              title="Switch to External Embed"
-            >
-              <ExternalLink className="w-3 h-3" />
-              SWITCH TO EMBED
-            </button>
-            <div className="h-4 w-px bg-white/5 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-gray-400 whitespace-nowrap">Currency:</span>
-              <div className="flex gap-1">
-                {(["USD", "SOL"] as const).map((curr) => (
-                  <button
-                    key={curr}
-                    onClick={() => setCurrency(curr)}
-                    className={`px-2.5 py-1.5 sm:px-2 sm:py-1 text-xs rounded transition-colors touch-manipulation ${
-                      currency === curr
-                        ? "bg-primary text-white font-bold"
-                        : "bg-panel-elev text-gray-400 hover:text-white"
-                    }`}
-                  >
-                    {curr}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
+    <div className="h-full w-full flex flex-col">
+      {/* Embed Container - Full Width Professional View */}
+      <div className="flex-1 w-full bg-panel-elev rounded-3xl overflow-hidden border border-white/10 relative h-full min-h-[400px] md:min-h-0">
+        <iframe
+          key={embedUrl}
+          src={embedUrl}
+          className="absolute inset-0 w-full h-full border-none"
+          title={`${tokenSymbol} Chart — ${sourceLabel}`}
+          allow="clipboard-write"
+          loading="lazy"
+        />
+        
+        {/* Subtle source indicator */}
+        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-black italic text-muted hover:text-primary transition-all flex items-center gap-1.5"
+          >
+            VIEW ON {sourceLabel.toUpperCase()} <ExternalLink className="w-3 h-3" />
+          </a>
         </div>
       </div>
-
-      {/* Chart Container */}
-      <div
-        className="relative overflow-hidden flex-1 min-h-[350px] md:min-h-[500px] w-full"
-      >
-        {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-panel-elev/80 z-10 rounded-lg">
-            <div className="text-center">
-              <Loader2 className="animate-spin h-8 w-8 text-primary mx-auto mb-2" />
-              <p className="text-sm text-gray-400">Loading chart data...</p>
-            </div>
-          </div>
-        )}
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-panel-elev/80 z-10 rounded-lg">
-            <div className="text-center text-gray-400">
-              <p className="text-sm mb-3">{error}</p>
-              <div className="flex flex-col gap-2 items-center">
-                <button
-                  onClick={() => setIsForcedIframe(true)}
-                  className="px-4 py-2 bg-primary text-black text-xs font-black italic rounded-xl shadow-neon hover:scale-105 transition-all"
-                >
-                  SWITCH TO EMBEDDED CHART
-                </button>
-                <a
-                  href={dexPublicUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary hover:underline flex items-center gap-1 justify-center"
-                >
-                  View on DexScreener <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={chartContainerRef} className="w-full h-full" />
-      </div>
-
-      {/* Hidden useEffects — must be inside function body */}
-      <NativeChartEffects
-        chartContainerRef={chartContainerRef}
-        chartRef={chartRef}
-        seriesRef={seriesRef}
-        chartType={chartType}
-        mintAddress={mintAddress}
-        timeframe={timeframe}
-        currency={currency}
-        isPumpFun={isPumpFun}
-        createdTimestamp={createdTimestamp}
-        setLoading={setLoading}
-        setError={setError}
-      />
     </div>
   );
-}
-
-// ── Extracted effects sub-component to keep JSX readable ──────────────────────
-function NativeChartEffects({
-  chartContainerRef,
-  chartRef,
-  seriesRef,
-  chartType,
-  mintAddress,
-  timeframe,
-  currency,
-  isPumpFun,
-  createdTimestamp,
-  setLoading,
-  setError,
-}: {
-  chartContainerRef: React.RefObject<HTMLDivElement | null>;
-  chartRef: React.MutableRefObject<IChartApi | null>;
-  seriesRef: React.MutableRefObject<ISeriesApi<"Candlestick" | "Line"> | null>;
-  chartType: ChartType;
-  mintAddress: string;
-  timeframe: Timeframe;
-  currency: "USD" | "SOL";
-  isPumpFun: boolean;
-  createdTimestamp?: number;
-  setLoading: (v: boolean) => void;
-  setError: (v: string | null) => void;
-}) {
-  // Initialize chart instance
-  useEffect(() => {
-    if (!chartContainerRef.current) return;
-
-    const chart = createChart(chartContainerRef.current, {
-      width: chartContainerRef.current.clientWidth,
-      height: chartContainerRef.current.clientHeight,
-      layout: {
-        background: { color: "transparent" },
-        textColor: "#9ca3af",
-      },
-      grid: {
-        vertLines: { color: "#1f2937" },
-        horzLines: { color: "#1f2937" },
-      },
-      crosshair: { mode: 0 },
-      rightPriceScale: {
-        borderColor: "#374151",
-        textColor: "#9ca3af",
-        scaleMargins: { top: 0.1, bottom: 0.1 },
-        autoScale: true,
-      },
-      timeScale: {
-        borderColor: "#374151",
-        timeVisible: true,
-        secondsVisible: false,
-      },
-    });
-
-    const series =
-      chartType === "candlestick"
-        ? chart.addSeries(CandlestickSeries, {
-            upColor: "#00ff9d",
-            downColor: "#ff3131",
-            borderVisible: false,
-            wickUpColor: "#00ff9d",
-            wickDownColor: "#ff3131",
-            priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
-          } as CandlestickSeriesOptions)
-        : chart.addSeries(LineSeries, {
-            color: "#00d2ff",
-            lineWidth: 3,
-            priceLineVisible: false,
-            lastValueVisible: true,
-            priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
-          } as LineSeriesOptions);
-
-    chartRef.current = chart;
-    seriesRef.current = series;
-
-    const container = chartContainerRef.current;
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        if (chart && width > 0 && height > 0) {
-          chart.applyOptions({ width, height });
-        }
-      }
-    });
-    resizeObserver.observe(container);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-    };
-  }, [chartType]);
-
-  // Fetch candle data
-  useEffect(() => {
-    if (!isPumpFun || !chartRef.current || !seriesRef.current) {
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const fetchChartData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-
-        const candles = await pumpFunService.fetchTokenCandles(
-          mintAddress,
-          timeframe,
-          1000,
-          currency,
-          createdTimestamp
-        );
-
-        if (cancelled) return;
-
-        if (candles.length === 0) {
-          setError("No chart data available for this token");
-          setLoading(false);
-          return;
-        }
-
-        if (chartType === "candlestick") {
-          const chartData: CandlestickData<Time>[] = candles.map((c) => ({
-            time: (c.timestamp > 1e12 ? Math.floor(c.timestamp / 1000) : c.timestamp) as Time,
-            open: parseFloat(c.open),
-            high: parseFloat(c.high),
-            low: parseFloat(c.low),
-            close: parseFloat(c.close),
-          }));
-          (seriesRef.current as ISeriesApi<"Candlestick">).setData(chartData);
-        } else {
-          const chartData: LineData<Time>[] = candles.map((c) => ({
-            time: (c.timestamp > 1e12 ? Math.floor(c.timestamp / 1000) : c.timestamp) as Time,
-            value: parseFloat(c.close),
-          }));
-          (seriesRef.current as ISeriesApi<"Line">).setData(chartData);
-        }
-
-        if (chartRef.current && seriesRef.current) {
-          chartRef.current.timeScale().fitContent();
-          chartRef.current.priceScale("right").applyOptions({
-            autoScale: true,
-            scaleMargins: { top: 0.1, bottom: 0.1 },
-          });
-          seriesRef.current.applyOptions({
-            priceFormat: { type: "price", precision: 8, minMove: 0.00000001 },
-          });
-        }
-
-        setLoading(false);
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Failed to fetch chart data:", err);
-        setError("Failed to load chart data");
-        setLoading(false);
-      }
-    };
-
-    fetchChartData();
-    return () => { cancelled = true; };
-  }, [mintAddress, timeframe, currency, chartType, isPumpFun, createdTimestamp]);
-
-  return null;
 }
