@@ -6,6 +6,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
@@ -125,6 +126,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  // Prevents infinite retry loop if the sync endpoint returns a server error
+  const syncFailedRef = useRef(false);
   const { user: tkUser, authState } = useTurnkey();
 
   // Sync with Turnkey's internal state
@@ -184,7 +187,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Sync Turnkey with Backend
   const syncBackendSession = useCallback(async (tkUser: any) => {
-    if (isSyncing) return;
+    if (isSyncing || syncFailedRef.current) return;
     
     setIsSyncing(true);
     try {
@@ -201,6 +204,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (response.ok) {
         const data = await response.json();
         if (data.user) {
+          syncFailedRef.current = false;
           setUser({
             id: data.user.id,
             name: data.user.name,
@@ -213,8 +217,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             createdAt: new Date(),
           });
         }
+      } else {
+        // Server error — stop retrying to avoid an infinite loop
+        syncFailedRef.current = true;
+        console.error("[auth/sync] Server error:", response.status, await response.text().catch(() => ""));
       }
     } catch (error) {
+      syncFailedRef.current = true;
       console.error("Error syncing Turnkey session:", error);
     } finally {
       setIsSyncing(false);
@@ -222,7 +231,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [isSyncing]);
 
   useEffect(() => {
-    if (authState === "authenticated" && tkUser && !user && !isSyncing) {
+    if (authState === "authenticated" && tkUser && !user && !isSyncing && !syncFailedRef.current) {
       console.log("🔄 Detected Turnkey auth, syncing with backend...");
       syncBackendSession(tkUser);
     }
@@ -312,6 +321,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error("Error logging out:", error);
     }
+    syncFailedRef.current = false; // Allow sync to retry on next login
     setUser(null);
     setTurnkeyUser(null);
     setTurnkeySession(null);
