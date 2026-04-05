@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
+import { usePortfolio } from "@/context/PortfolioContext";
 import { TokenData } from "@/types/token";
 import {
   TrendingUp,
@@ -33,6 +34,7 @@ export default function TradingPanel({
   const { turnkeyUser } = useAuth();
   const { toast, dismiss } = useToast();
   const { address, connection, signSolanaTransaction } = useTurnkeySolana();
+  const { solBalance, getTokenBalance, refreshPortfolio } = usePortfolio();
   const [tradeType, setTradeType] = useState<"buy" | "sell">(initialTradeType);
   const [amount, setAmount] = useState(initialAmount || "");
   const [slippage, setSlippage] = useState("0.5");
@@ -53,6 +55,20 @@ export default function TradingPanel({
         title: "Please enter a valid amount",
       });
       return;
+    }
+
+    const numAmount = parseFloat(amount);
+    if (tradeType === "buy") {
+      if (numAmount > solBalance) {
+        toast({ variant: "error", title: "Insufficient SOL balance" });
+        return;
+      }
+    } else {
+      const tokenBal = getTokenBalance(token.id)?.amount || 0;
+      if (numAmount > tokenBal) {
+        toast({ variant: "error", title: `Insufficient ${token.symbol} balance` });
+        return;
+      }
     }
 
     try {
@@ -107,6 +123,7 @@ export default function TradingPanel({
             </ToastAction>
           ),
         });
+        refreshPortfolio();
         onClose();
       } else {
         toast({
@@ -232,9 +249,14 @@ export default function TradingPanel({
 
           {/* Amount Input */}
           <div>
-            <label className="block text-sm font-medium mb-2">
-              Amount ({tradeType === "buy" ? "SOL" : token.symbol})
-            </label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block text-sm font-medium">
+                Amount ({tradeType === "buy" ? "SOL" : token.symbol})
+              </label>
+              <span className="text-xs text-gray-400">
+                Balance: {tradeType === "buy" ? solBalance.toFixed(4) : (getTokenBalance(token.id)?.amount || 0).toFixed(4)}
+              </span>
+            </div>
             <div className="relative">
               <input
                 type="number"
@@ -246,13 +268,12 @@ export default function TradingPanel({
               />
               <button
                 onClick={() => {
-                  // Set max amount (for sell, use full balance; for buy, reserve 0.01 SOL for fees)
                   if (tradeType === "sell") {
-                    // TODO: Get actual token balance and set it here
-                    setAmount("0");
+                    const balance = getTokenBalance(token.id)?.amount || 0;
+                    setAmount(balance.toString());
                   } else {
-                    // TODO: Get SOL balance and set max minus 0.01 for fees
-                    setAmount("0");
+                    const maxSol = Math.max(0, solBalance - 0.01);
+                    setAmount(maxSol.toString());
                   }
                 }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-xs text-primary hover:text-primary/80 bg-primary/10 rounded cursor-pointer"

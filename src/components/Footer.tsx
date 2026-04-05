@@ -14,8 +14,11 @@ import {
   MessageCircle,
   X,
 } from "lucide-react";
+import { usePortfolio } from "@/context/PortfolioContext";
 
 export default function Footer() {
+  const { solPrice } = usePortfolio();
+  
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-black/40 backdrop-blur-3xl border-t border-white/5 px-4 h-12 z-40 w-full flex items-center shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
       <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
@@ -27,7 +30,7 @@ export default function Footer() {
           </div>
           <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/5">
             <span className="text-[10px] font-black text-primary italic">SOL</span>
-            <span className="text-[10px] font-black text-white">$132.01</span>
+            <span className="text-[10px] font-black text-white">${solPrice ? solPrice.toFixed(2) : "132.01"}</span>
           </div>
         </div>
 

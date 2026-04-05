@@ -59,63 +59,63 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
       setTokenResult(null);
 
       try {
-        // Use searchTokens first to get better results with name/symbol
-        const searchResults = await dexscreenerService.searchTokens(debouncedSearch);
-        
-        // Find the matching pair where the address matches exactly
-        const matchingPair = searchResults.find(
-          (pair) =>
-            pair.baseToken.address.toLowerCase() === debouncedSearch.toLowerCase() ||
-            pair.quoteToken.address.toLowerCase() === debouncedSearch.toLowerCase()
-        );
+        const isAddress = debouncedSearch.length >= 32 || debouncedSearch.startsWith("0x");
 
-        if (!matchingPair) {
-          // If search didn't find it, try fetchTokenInfo as fallback
+        if (isAddress) {
+          // It's likely a contract address, use v1 tokens endpoint directly
           const chain = detectChain(debouncedSearch);
-          const tokenInfo = await dexscreenerService.fetchTokenInfo(chain, debouncedSearch);
-          
-          if (!tokenInfo) {
-            setError("Token not found on DexScreener");
+          const tokenInfo = await dexscreenerService.fetchTokenPairs(chain, debouncedSearch);
+
+          if (tokenInfo && tokenInfo.baseToken) {
+            setTokenResult({
+              address: debouncedSearch,
+              chain,
+              name: tokenInfo.baseToken.name || "Unknown Token",
+              symbol: tokenInfo.baseToken.symbol || "UNKNOWN",
+              logo: tokenInfo.logo,
+              priceUsd: tokenInfo.priceUsd,
+              priceChange24h: tokenInfo.priceChange24h,
+              dexUrl: tokenInfo.dexUrl,
+            });
             setIsLoading(false);
             return;
           }
+        }
 
-          setTokenResult({
-            address: debouncedSearch,
-            chain,
-            name: "Unknown Token",
-            symbol: "UNKNOWN",
-            logo: tokenInfo.logo,
-            priceUsd: tokenInfo.priceUsd,
-            priceChange24h: tokenInfo.priceChange24h,
-            dexUrl: tokenInfo.dexUrl,
-          });
+        // Fallback or text query: Use searchTokens
+        const searchResults = await dexscreenerService.searchTokens(debouncedSearch);
+        
+        // Pick the best match (first pair where the base token name/symbol matches reasonably well)
+        const topPair = searchResults.find(p => 
+          p.baseToken.address.toLowerCase() === debouncedSearch.toLowerCase() ||
+          p.baseToken.symbol.toLowerCase() === debouncedSearch.toLowerCase() ||
+          p.baseToken.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+        ) || searchResults[0];
+
+        if (!topPair) {
+          setError("Token not found on DexScreener");
           setIsLoading(false);
           return;
         }
 
-        // Extract token info from matching pair
-        const isBaseToken = matchingPair.baseToken.address.toLowerCase() === debouncedSearch.toLowerCase();
-        const token = isBaseToken ? matchingPair.baseToken : matchingPair.quoteToken;
-        // Map chainId to our chain format
-        // DexScreener uses: "solana", "bsc" (or "56"), "ethereum" (or "1"), "base" (or "8453")
-        const chainId = matchingPair.chainId.toLowerCase();
-        const chain = chainId === "solana" || chainId === "sol" 
+        const chainId = topPair.chainId.toLowerCase();
+        const detectedChain = chainId === "solana" || chainId === "sol" 
           ? "solana" 
           : (chainId === "bsc" || chainId === "56" || chainId === "binance-smart-chain")
           ? "bsc"
-          : "solana"; // Default to solana for unknown chains
+          : "solana";
 
         setTokenResult({
-          address: debouncedSearch,
-          chain: chain as "solana" | "bsc",
-          name: token.name || "Unknown Token",
-          symbol: token.symbol || "UNKNOWN",
-          logo: matchingPair.info?.imageUrl,
-          priceUsd: matchingPair.priceUsd ? parseFloat(matchingPair.priceUsd) : undefined,
-          priceChange24h: matchingPair.priceChange?.h24,
-          dexUrl: matchingPair.url,
+          address: topPair.baseToken.address,
+          chain: detectedChain as "solana" | "bsc",
+          name: topPair.baseToken.name || "Unknown Token",
+          symbol: topPair.baseToken.symbol || "UNKNOWN",
+          logo: topPair.info?.imageUrl,
+          priceUsd: topPair.priceUsd ? parseFloat(topPair.priceUsd) : undefined,
+          priceChange24h: topPair.priceChange?.h24,
+          dexUrl: topPair.url,
         });
+
       } catch (err) {
         console.error("Search error:", err);
         setError("Failed to search for token. Please try again.");
@@ -197,79 +197,69 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
             {tokenResult && !isLoading && (
               <div
                 onClick={handleTokenClick}
-                className="bg-panel-elev border border-gray-800/50 rounded-lg p-4 hover:border-primary/50 transition-all cursor-pointer group"
+                className="bg-panel-elev border border-white/5 rounded-2xl p-4 hover:border-primary/50 hover:bg-white/[0.02] transition-all cursor-pointer group"
               >
-                <div className="flex items-start gap-4">
+                <div className="flex items-center gap-4">
                   {/* Token Logo */}
                   {tokenResult.logo ? (
-                    <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ring-2 ring-gray-800/50">
+                    <div className="relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white/10 group-hover:border-primary/30 transition-colors">
                       <Image
                         src={tokenResult.logo}
                         alt={tokenResult.symbol}
-                        width={48}
-                        height={48}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                         unoptimized
                       />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-full bg-linear-to-br from-primary/30 to-purple-500/20 flex items-center justify-center flex-shrink-0 text-xl">
+                    <div className="w-12 h-12 rounded-xl bg-panel flex items-center justify-center flex-shrink-0 text-xl font-black italic text-gradient uppercase border-2 border-white/10 group-hover:border-primary/30 transition-colors">
                       {tokenResult.symbol[0] || "?"}
                     </div>
                   )}
 
                   {/* Token Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-white truncate">
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <h3 className="font-black italic text-lg text-white truncate tracking-tighter">
                         {tokenResult.name}
                       </h3>
-                      <span className="px-2 py-0.5 bg-gray-800/50 rounded text-xs font-medium uppercase">
+                      <span className="px-1.5 py-0.5 bg-white/10 rounded text-[9px] font-black uppercase text-white/70">
                         {tokenResult.chain === "solana" ? "SOL" : "BSC"}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-400 mb-2 truncate">
-                      {tokenResult.symbol}
-                    </p>
-                    <div className="flex items-center gap-4 flex-wrap">
+                    
+                    <div className="flex items-center gap-2 mb-2">
+                       <span className="text-[10px] text-muted font-bold">{tokenResult.symbol}</span>
+                       <code className="text-[9px] font-mono text-muted/70 bg-black/40 px-1.5 py-0.5 rounded">
+                         {tokenResult.address.slice(0, 6)}...{tokenResult.address.slice(-6)}
+                       </code>
+                    </div>
+
+                    <div className="flex items-center gap-3">
                       {tokenResult.priceUsd !== undefined && (
-                        <div>
-                          <span className="text-xs text-gray-500">Price:</span>
-                          <span className="ml-1 text-sm font-semibold text-white">
-                            {formatCurrency(tokenResult.priceUsd)}
-                          </span>
-                        </div>
+                        <span className="text-sm font-black italic text-white">
+                          {formatCurrency(tokenResult.priceUsd)}
+                        </span>
                       )}
                       {tokenResult.priceChange24h !== undefined && (
-                        <div className="flex items-center gap-1">
-                          {tokenResult.priceChange24h >= 0 ? (
-                            <TrendingUp className="w-4 h-4 text-green-400" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4 text-red-400" />
-                          )}
-                          <span
-                            className={`text-sm font-semibold ${
-                              tokenResult.priceChange24h >= 0
-                                ? "text-green-400"
-                                : "text-red-400"
-                            }`}
-                          >
-                            {tokenResult.priceChange24h >= 0 ? "+" : ""}
-                            {tokenResult.priceChange24h.toFixed(2)}%
-                          </span>
-                        </div>
+                        <span
+                          className={`flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded ${
+                            tokenResult.priceChange24h >= 0
+                              ? "bg-primary/10 text-primary"
+                              : "bg-accent/10 text-accent"
+                          }`}
+                        >
+                          {tokenResult.priceChange24h >= 0 ? "+" : ""}
+                          {tokenResult.priceChange24h.toFixed(2)}%
+                        </span>
                       )}
-                    </div>
-                    <div className="mt-2">
-                      <code className="text-xs bg-panel px-2 py-1 rounded font-mono text-gray-400">
-                        {tokenResult.address.slice(0, 8)}...
-                        {tokenResult.address.slice(-8)}
-                      </code>
                     </div>
                   </div>
 
                   {/* External Link Icon */}
-                  <ExternalLink className="w-4 h-4 text-gray-500 group-hover:text-primary transition-colors flex-shrink-0" />
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-primary/20 transition-colors flex-shrink-0">
+                    <ExternalLink className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
+                  </div>
                 </div>
               </div>
             )}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
-import { Copy, CheckCircle2, X } from "lucide-react";
+import { Copy, CheckCircle2, X, Wallet } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 
 interface DepositModalProps {
@@ -29,84 +29,95 @@ export default function DepositModal({ onClose }: DepositModalProps) {
 
   if (!address) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md sm:w-96">
-          <div className="text-center">
-            <p className="text-gray-400 mb-4">No wallet address available</p>
-            <button
-              onClick={onClose}
-              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              Close
-            </button>
-          </div>
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+        <div className="glass bg-panel border border-white/10 rounded-3xl p-8 w-full max-w-sm text-center relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none -mt-10 -mr-10" />
+          <p className="font-bold text-muted mb-6 relative">Wallet not ready</p>
+          <button
+            onClick={onClose}
+            className="w-full relative py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors font-black italic uppercase tracking-wider text-sm border border-white/10"
+          >
+            Close
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg p-4 sm:p-6 w-full max-w-md sm:w-96">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold">Deposit SOL</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div className="text-center">
-            <p className="text-sm text-gray-400 mb-4">
-              Send SOL to this address to deposit to your wallet
-            </p>
-            
-            {/* QR Code */}
-            <div className="flex justify-center mb-4">
-              <div className="bg-white p-4 rounded-lg">
-                <QRCodeSVG
-                  value={address}
-                  size={200}
-                  level="H"
-                  includeMargin={true}
-                />
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="glass bg-panel border border-white/10 shadow-2xl rounded-[2rem] p-6 sm:p-8 w-full max-w-md relative overflow-hidden">
+        {/* Glow Effects */}
+        <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none -mt-20 -ml-20" />
+        
+        <div className="relative">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-primary" />
               </div>
+              <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white drop-shadow-neon">
+                Deposit SOL
+              </h3>
             </div>
+            <button
+              onClick={onClose}
+              className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors border border-white/5"
+            >
+              <X className="w-5 h-5 text-muted" />
+            </button>
+          </div>
 
-            {/* Address */}
-            <div className="bg-gray-700 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <code className="text-xs font-mono text-gray-300 break-all flex-1 text-left">
+          <div className="space-y-6">
+            <div className="text-center">
+              <p className="text-sm font-bold text-muted mb-6">
+                Scan QR or copy address to fund your trading wallet.
+              </p>
+              
+              {/* QR Code Container */}
+              <div className="flex justify-center mb-6">
+                <div className="bg-white p-4 rounded-3xl border-4 border-white/10 shadow-[0_0_30px_rgba(var(--primary),0.15)] transition-transform hover:scale-105 duration-300">
+                  <QRCodeSVG
+                    value={address}
+                    size={200}
+                    level="H"
+                    includeMargin={false}
+                  />
+                </div>
+              </div>
+
+              {/* Address Container */}
+              <div className="bg-black/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3 group hover:border-primary/30 transition-colors">
+                <code className="text-xs sm:text-sm font-mono text-gray-300 break-all flex-1 text-left select-all">
                   {address}
                 </code>
                 <button
                   onClick={copyAddress}
-                  className="p-2 hover:bg-gray-600 rounded transition-colors flex-shrink-0"
+                  className="w-10 h-10 bg-white/5 hover:bg-primary/20 border border-white/5 hover:border-primary/50 text-muted hover:text-primary rounded-xl flex items-center justify-center transition-all shrink-0"
                   title="Copy address"
                 >
                   {copied ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    <CheckCircle2 className="w-5 h-5 text-green-400" />
                   ) : (
-                    <Copy className="w-4 h-4 text-gray-400" />
+                    <Copy className="w-5 h-5" />
                   )}
                 </button>
               </div>
+
+              <div className="mt-6 p-4 bg-primary/5 border border-primary/20 rounded-2xl flex items-start gap-3">
+                <p className="text-xs font-bold text-primary/80 text-left leading-relaxed">
+                  Only send SOL to this address on the Solana network. Sending other assets might result in permanent loss.
+                </p>
+              </div>
             </div>
 
-            <p className="text-xs text-gray-500 mt-4">
-              Only send SOL to this address. Sending other tokens may result in permanent loss.
-            </p>
+            <button
+              onClick={onClose}
+              className="w-full py-4 px-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all font-black italic uppercase tracking-widest text-sm border border-white/5 active:scale-95"
+            >
+              Done
+            </button>
           </div>
-
-          <button
-            onClick={onClose}
-            className="w-full py-2 px-4 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
-          >
-            Done
-          </button>
         </div>
       </div>
     </div>

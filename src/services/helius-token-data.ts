@@ -54,15 +54,22 @@ class HeliusTokenDataService {
 
   /**
    * Get top token holders using getTokenLargestAccounts
+   * Uses the dedicated Helius endpoint which supports filtering
    */
   async getTopHolders(mint: string): Promise<TokenHolder[]> {
+    // SOL itself is not a token — skip
+    const SOL_MINT = "So11111111111111111111111111111111111111112";
+    if (mint === SOL_MINT || mint.toLowerCase() === "sol") return [];
+
     try {
+      // getTokenLargestAccounts returns up to 20 largest holders — safe and fast
       const result = (await this.rpcCall("getTokenLargestAccounts", [
         mint,
-        { commitment: "finalized" },
+        { commitment: "confirmed" },
       ])) as { value: Array<{ address: string; amount: string; decimals: number; uiAmount: number }> };
 
       const holders = result?.value || [];
+      if (holders.length === 0) return [];
 
       // Get total supply to calculate percentages
       let totalSupply = 0;

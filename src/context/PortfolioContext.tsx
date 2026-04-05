@@ -17,6 +17,7 @@ export interface TokenBalance {
 export interface PortfolioData {
   solBalance: number;
   solBalanceUsd: number;
+  solPrice: number;
   tokenBalances: TokenBalance[];
   totalValueUsd: number;
   totalPnL24hUsd: number;
@@ -38,6 +39,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   const [portfolio, setPortfolio] = React.useState<PortfolioData>({
     solBalance: 0,
     solBalanceUsd: 0,
+    solPrice: 0,
     tokenBalances: [],
     totalValueUsd: 0,
     totalPnL24hUsd: 0,
@@ -56,7 +58,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       );
       if (response.ok) {
         const data = await response.json();
-        const priceValue = data.pairs?.[0]?.priceUsd;
+        const solanaPair = data.pairs?.find((p: any) => p.chainId === "solana");
+        const priceValue = solanaPair?.priceUsd;
         if (priceValue) {
           return parseFloat(priceValue);
         }
@@ -85,12 +88,15 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch portfolio data from Helius
   const fetchPortfolio = React.useCallback(async () => {
-    // Only fetch when a Turnkey wallet is connected (authenticated)
+    // Only fetch portfolio assets when a Turnkey wallet is connected (authenticated)
     if (!walletAddress) {
+      // Always fetch SOL price even if unauthenticated for global UI consistency
+      const solPrice = await fetchSolPrice();
       setPortfolio((prev) => ({
         ...prev,
         solBalance: 0,
         solBalanceUsd: 0,
+        solPrice,
         tokenBalances: [],
         totalValueUsd: 0,
         totalPnL24hUsd: 0,
@@ -359,7 +365,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
                   if (token.priceUsd !== undefined) {
                     return token;
                   }
-                  const pair = pairs.find((p: any) => p.baseToken.address === token.mint);
+                  const pair = pairs.find((p: any) => p.chainId === "solana" && p.baseToken.address === token.mint);
                   const priceUsd = pair?.priceUsd ? parseFloat(pair.priceUsd) : undefined;
                   const valueUsd = priceUsd
                     ? priceUsd * token.amount
@@ -407,6 +413,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
                 // Create a map of token address to best pair (highest liquidity)
                 const tokenToBestPair: Record<string, any> = {};
                 for (const pair of pairs) {
+                  if (pair.chainId !== "solana") continue;
                   const baseToken = pair.baseToken?.address?.toLowerCase();
                   if (baseToken) {
                     const existing = tokenToBestPair[baseToken];
@@ -461,7 +468,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         const solHistoryRes = await fetch("https://api.dexscreener.com/latest/dex/tokens/So11111111111111111111111111111111111111112");
         if (solHistoryRes.ok) {
           const solData = await solHistoryRes.json();
-          solPriceChange24h = parseFloat(solData.pairs?.[0]?.priceChange?.h24 || "0");
+          const solanaPair = solData.pairs?.find((p: any) => p.chainId === "solana");
+          solPriceChange24h = parseFloat(solanaPair?.priceChange?.h24 || "0");
         }
       } catch (e) {
         console.warn("Failed to fetch SOL 24h change");
@@ -482,6 +490,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       setPortfolio({
         solBalance,
         solBalanceUsd,
+        solPrice,
         tokenBalances,
         totalValueUsd,
         totalPnL24hUsd,

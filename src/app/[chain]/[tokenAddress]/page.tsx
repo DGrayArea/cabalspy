@@ -59,7 +59,7 @@ import { geckoTerminalService } from "@/services/geckoterminal";
 import { multiChainTokenService } from "@/services/multichain-tokens";
 import { aiPlatformDetector } from "@/services/ai-platform-detector";
 import { getPlatformLogo, getPlatformName } from "@/utils/platformLogos";
-import { heliusTokenDataService, TokenHolder, TokenTransaction } from "@/services/helius-token-data";
+import { heliusTokenDataService, TokenHolder } from "@/services/helius-token-data";
 import { TokenChart } from "@/components/TokenChart";
 import { SearchModal } from "@/components/SearchModal";
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
@@ -118,8 +118,6 @@ function TokenDetailContent() {
 
   const [holders, setHolders] = useState<TokenHolder[]>([]);
   const [holdersLoading, setHoldersLoading] = useState(false);
-  const [transactions, setTransactions] = useState<TokenTransaction[]>([]);
-  const [txLoading, setTxLoading] = useState(false);
   const [totalSupply, setTotalSupply] = useState<number | null>(null);
 
   const [copied, setCopied] = useState(false);
@@ -128,6 +126,8 @@ function TokenDetailContent() {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [chartTab, setChartTab] = useState<"chart" | "cabalspy">("chart");
+  const [widgetLoaded, setWidgetLoaded] = useState(false);
+  const [widgetError, setWidgetError] = useState(false);
   const [timeDisplay, setTimeDisplay] = useState("");
   const [solPrice, setSolPrice] = useState<number>(0);
 
@@ -180,7 +180,7 @@ function TokenDetailContent() {
       .catch(() => {});
   }, []);
 
-  // Lazy-load supplemental data when tabs are clicked
+  // Lazy-load holder data when holders tab is clicked
   useEffect(() => {
     if (activeTab === "holders" && holders.length === 0 && !holdersLoading) {
       setHoldersLoading(true);
@@ -192,13 +192,7 @@ function TokenDetailContent() {
         .then(s => { if (s) setTotalSupply(s.uiAmount); })
         .catch(() => {});
     }
-    if (activeTab === "trades" && transactions.length === 0 && !txLoading) {
-      setTxLoading(true);
-      heliusTokenDataService.getRecentTransactions(tokenAddress, 15, solPrice)
-        .then(setTransactions)
-        .finally(() => setTxLoading(false));
-    }
-  }, [activeTab, tokenAddress, solPrice]);
+  }, [activeTab, tokenAddress]);
 
   // Live age timer
   useEffect(() => {
@@ -215,6 +209,17 @@ function TokenDetailContent() {
     const t = setInterval(update, 1000);
     return () => clearInterval(t);
   }, [pumpfunData, dexData, baseToken]);
+
+  // Widget timeout handling
+  useEffect(() => {
+    if (chartTab === "cabalspy" && !widgetLoaded) {
+      setWidgetError(false);
+      const timer = setTimeout(() => {
+        setWidgetError(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [chartTab, widgetLoaded]);
 
   // ── Derived Values ─────────────────────────────────────────────────
   const tokenName = tokenNameFromParams || dexData?.baseToken?.name || geckoData?.name || pumpfunData?.name || baseToken?.name || "Unknown";
@@ -284,121 +289,121 @@ function TokenDetailContent() {
       <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
       <Navbar showBackButton onBackClick={() => router.back()} showSearch onSearchClick={() => setShowSearchModal(true)} />
 
-      <main className="relative z-10 w-full max-w-screen-2xl mx-auto px-2 sm:px-4 pt-20 sm:pt-24 pb-20">
+      <main className="relative z-10 w-full max-w-screen-2xl mx-auto px-2 sm:px-4 pt-2 sm:pt-6 pb-20">
 
         {/* ── TOP HEADER BAR ────────────────────────────────────────── */}
-        <section className="glass rounded-2xl sm:rounded-3xl p-3 sm:p-5 border border-white/10 mb-3">
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <section className="glass rounded-2xl sm:rounded-3xl p-3 sm:p-4 border border-white/10 mb-3">
 
-            {/* Logo + Ring */}
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
-                <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-                  <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
-                    className={`${isMigrated ? "text-primary" : platform === "pump" ? "text-[#22c55e]" : platform === "meteora" ? "text-[#e879f9]" : "text-primary"} transition-all duration-1000`}
-                    strokeDasharray={`${(isMigrated ? 1 : bondingProgress) * 276.5} 276.5`}
-                  />
-                </svg>
-                <div className="relative w-10 h-10 rounded-2xl overflow-hidden border-2 border-white/10 z-10">
-                  {tokenImage && !imageError ? (
-                    <Image src={tokenImage} alt={tokenSymbol} fill className="object-cover" unoptimized onError={() => setImageError(true)} />
-                  ) : (
-                    <div className="w-full h-full bg-panel-elev flex items-center justify-center text-lg font-black italic text-gradient uppercase">{tokenSymbol[0]}</div>
-                  )}
-                </div>
-                {platformLogo && (
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-black rounded-lg border border-white/10 p-0.5 z-20 overflow-hidden" title={platformName}>
-                    <img src={platformLogo} alt={platformName} className="w-full h-full object-contain" />
-                  </div>
+          {/* Row 1: Logo + Name + Price + Actions — always visible, responsive sizing */}
+          <div className="flex items-center gap-3">
+
+            {/* Logo + bonding ring */}
+            <div className="relative w-11 h-11 sm:w-14 sm:h-14 shrink-0 flex items-center justify-center">
+              <svg className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round"
+                  className={`${isMigrated ? "text-primary" : platform === "pump" ? "text-[#22c55e]" : platform === "meteora" ? "text-[#e879f9]" : "text-primary"} transition-all duration-1000`}
+                  strokeDasharray={`${(isMigrated ? 1 : bondingProgress) * 276.5} 276.5`}
+                />
+              </svg>
+              <div className="relative w-7 h-7 sm:w-9 sm:h-9 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-white/10 z-10">
+                {tokenImage && !imageError ? (
+                  <Image src={tokenImage} alt={tokenSymbol} fill className="object-cover" unoptimized onError={() => setImageError(true)} />
+                ) : (
+                  <div className="w-full h-full bg-panel-elev flex items-center justify-center font-black italic text-gradient uppercase text-sm">{tokenSymbol[0]}</div>
                 )}
               </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-base sm:text-xl font-black italic tracking-tighter leading-none">{tokenName}</h1>
-                  {isMigrated && <div className="bg-secondary/20 text-secondary border border-secondary/30 px-1.5 py-0.5 rounded text-[8px] font-black uppercase">GRAD</div>}
+              {platformLogo && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-black rounded-md border border-white/10 p-0.5 z-20 overflow-hidden">
+                  <img src={platformLogo} alt={platformName} className="w-full h-full object-contain" />
                 </div>
-                <span className="text-[10px] text-muted font-bold">{tokenSymbol}</span>
+              )}
+            </div>
+
+            {/* Name + symbol — takes up remaining space */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h1 className="text-sm sm:text-xl font-black italic tracking-tighter leading-none truncate">{tokenName}</h1>
+                {isMigrated && <div className="bg-secondary/20 text-secondary border border-secondary/30 px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black uppercase shrink-0">GRAD</div>}
+              </div>
+              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                <span className="text-[9px] text-muted font-bold">{tokenSymbol}</span>
+                {timeDisplay && (
+                  <span className="flex items-center gap-0.5 sm:gap-1">
+                    <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" /></span>
+                    <span className="text-[8px] font-black uppercase text-muted">{timeDisplay}</span>
+                  </span>
+                )}
               </div>
             </div>
 
-            {/* Price + Multi-timeframe Changes */}
-            <div className="flex flex-col gap-1.5 shrink-0">
-              <span className="text-xl sm:text-2xl font-black italic tracking-tighter">{formatCurrency(price)}</span>
-              <div className="flex items-center gap-1.5">
-                {[
-                  { label: "5M", val: priceChange5m },
-                  { label: "1H", val: priceChange1h },
-                  { label: "6H", val: priceChange6h },
-                  { label: "24H", val: priceChange24h },
-                ].map(({ label, val }) => (
-                  val !== 0 && (
-                    <span key={label} className={`px-1.5 py-0.5 rounded text-[9px] font-black ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
-                      {label} {val >= 0 ? "+" : ""}{val?.toFixed(1)}%
-                    </span>
-                  )
+            {/* Price — always visible, bigger on sm+ */}
+            <div className="shrink-0 text-right">
+              <div className="text-lg sm:text-2xl font-black italic tracking-tighter leading-none">{formatCurrency(price)}</div>
+              <div className="flex items-center gap-1 mt-0.5 justify-end flex-wrap">
+                {[{ label: "1H", val: priceChange1h }, { label: "24H", val: priceChange24h }].map(({ label, val }) => (
+                  val !== 0 && <span key={label} className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>{label} {val >= 0 ? "+" : ""}{val?.toFixed(1)}%</span>
                 ))}
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="flex flex-wrap items-center gap-4 sm:gap-6 flex-1">
-              {[
-                { label: "MKT CAP", value: formatCurrency(marketCap), color: "text-primary" },
-                { label: "VOL 24H", value: formatCurrency(volume24h), color: "text-accent" },
-                { label: "LIQUIDITY", value: formatCurrency(liquidity), color: "text-secondary" },
-              ].map(({ label, value, color }) => (
-                <div key={label} className="flex flex-col">
-                  <span className="text-[9px] font-black text-muted uppercase tracking-widest">{label}</span>
-                  <span className={`text-sm font-black italic ${color}`}>{value}</span>
-                </div>
-              ))}
-
-              {/* Buy/Sell Pressure Bar */}
-              {txBuyPct !== null && (
-                <div className="flex flex-col gap-1 min-w-[80px]">
-                  <div className="flex justify-between text-[8px] font-black uppercase">
-                    <span className="text-primary">{txBuyPct}% B</span>
-                    <span className="text-accent">{100 - txBuyPct}% S</span>
-                  </div>
-                  <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                    <div className="h-full bg-linear-to-r from-primary to-primary/70 rounded-full transition-all" style={{ width: `${txBuyPct}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Actions */}
-            <div className="flex items-center gap-2 ml-auto">
-              <button
-                onClick={toggleWatchlist}
-                className={`p-2 rounded-xl border transition-all ${isWatchlisted ? "bg-primary/20 border-primary/50 text-primary shadow-neon-sm" : "bg-white/5 border-white/10 text-muted hover:text-white hover:border-white/30"}`}
-                title={isWatchlisted ? "Remove from watchlist" : "Add to watchlist"}
-              >
-                <Star className={`w-4 h-4 ${isWatchlisted ? "fill-current" : ""}`} />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button onClick={toggleWatchlist} className={`p-1.5 sm:p-2 rounded-xl border cursor-pointer transition-all ${isWatchlisted ? "bg-primary/20 border-primary/50 text-primary" : "bg-white/5 border-white/10 text-muted hover:text-white hover:border-white/30"}`}>
+                <Star className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isWatchlisted ? "fill-current" : ""}`} />
               </button>
-              <div
-                className="hidden md:flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-all"
-                onClick={copyAddress}
-              >
-                <code className="text-[9px] font-mono text-muted">{tokenAddress.slice(0, 6)}...{tokenAddress.slice(-6)}</code>
+              <div className="flex items-center gap-1 cursor-pointer px-2 py-1.5 rounded-lg bg-white/5 border border-white/10 hover:border-white/20 transition-all" onClick={copyAddress}>
+                <code className="text-[8px] sm:text-[9px] font-mono text-muted hidden xs:block">{tokenAddress.slice(0, 4)}...{tokenAddress.slice(-4)}</code>
                 {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3 text-muted" />}
               </div>
-              <div className={`px-2 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${isMigrated ? "bg-primary/10 text-primary border border-primary/30" : "bg-secondary/10 text-secondary border border-secondary/30"}`}>
-                {isMigrated ? (dexData?.dexId?.toUpperCase() || platformName || "DEX") : "BONDING"}
+              <div className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider ${isMigrated ? "bg-primary/10 text-primary border border-primary/30" : "bg-secondary/10 text-secondary border border-secondary/30"}`}>
+                {isMigrated ? (dexData?.dexId?.toUpperCase() || "DEX") : "BOND"}
               </div>
-              {timeDisplay && (
-                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/10">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
-                  </span>
-                  <span className="text-[9px] font-black uppercase text-muted">{timeDisplay}</span>
+            </div>
+          </div>
+
+          {/* Row 2: Stats + changes — separated for clarity */}
+          <div className="flex items-center gap-3 sm:gap-6 mt-2.5 pt-2.5 border-t border-white/5 flex-wrap">
+            {/* 5m/6h changes only on sm+ to save mobile space */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              {[{ label: "5M", val: priceChange5m }, { label: "6H", val: priceChange6h }].map(({ label, val }) => (
+                val !== 0 && <span key={label} className={`px-1.5 py-0.5 rounded text-[9px] font-black ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>{label} {val >= 0 ? "+" : ""}{val?.toFixed(1)}%</span>
+              ))}
+            </div>
+
+            {/* Stats */}
+            {[
+              { label: "MKT CAP", value: formatCurrency(marketCap), color: "text-primary" },
+              { label: "VOL 24H", value: formatCurrency(volume24h), color: "text-accent" },
+              { label: "LIQ", value: formatCurrency(liquidity), color: "text-secondary" },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="flex flex-col">
+                <span className="text-[7px] sm:text-[9px] font-black text-muted uppercase tracking-widest">{label}</span>
+                <span className={`text-xs sm:text-sm font-black italic ${color}`}>{value}</span>
+              </div>
+            ))}
+
+            {/* Buy/sell bar */}
+            {txBuyPct !== null && (
+              <div className="flex flex-col gap-1 min-w-[64px] sm:min-w-[80px]">
+                <div className="flex justify-between text-[8px] font-black uppercase">
+                  <span className="text-primary">{txBuyPct}%B</span>
+                  <span className="text-accent">{100 - txBuyPct}%S</span>
                 </div>
-              )}
+                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full bg-linear-to-r from-primary to-primary/70 rounded-full transition-all" style={{ width: `${txBuyPct}%` }} />
+                </div>
+              </div>
+            )}
+
+            {/* Address — only on sm+ */}
+            <div className="hidden sm:flex items-center gap-1.5 cursor-pointer ml-auto px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 transition-all" onClick={copyAddress}>
+              <code className="text-[9px] font-mono text-muted">{tokenAddress.slice(0, 6)}...{tokenAddress.slice(-6)}</code>
+              {copied ? <Check className="w-3 h-3 text-primary" /> : <Copy className="w-3 h-3 text-muted" />}
             </div>
           </div>
         </section>
+
 
         {/* ── CHART + RIGHT PANEL ─────────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4">
@@ -408,18 +413,55 @@ function TokenDetailContent() {
             <section className="glass rounded-2xl sm:rounded-3xl border border-white/10 overflow-hidden">
               <div className="flex border-b border-white/10 bg-black/40">
                 {[{ id: "chart", label: "📈 CHART" }, { id: "cabalspy", label: "🔍 CABALSPY INTEL" }].map(tab => (
-                  <button key={tab.id} onClick={() => setChartTab(tab.id as any)}
-                    className={`px-5 py-3.5 text-[10px] font-black tracking-[0.2em] transition-all relative ${chartTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}>
+                  <button key={tab.id} onClick={() => { setChartTab(tab.id as any); if (tab.id === "cabalspy") setWidgetLoaded(false); }}
+                    className={`cursor-pointer px-5 py-3.5 text-[10px] font-black tracking-[0.2em] transition-all relative ${chartTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}>
                     {tab.label}
                     {chartTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-neon" />}
                   </button>
                 ))}
               </div>
-              <div className="h-[60vh] min-h-[440px] w-full relative">
+              <div className="h-[45vh] sm:h-[60vh] min-h-[320px] sm:min-h-[440px] w-full relative bg-panel-elev">
+                {/* Show loading spinner only when an iframe is actually loading */}
+                {chartTab === "cabalspy" && tokenAddress !== "So11111111111111111111111111111111111111112" && !widgetLoaded && !widgetError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted z-0">
+                    <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Loading intel...</span>
+                  </div>
+                )}
+                {chartTab === "cabalspy" && widgetError && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6 z-20 bg-panel-elev/90 backdrop-blur-md">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-muted">
+                      <Settings className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-black italic text-white mb-1">Widget Offline</p>
+                      <p className="text-[10px] text-muted uppercase tracking-widest">Intel server is currently unreachable</p>
+                    </div>
+                  </div>
+                )}
                 {chartTab === "chart" ? (
                   <TokenChart mintAddress={tokenAddress} tokenSymbol={tokenSymbol} isPumpFun={!!pumpfunData} isMigrated={isMigrated} pairAddress={dexData?.pairAddress} />
+                ) : tokenAddress === "So11111111111111111111111111111111111111112" ? (
+                  /* WSOL — widget has no data for native SOL */
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
+                    <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+                      <span className="text-xl">🔍</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-black italic text-white mb-1">{tokenSymbol} Not Available</p>
+                      <p className="text-[10px] text-muted uppercase tracking-widest">CabalSpy Intel doesn&apos;t track native {tokenSymbol}</p>
+                    </div>
+                  </div>
                 ) : (
-                  <iframe src={`https://widget.cabalspy.xyz:8443/widget?address=${tokenAddress}`} className="w-full h-full border-0" sandbox="allow-scripts allow-same-origin allow-forms" loading="lazy" />
+                  <iframe
+                    key={tokenAddress}
+                    src={process.env.NODE_ENV === "development" ? `http://localhost:8080/widget?address=${tokenAddress}` : `https://widget.cabalspy.xyz:8443/widget?address=${tokenAddress}`}
+                    className={`absolute inset-0 w-full h-full border-0 ${widgetError ? "opacity-0 pointer-events-none z-0" : "z-10"}`}
+                    title="CabalSpy Intel"
+                    loading="lazy"
+                    allow="clipboard-read; clipboard-write"
+                    onLoad={() => setWidgetLoaded(true)}
+                  />
                 )}
               </div>
             </section>
@@ -433,7 +475,7 @@ function TokenDetailContent() {
                   { id: "info", label: "PROTOCOL", icon: Globe },
                 ].map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex-1 py-3.5 flex items-center justify-center gap-2 text-[9px] font-black tracking-[0.15em] transition-all relative ${activeTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}>
+                    className={`cursor-pointer flex-1 py-3.5 flex items-center justify-center gap-2 text-[9px] font-black tracking-[0.15em] transition-all relative ${activeTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}>
                     <tab.icon className="w-3.5 h-3.5" />
                     {tab.label}
                     {activeTab === tab.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-neon" />}
@@ -457,7 +499,7 @@ function TokenDetailContent() {
                       <>
                         {/* DexScreener aggregate stats */}
                         {txns24h && (
-                          <div className="grid grid-cols-3 gap-2 mb-4">
+                          <div className="grid grid-cols-3 gap-2 mb-5">
                             {[
                               { label: "BUYS 24H", val: txns24h.buys, color: "text-primary" },
                               { label: "SELLS 24H", val: txns24h.sells, color: "text-accent" },
@@ -471,44 +513,51 @@ function TokenDetailContent() {
                           </div>
                         )}
 
-                        {/* Recent transactions from Helius */}
-                        {txLoading ? (
-                          <div className="flex items-center justify-center py-8 gap-2 text-muted">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span className="text-[10px] font-black uppercase">Fetching on-chain data...</span>
-                          </div>
-                        ) : transactions.length > 0 ? (
-                          <div className="space-y-1.5">
-                            <div className="text-[9px] font-black text-muted uppercase tracking-widest mb-2">RECENT TRANSACTIONS</div>
-                            {transactions.map((tx, i) => (
-                              <div key={tx.signature} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/8 transition-colors">
-                                <div className="flex items-center gap-3">
-                                  <div className={`w-12 h-7 rounded-lg flex items-center justify-center text-[8px] font-black ${tx.type === "buy" ? "bg-primary/20 text-primary" : "bg-accent/20 text-accent"}`}>
-                                    {tx.type.toUpperCase()}
-                                  </div>
-                                  <div>
-                                    <div className="text-[10px] font-black font-mono text-muted">{tx.signature.slice(0, 8)}...{tx.signature.slice(-4)}</div>
-                                    <div className="text-[8px] text-muted/60 font-bold uppercase">{heliusTokenDataService.formatAge(tx.blockTime)} AGO</div>
+                        {/* Multi-timeframe breakdown — real from DexScreener */}
+                        <div className="text-[9px] font-black text-muted uppercase tracking-widest mb-2">ACTIVITY BREAKDOWN</div>
+                        <div className="space-y-2 mb-5">
+                          {([
+                            { label: "5 MIN", txns: dexData?.txns5m, vol: dexData?.volume5m },
+                            { label: "1 HOUR", txns: dexData?.txns1h, vol: dexData?.volume1h },
+                            { label: "6 HOURS", txns: dexData?.txns6h, vol: dexData?.volume6h },
+                            { label: "24 HOURS", txns: dexData?.txns24h, vol: dexData?.volume24h },
+                          ] as const).filter(r => r.txns).map(({ label, txns, vol }) => {
+                            const total = (txns?.buys ?? 0) + (txns?.sells ?? 0);
+                            const buyPct = total > 0 ? Math.round(((txns?.buys ?? 0) / total) * 100) : 50;
+                            return (
+                              <div key={label} className="p-3 rounded-xl bg-white/5 border border-white/5">
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-[9px] font-black text-muted uppercase tracking-widest">{label}</span>
+                                  <div className="flex items-center gap-3 text-[9px] font-black">
+                                    <span className="text-primary">{txns?.buys ?? 0}B</span>
+                                    <span className="text-accent">{txns?.sells ?? 0}S</span>
+                                    {vol && <span className="text-white/40">{formatCurrency(vol)}</span>}
                                   </div>
                                 </div>
-                                <a href={tx.solscanUrl} target="_blank" rel="noopener noreferrer"
-                                  className="text-muted hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
-                                  <ArrowUpRight className="w-3.5 h-3.5" />
-                                </a>
+                                <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                                  <div className="h-full bg-linear-to-r from-primary to-primary/70 rounded-full transition-all" style={{ width: `${buyPct}%` }} />
+                                </div>
                               </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="py-8 text-center">
-                            <div className="text-[10px] font-black text-muted uppercase tracking-widest">No recent transactions found</div>
-                            {dexData?.dexUrl && (
-                              <a href={dexData.dexUrl} target="_blank" rel="noopener noreferrer"
-                                className="mt-3 inline-flex items-center gap-1.5 text-[9px] font-black text-primary uppercase tracking-wider hover:underline">
-                                VIEW ON DEXSCREENER <ArrowUpRight className="w-3 h-3" />
-                              </a>
-                            )}
+                            );
+                          })}
+                        </div>
+
+                        {/* Live trades link — we don't have free per-trade data, link out */}
+                        {!txns24h && (
+                          <div className="py-6 text-center">
+                            <p className="text-[10px] text-muted uppercase tracking-widest mb-3">No trade data available yet</p>
                           </div>
                         )}
+                        <a
+                          href={dexData?.dexUrl || `https://dexscreener.com/solana/${tokenAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black text-muted hover:text-white hover:border-white/20 transition-all uppercase tracking-wider"
+                        >
+                          <BarChart3 className="w-3.5 h-3.5" />
+                          View Live Trades on DexScreener
+                          <ArrowUpRight className="w-3 h-3" />
+                        </a>
                       </>
                     )}
                   </div>
@@ -516,7 +565,35 @@ function TokenDetailContent() {
 
                 {/* ── TOP HOLDERS ── */}
                 {activeTab === "holders" && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    {/* Holder count + Bubblemaps quick links */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-[9px] font-black text-muted uppercase tracking-widest">
+                        {(baseToken as any)?._mobulaData?.holdersCount
+                          ? `${formatNumber((baseToken as any)._mobulaData.holdersCount)} HOLDERS`
+                          : "TOP HOLDERS"}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://app.bubblemaps.io/sol/token/${tokenAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-black text-primary hover:bg-primary/20 transition-all uppercase tracking-wider"
+                        >
+                          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><line x1="12" y1="9" x2="6" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="9" x2="18" y2="6" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="15" x2="6" y2="18" stroke="currentColor" strokeWidth="1.5"/><line x1="12" y1="15" x2="18" y2="18" stroke="currentColor" strokeWidth="1.5"/></svg>
+                          BUBBLE MAP
+                        </a>
+                        <a
+                          href={`https://solscan.io/token/${tokenAddress}#holders`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[8px] font-black text-muted hover:text-white transition-all uppercase tracking-wider"
+                        >
+                          SOLSCAN <ArrowUpRight className="w-2.5 h-2.5" />
+                        </a>
+                      </div>
+                    </div>
+
                     {holdersLoading ? (
                       <div className="flex items-center justify-center py-10 gap-2 text-muted">
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -524,7 +601,6 @@ function TokenDetailContent() {
                       </div>
                     ) : holders.length > 0 ? (
                       <>
-                        <div className="text-[9px] font-black text-muted uppercase tracking-widest mb-3">TOP HOLDERS</div>
                         {holders.map((h, i) => (
                           <div key={h.address} className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5">
                             <div className="flex items-center gap-3">
@@ -545,12 +621,19 @@ function TokenDetailContent() {
                         ))}
                       </>
                     ) : (
-                      <div className="py-10 text-center">
-                        <div className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">No holder data available</div>
-                        <a href={`https://solscan.io/token/${tokenAddress}#holders`} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-[9px] font-black text-primary uppercase tracking-wider hover:underline">
-                          VIEW ON SOLSCAN <ArrowUpRight className="w-3 h-3" />
-                        </a>
+                      <div className="py-8 text-center space-y-3">
+                        <div className="text-[10px] font-black text-muted uppercase tracking-widest">Holder data unavailable</div>
+                        <p className="text-[9px] text-muted/60">View on Bubblemaps or Solscan for full distribution</p>
+                        <div className="flex items-center justify-center gap-3">
+                          <a href={`https://app.bubblemaps.io/sol/token/${tokenAddress}`} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-[9px] font-black text-primary uppercase tracking-wider hover:bg-primary/20 transition-all">
+                            View Bubble Map
+                          </a>
+                          <a href={`https://solscan.io/token/${tokenAddress}#holders`} target="_blank" rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[9px] font-black text-muted uppercase tracking-wider hover:text-white transition-colors">
+                            Solscan <ArrowUpRight className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>

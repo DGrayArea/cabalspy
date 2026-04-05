@@ -31,7 +31,7 @@ import { lazy, Suspense } from "react";
 const WalletSettingsModal = lazy(() =>
   import("@/services/WalletSettingsModal").then((mod) => ({
     default: mod.WalletSettingsModal,
-  }))
+  })),
 );
 
 export default function PortfolioPage() {
@@ -107,13 +107,13 @@ export default function PortfolioPage() {
     .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
 
   return (
-    <div className="min-h-screen bg-app text-white pb-16">
+    <div className="min-h-screen bg-app text-white pb-6">
       <Navbar
         showWalletSettings={true}
         onWalletSettingsClick={() => setShowWalletSettings(!showWalletSettings)}
       />
 
-      <div className="w-full max-w-5xl mx-auto px-4 pt-20 sm:pt-24 pb-20">
+      <div className="w-full max-w-5xl mx-auto px-4 pt-5 sm:pt-24 pb-20">
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -173,12 +173,18 @@ export default function PortfolioPage() {
                   {formatCurrency(totalValueUsd)}
                 </div>
                 {!isLoading && (
-                  <div className={`text-lg sm:text-xl font-black italic mt-1 sm:mt-0 ${
-                    totalPnL24hUsd >= 0 ? "text-primary shadow-neon-sm" : "text-red-500"
-                  }`}>
-                    {totalPnL24hUsd >= 0 ? "+" : ""}{formatCurrency(totalPnL24hUsd)} 
+                  <div
+                    className={`text-lg sm:text-xl font-black italic mt-1 sm:mt-0 ${
+                      totalPnL24hUsd >= 0
+                        ? "text-primary shadow-neon-sm"
+                        : "text-red-500"
+                    }`}
+                  >
+                    {totalPnL24hUsd >= 0 ? "+" : ""}
+                    {formatCurrency(totalPnL24hUsd)}
                     <span className="ml-2 opacity-80">
-                      ({totalPnL24hUsd >= 0 ? "+" : ""}{totalPnL24hPercent.toFixed(2)}%)
+                      ({totalPnL24hUsd >= 0 ? "+" : ""}
+                      {totalPnL24hPercent.toFixed(2)}%)
                     </span>
                   </div>
                 )}
@@ -187,7 +193,9 @@ export default function PortfolioPage() {
 
             <div className="flex items-center gap-6 pt-4 border-t border-gray-800/50">
               <div>
-                <div className="text-[11px] text-gray-500 mb-0.5">SOL Balance</div>
+                <div className="text-[11px] text-gray-500 mb-0.5">
+                  SOL Balance
+                </div>
                 {isLoading ? (
                   <div className="h-5 w-24 bg-gray-800 rounded animate-pulse" />
                 ) : (
@@ -205,7 +213,9 @@ export default function PortfolioPage() {
                 {isLoading ? (
                   <div className="h-5 w-8 bg-gray-800 rounded animate-pulse" />
                 ) : (
-                  <div className="text-sm font-semibold">{filteredTokens.length}</div>
+                  <div className="text-sm font-semibold">
+                    {filteredTokens.length}
+                  </div>
                 )}
               </div>
             </div>
@@ -295,7 +305,9 @@ export default function PortfolioPage() {
                     )}
                   </div>
                 </div>
-                <span className="group-hover:text-white transition-colors tracking-widest font-bold uppercase text-[10px]">Hide &lt; $1</span>
+                <span className="group-hover:text-white transition-colors tracking-widest font-bold uppercase text-[10px]">
+                  Hide &lt; $1
+                </span>
               </label>
             </div>
 
@@ -323,7 +335,9 @@ export default function PortfolioPage() {
                         onError={(e) => {
                           const t = e.target as HTMLImageElement;
                           t.style.display = "none";
-                          const fb = t.parentElement?.querySelector(".sol-fb") as HTMLElement;
+                          const fb = t.parentElement?.querySelector(
+                            ".sol-fb",
+                          ) as HTMLElement;
                           if (fb) fb.style.display = "flex";
                         }}
                       />
@@ -337,8 +351,12 @@ export default function PortfolioPage() {
                     </div>
                   </div>
                   <div className="text-right text-sm">
-                    <div className="font-semibold">{formatNumber(solBalance)} SOL</div>
-                    <div className="text-xs text-gray-500">{formatCurrency(solBalanceUsd)}</div>
+                    <div className="font-semibold">
+                      {formatNumber(solBalance)} SOL
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {formatCurrency(solBalanceUsd)}
+                    </div>
                   </div>
                 </div>
               )}
@@ -359,7 +377,10 @@ export default function PortfolioPage() {
               {isLoading ? (
                 <div className="divide-y divide-gray-800/30">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="flex items-center justify-between px-4 py-3 gap-3">
+                    <div
+                      key={i}
+                      className="flex items-center justify-between px-4 py-3 gap-3"
+                    >
                       <div className="flex items-center gap-3 flex-1">
                         <div className="w-8 h-8 rounded-full bg-gray-800 animate-pulse flex-shrink-0" />
                         <div>
@@ -405,14 +426,18 @@ export default function PortfolioPage() {
                                 onError={(e) => {
                                   const t = e.target as HTMLImageElement;
                                   t.style.display = "none";
-                                  const fb = t.parentElement?.querySelector(".tok-fb") as HTMLElement;
+                                  const fb = t.parentElement?.querySelector(
+                                    ".tok-fb",
+                                  ) as HTMLElement;
                                   if (fb) fb.style.display = "flex";
                                 }}
                               />
                             ) : null}
                             <div
                               className={`tok-fb w-8 h-8 rounded-full bg-linear-to-br from-purple-500/20 to-blue-500/20 items-center justify-center font-bold text-[10px] ${
-                                token.logoUrl ? "absolute inset-0 hidden" : "flex"
+                                token.logoUrl
+                                  ? "absolute inset-0 hidden"
+                                  : "flex"
                               }`}
                             >
                               {token.symbol?.slice(0, 3).toUpperCase() || "TOK"}
@@ -429,9 +454,11 @@ export default function PortfolioPage() {
                         </div>
                         <div className="flex items-center gap-4 flex-shrink-0 text-xs sm:text-sm">
                           <div className="w-20 sm:w-24 text-right text-gray-300">
-                            {token.priceUsd !== undefined
-                              ? formatCurrency(token.priceUsd)
-                              : <span className="text-gray-600">--</span>}
+                            {token.priceUsd !== undefined ? (
+                              formatCurrency(token.priceUsd)
+                            ) : (
+                              <span className="text-gray-600">--</span>
+                            )}
                           </div>
                           <div className="w-20 sm:w-24 text-right text-gray-400">
                             {formatNumber(token.amount)}
@@ -460,16 +487,28 @@ export default function PortfolioPage() {
             {/* History Summary Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Total Wins</span>
-                <span className="text-xl font-black text-primary italic">19 ORDERS</span>
+                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
+                  Total Wins
+                </span>
+                <span className="text-xl font-black text-primary italic">
+                  19 ORDERS
+                </span>
               </div>
               <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Total Losses</span>
-                <span className="text-xl font-black text-accent italic">12 ORDERS</span>
+                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
+                  Total Losses
+                </span>
+                <span className="text-xl font-black text-accent italic">
+                  12 ORDERS
+                </span>
               </div>
               <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Win Rate</span>
-                <span className="text-xl font-black text-white italic">61.2%</span>
+                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
+                  Win Rate
+                </span>
+                <span className="text-xl font-black text-white italic">
+                  61.2%
+                </span>
               </div>
             </div>
 
@@ -477,7 +516,9 @@ export default function PortfolioPage() {
             <div className="bg-panel border border-gray-800/60 rounded-xl p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold">Transaction History</h2>
-                <span className="text-xs text-gray-500">Solana · swaps & transfers</span>
+                <span className="text-xs text-gray-500">
+                  Solana · swaps & transfers
+                </span>
               </div>
               <div className="space-y-2">
                 {[
@@ -509,8 +550,12 @@ export default function PortfolioPage() {
                         <tx.icon className="w-3.5 h-3.5" />
                       </span>
                       <div>
-                        <div className="text-xs font-medium text-gray-200">{tx.label}</div>
-                        <div className="text-[11px] text-gray-500">{tx.sub}</div>
+                        <div className="text-xs font-medium text-gray-200">
+                          {tx.label}
+                        </div>
+                        <div className="text-[11px] text-gray-500">
+                          {tx.sub}
+                        </div>
                       </div>
                     </div>
                     <div

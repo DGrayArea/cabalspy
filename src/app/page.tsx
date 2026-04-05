@@ -129,20 +129,11 @@ function AuthCallbackHandler() {
         router.replace("/");
       });
     } else if (discordAuth === "success") {
-      // Logic for Discord linking/login success
-      if (dataStr) {
-        try {
-          const userData = JSON.parse(decodeURIComponent(dataStr));
-          login("discord", userData).then(() => {
-             router.replace("/");
-          });
-        } catch (e) {
-          console.error("Failed to parse discord data", e);
-          refreshSession().finally(() => router.replace("/"));
-        }
-      } else {
-        refreshSession().finally(() => router.replace("/"));
-      }
+      // Always refresh the server session first so checkAccess sees the updated user
+      refreshSession().finally(() => {
+        // Clean the URL after session is refreshed
+        router.replace("/");
+      });
     }
   }, [searchParams, handleAuthCallback, refreshSession, login, router]);
 
@@ -260,9 +251,16 @@ export default function Home() {
 
   // Access Control Guard
   useEffect(() => {
-    if (authLoading || !isAuthenticated) return;
+    // Don't run the check while session is still loading — avoids premature /access-denied
+    if (authLoading || isLoggingIn || !isAuthenticated) return;
 
     const checkAccess = async () => {
+      // If we have no user yet (e.g. Turnkey auth but sync still in flight), wait
+      if (!user) {
+        // Give the sync a moment — if it resolves we'll re-run via the dependency change
+        return;
+      }
+
       // If authenticated, check roles, NFT, or admin level
       if (user?.accessLevel === 'admin' || user?.accessLevel === 'holder') {
         setIsAuthorizing(false);
@@ -293,7 +291,7 @@ export default function Home() {
     };
 
     checkAccess();
-  }, [isAuthenticated, authLoading, user, router]);
+  }, [isAuthenticated, authLoading, isLoggingIn, user, router]);
 
   const getChainLogo = (c: "solana" | "bsc") => {
     // Current logos are missing in public, using null to trigger fallback icons
@@ -348,7 +346,7 @@ export default function Home() {
                   <button
                     key={c.id}
                     onClick={() => setChain(c.id as any)}
-                    className={`px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-1.5 sm:gap-2 ${
+                    className={`cursor-pointer px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-1.5 sm:gap-2 ${
                       chain === c.id
                         ? "bg-primary text-black shadow-neon scale-105"
                         : "text-muted hover:text-white hover:bg-white/5"
@@ -372,7 +370,7 @@ export default function Home() {
                   <button
                     key={m.id}
                     onClick={() => setSortBy(m.id as any)}
-                    className={`px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all ${
+                    className={`cursor-pointer px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all ${
                       sortBy === m.id
                         ? "bg-secondary text-white shadow-secondary-neon scale-105"
                         : "text-muted hover:text-white hover:bg-white/5"
@@ -471,7 +469,7 @@ export default function Home() {
                 <button
                   key={id}
                   onClick={() => setFilter(id as typeof filter)}
-                  className={`group shrink-0 relative px-3 sm:px-5 rounded-xl sm:rounded-2xl transition-all flex items-center gap-2 sm:gap-3 whitespace-nowrap overflow-hidden snap-start h-10 sm:h-11 ${
+                  className={`group shrink-0 relative cursor-pointer px-3 sm:px-5 rounded-xl sm:rounded-2xl transition-all flex items-center gap-2 sm:gap-3 whitespace-nowrap overflow-hidden snap-start h-10 sm:h-11 ${
                     filter === id ? "text-white" : "text-muted hover:text-white"
                   }`}
                 >

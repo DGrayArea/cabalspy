@@ -496,21 +496,50 @@ function transformToken(mobulaToken: MobulaToken): TokenData {
 }
 
 /**
- * Smart merge function - adds new tokens, updates existing ones
+ * Normalise a string for dedup comparison (lowercase, no whitespace/symbols)
+ */
+function normaliseKey(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Smart merge function - adds new tokens, updates existing ones.
+ *
+ * Two-pass deduplication:
+ *  1. By `token.id`  (chain:poolAddress) — prevents the same pool entry appearing twice
+ *  2. By symbol+name — prevents the same coin appearing multiple times because
+ *     it trades on several pools (pumpfun, Raydium, Meteora, etc.)
+ *
+ * When two entries share a symbol+name the one with the higher market cap wins.
  */
 function mergeTokens(
   existing: TokenData[],
   incoming: TokenData[]
 ): TokenData[] {
-  const merged = new Map<string, TokenData>();
+  // Pass 1: deduplicate by id
+  const byId = new Map<string, TokenData>();
+  existing.forEach((t) => byId.set(t.id, t));
+  incoming.forEach((t) => byId.set(t.id, t));
 
-  // Add existing tokens
-  existing.forEach((token) => merged.set(token.id, token));
+  // Pass 2: deduplicate by normalised symbol+name, keep higher mcap
+  const bySymbolName = new Map<string, TokenData>();
+  for (const token of byId.values()) {
+    const sym = normaliseKey(token.symbol || "");
+    const name = normaliseKey(token.name || "");
+    // Only dedup when we have meaningful identifiers
+    if (!sym && !name) {
+      // Fall back to id key so it always appears once
+      bySymbolName.set(token.id, token);
+      continue;
+    }
+    const key = `${sym}__${name}`;
+    const existing = bySymbolName.get(key);
+    if (!existing || (token.marketCap || 0) > (existing.marketCap || 0)) {
+      bySymbolName.set(key, token);
+    }
+  }
 
-  // Add/update with incoming tokens
-  incoming.forEach((token) => merged.set(token.id, token));
-
-  return Array.from(merged.values());
+  return Array.from(bySymbolName.values());
 }
 
 /**

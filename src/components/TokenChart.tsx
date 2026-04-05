@@ -56,29 +56,25 @@ export function TokenChart({
   const sourceLabel = isGecko ? "GeckoTerminal" : "DexScreener";
 
   return (
-    <div className="h-full w-full flex flex-col">
-      {/* Embed Container - Full Width Professional View */}
-      <div className="flex-1 w-full bg-panel-elev rounded-3xl overflow-hidden border border-white/10 relative h-full min-h-[400px] md:min-h-0">
-        <iframe
-          key={embedUrl}
-          src={embedUrl}
-          className="absolute inset-0 w-full h-full border-none"
-          title={`${tokenSymbol} Chart — ${sourceLabel}`}
-          allow="clipboard-write"
-          loading="lazy"
-        />
-        
-        {/* Subtle source indicator */}
-        <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-          <a
-            href={publicUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-black italic text-muted hover:text-primary transition-all flex items-center gap-1.5"
-          >
-            VIEW ON {sourceLabel.toUpperCase()} <ExternalLink className="w-3 h-3" />
-          </a>
-        </div>
+    <div className="absolute inset-0 w-full h-full">
+      <iframe
+        key={embedUrl}
+        src={embedUrl}
+        className="w-full h-full border-none"
+        title={`${tokenSymbol} Chart — ${sourceLabel}`}
+        allow="clipboard-write"
+        loading="eager"
+      />
+      {/* Source badge */}
+      <div className="absolute top-3 right-3 z-10">
+        <a
+          href={publicUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="px-2.5 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-black italic text-muted hover:text-primary transition-all flex items-center gap-1.5"
+        >
+          VIEW ON {sourceLabel.toUpperCase()} <ExternalLink className="w-3 h-3" />
+        </a>
       </div>
     </div>
   );

@@ -125,11 +125,13 @@ async function getUltraOrder({
   outputMint,
   amountRaw,
   taker,
+  slippageBps,
 }: {
   inputMint: string;
   outputMint: string;
   amountRaw: string;
   taker: string;
+  slippageBps?: number;
 }): Promise<UltraOrderResponse> {
   const params = new URLSearchParams({
     inputMint,
@@ -137,6 +139,10 @@ async function getUltraOrder({
     amount: amountRaw,
     taker,
   });
+
+  if (slippageBps !== undefined) {
+    params.set("slippageBps", slippageBps.toString());
+  }
 
   // Only attach referral params when a referral account is configured
   if (REFERRAL_ACCOUNT) {
@@ -201,7 +207,7 @@ export async function executeJupiterSwap({
   inputDecimals,
   outputDecimals,
   userPublicKey,
-  // slippageBps is accepted but ignored — Ultra manages slippage dynamically
+  slippageBps,
   connection,
   signTransaction,
 }: JupiterSwapParams): Promise<JupiterSwapResult> {
@@ -231,6 +237,7 @@ export async function executeJupiterSwap({
       outputMint,
       amountRaw,
       taker: userPublicKey,
+      slippageBps,
     });
 
     // ── Step 2: Deserialize & sign ─────────────────────────────────────────
