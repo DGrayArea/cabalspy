@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { TokenData } from "@/types/token";
 import { formatCurrency, formatPercentCompact } from "@/utils/format";
 import { TrendingUp, TrendingDown } from "lucide-react";
@@ -17,6 +17,14 @@ interface TokenMarqueeProps {
 export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   const [platformLogoErrors, setPlatformLogoErrors] = useState<Set<string>>(new Set());
+
+  // Drag state
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
+  const dragMoved = useRef(false);
 
   // Duplicate tokens for seamless loop
   const duplicatedTokens = [...tokens, ...tokens];
@@ -38,17 +46,87 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
       style.id = styleId;
       style.textContent = `
         @keyframes tokenMarquee {
-          0% {
-            transform: translateX(0);
-          }
-          100% {
-            transform: translateX(-50%);
-          }
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        .marquee-no-select {
+          user-select: none;
+          -webkit-user-select: none;
         }
       `;
       document.head.appendChild(style);
     }
   }, []);
+
+  const pauseAnimation = useCallback(() => {
+    if (innerRef.current) innerRef.current.style.animationPlayState = "paused";
+  }, []);
+
+  const resumeAnimation = useCallback(() => {
+    if (innerRef.current) innerRef.current.style.animationPlayState = "running";
+  }, []);
+
+  // Mouse drag handlers
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!scrollRef.current) return;
+    isDragging.current = true;
+    dragMoved.current = false;
+    startX.current = e.pageX - scrollRef.current.offsetLeft;
+    scrollLeft.current = scrollRef.current.scrollLeft;
+    pauseAnimation();
+    scrollRef.current.classList.add("marquee-no-select");
+    scrollRef.current.style.cursor = "grabbing";
+  }, [pauseAnimation]);
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5; // drag speed multiplier
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
+    dragMoved.current = true;
+  }, []);
+
+  const onMouseUp = useCallback(() => {
+    if (!scrollRef.current) return;
+    isDragging.current = false;
+    scrollRef.current.classList.remove("marquee-no-select");
+    scrollRef.current.style.cursor = "grab";
+    resumeAnimation();
+  }, [resumeAnimation]);
+
+  const onMouseLeave = useCallback(() => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    if (scrollRef.current) {
+      scrollRef.current.classList.remove("marquee-no-select");
+      scrollRef.current.style.cursor = "grab";
+    }
+    resumeAnimation();
+  }, [resumeAnimation]);
+
+  // Touch drag handlers
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!scrollRef.current) return;
+    isDragging.current = true;
+    dragMoved.current = false;
+    startX.current = e.touches[0].pageX - scrollRef.current.offsetLeft;
+    scrollLeft.current = scrollRef.current.scrollLeft;
+    pauseAnimation();
+  }, [pauseAnimation]);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDragging.current || !scrollRef.current) return;
+    const x = e.touches[0].pageX - scrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 1.5;
+    scrollRef.current.scrollLeft = scrollLeft.current - walk;
+    dragMoved.current = true;
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    isDragging.current = false;
+    resumeAnimation();
+  }, [resumeAnimation]);
 
   const handleImageError = (tokenId: string) => {
     setImageErrors((prev) => new Set(prev).add(tokenId));
@@ -64,27 +142,40 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
 
   return (
     <div className="relative w-full bg-panel/50 border-y border-gray-800/50 py-3 overflow-hidden">
+      {/* Scrollable drag container — hidden scrollbar */}
       <div
-        className="flex gap-4 sm:gap-6"
-        style={{
-          animation: `tokenMarquee ${animationDuration} linear infinite`,
-          willChange: "transform",
-          width: "max-content",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.animationPlayState = "paused";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.animationPlayState = "running";
-        }}
+        ref={scrollRef}
+        className="overflow-x-scroll scrollbar-hide"
+        style={{ cursor: "grab" }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseLeave}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
       >
-        {duplicatedTokens.map((token, index) => {
+        {/* Animated inner strip */}
+        <div
+          ref={innerRef}
+          className="flex gap-4 sm:gap-6"
+          style={{
+            animation: `tokenMarquee ${animationDuration} linear infinite`,
+            willChange: "transform",
+            width: "max-content",
+          }}
+          onMouseEnter={() => {
+            if (!isDragging.current) pauseAnimation();
+          }}
+          onMouseLeave={() => {
+            if (!isDragging.current) resumeAnimation();
+          }}
+        >
+          {duplicatedTokens.map((token, index) => {
             const hasImageError = imageErrors.has(token.id);
-            // Prioritize priceChange24h from Mobula/Pumpfun
-            // If not available, fallback to the 24h slot (index 4) of percentages array
-            const priceChange = 
-              token.priceChange24h !== undefined 
-                ? token.priceChange24h 
+            const priceChange =
+              token.priceChange24h !== undefined
+                ? token.priceChange24h
                 : (token.percentages && token.percentages.length > 0
                   ? token.percentages[4] !== undefined
                     ? token.percentages[4]
@@ -93,7 +184,6 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                   : 0);
             const isPositive = priceChange >= 0;
 
-            // Get platform info using AI detector
             const platform = aiPlatformDetector.detectPlatform({
               id: token.id,
               name: token.name,
@@ -117,6 +207,14 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                 key={`${token.id}-${index}`}
                 href={`/${tokenChain}/${tokenAddress}`}
                 className="flex items-center gap-3 px-4 py-2 bg-panel-elev/50 rounded-lg border border-gray-700/30 hover:border-primary/50 transition-all min-w-[240px] sm:min-w-[280px] shrink-0 cursor-pointer group"
+                draggable={false}
+                onClick={(e) => {
+                  // Prevent navigation if the user was dragging
+                  if (dragMoved.current) {
+                    e.preventDefault();
+                    dragMoved.current = false;
+                  }
+                }}
               >
                 {/* Token Image/Icon */}
                 {token.image && !hasImageError ? (
@@ -130,9 +228,9 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                         className="w-full h-full object-cover"
                         onError={() => handleImageError(token.id)}
                         unoptimized
+                        draggable={false}
                       />
                     </div>
-                    {/* Platform logo overlay - bottom right */}
                     {platformLogo && !hasPlatformLogoError ? (
                       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
                         <img
@@ -141,6 +239,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                           className="w-full h-full object-cover"
                           onError={() => handlePlatformLogoError(token.id)}
                           loading="lazy"
+                          draggable={false}
                         />
                       </div>
                     ) : (
@@ -154,7 +253,6 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                     <div className="w-10 h-10 rounded-full bg-linear-to-br from-primary/30 via-purple-500/20 to-green-500/30 flex items-center justify-center text-lg">
                       {token.icon || "🪙"}
                     </div>
-                    {/* Platform logo overlay - bottom right */}
                     {platformLogo && !hasPlatformLogoError ? (
                       <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-panel rounded-full border-2 border-panel flex items-center justify-center overflow-hidden">
                         <img
@@ -163,6 +261,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
                           className="w-full h-full object-cover"
                           onError={() => handlePlatformLogoError(token.id)}
                           loading="lazy"
+                          draggable={false}
                         />
                       </div>
                     ) : (
@@ -204,6 +303,7 @@ export function TokenMarquee({ tokens, speed = "normal" }: TokenMarqueeProps) {
               </Link>
             );
           })}
+        </div>
       </div>
     </div>
   );

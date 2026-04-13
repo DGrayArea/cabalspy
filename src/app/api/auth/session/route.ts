@@ -20,6 +20,14 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
+    // Check if the DB session has expired
+    if (session.expiresAt && session.expiresAt < new Date()) {
+      await db.session.delete({ where: { token: sessionToken } }).catch(() => {});
+      const response = NextResponse.json({ user: null }, { status: 200 });
+      response.cookies.delete('session');
+      return response;
+    }
+
     const user = await db.user.findUnique({
       where: { id: session.userId },
     });

@@ -142,16 +142,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const checkSession = useCallback(async () => {
     try {
-      // Check persistent inactivity before validating session
-      const lastActive = localStorage.getItem("lastActive");
-      const fifteenMinutes = 15 * 60 * 1000;
-      
-      if (lastActive && Date.now() - parseInt(lastActive) > fifteenMinutes) {
-        console.log("Inactivity period exceeded, clearing session.");
-        await logout();
-        return;
-      }
-
       const response = await fetch("/api/auth/session");
       if (response.ok) {
         const data = await response.json();
@@ -168,7 +158,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             walletAddress: data.wallet?.address,
             createdAt: new Date(),
           });
-          // Update last active on successful session check
+          // Keep lastActive current so in-app idle timer stays accurate
           localStorage.setItem("lastActive", Date.now().toString());
         } else {
           setUser(null);
@@ -371,11 +361,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Update persistent last active timestamp
       localStorage.setItem("lastActive", Date.now().toString());
 
-      // 15 minutes of inactivity = automatic logout
+      // 4 hours of inactivity = automatic logout
       timeoutId = setTimeout(() => {
         logout();
-        alert("Session expired due to inactivity. Please sign in again for security.");
-      }, 15 * 60 * 1000); 
+        console.log("[Auth] Session expired due to inactivity.");
+      }, 4 * 60 * 60 * 1000);
     };
 
     // Events that reset the inactivity timer

@@ -161,7 +161,15 @@ export default function Home() {
   const [showDisplaySettings, setShowDisplaySettings] = useState(false);
   const [comparingToken, setComparingToken] = useState<TokenData | null>(null);
   const [sortBy, setSortBy] = useState<"marketCap" | "volume" | "priceChange" | "none">("none");
-  const [activeAdvancedFilters, setActiveAdvancedFilters] = useState<string[]>([]);
+  const [activeAdvancedFilters, setActiveAdvancedFilters] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("cabalspy_adv_filters");
+        return saved ? JSON.parse(saved) : [];
+      } catch { return []; }
+    }
+    return [];
+  });
   const [selectedProtocols, setSelectedProtocols] = useState<string[]>([]);
   const [slippage, setSlippage] = useState("0.5");
   const [quickBuyAmount, setQuickBuyAmount] = useState("0.1");
@@ -223,8 +231,24 @@ export default function Home() {
       list = list.filter(t => t.protocol && selectedProtocols.includes(t.protocol.toLowerCase()));
     }
 
+    // Advanced metric filters
+    if (activeAdvancedFilters.includes("MC < $100K")) {
+      list = list.filter(t => (t.marketCap || 0) < 100_000);
+    }
+    if (activeAdvancedFilters.includes("MC > $1M")) {
+      list = list.filter(t => (t.marketCap || 0) > 1_000_000);
+    }
+    if (activeAdvancedFilters.includes("HIGH VOL")) {
+      // Top 20% by volume
+      const sorted = [...list].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+      list = sorted.slice(0, Math.max(1, Math.ceil(sorted.length * 0.2)));
+    }
+    if (activeAdvancedFilters.includes("TOP TRADES")) {
+      list = list.filter(t => ((t as any).trades24h || 0) > 50);
+    }
+
     return list;
-  }, [filter, chain, mobulaTokensByFilter, selectedProtocols, sortBy]);
+  }, [filter, chain, mobulaTokensByFilter, selectedProtocols, sortBy, activeAdvancedFilters]);
 
   const featuredTokens = useMemo(() => {
     if (!mobulaTokensByFilter) return [];
@@ -660,9 +684,15 @@ export default function Home() {
                       <button 
                         key={f.label} 
                         onClick={() => {
-                          setActiveAdvancedFilters(prev => 
-                            prev.includes(f.label) ? prev.filter(p => p !== f.label) : [...prev, f.label]
-                          );
+                          setActiveAdvancedFilters(prev => {
+                            const next = prev.includes(f.label)
+                              ? prev.filter(p => p !== f.label)
+                              : [...prev, f.label];
+                            if (typeof window !== "undefined") {
+                              localStorage.setItem("cabalspy_adv_filters", JSON.stringify(next));
+                            }
+                            return next;
+                          });
                         }}
                         className={`px-4 py-2.5 rounded-2xl border transition-all text-[10px] font-black italic flex items-center gap-2 group cursor-pointer ${
                           isActive 
@@ -744,8 +774,11 @@ export default function Home() {
             <div className="mt-12 flex items-center justify-between pt-6 border-t border-white/5">
               <button
                 onClick={() => {
-                  setSelectedProtocols([]);
-                  setActiveAdvancedFilters([]);
+                   setSelectedProtocols([]);
+                   setActiveAdvancedFilters([]);
+                   if (typeof window !== "undefined") {
+                     localStorage.removeItem("cabalspy_adv_filters");
+                   }
                 }}
                 className="text-xs font-black italic text-muted hover:text-white transition-colors cursor-pointer uppercase tracking-widest"
               >
