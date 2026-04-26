@@ -39,8 +39,9 @@ export default function TradingPanel({
   const [amount, setAmount] = useState(initialAmount || "");
   const [slippage, setSlippage] = useState("0.5");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDryRunning, setIsDryRunning] = useState(false);
 
-  const handleTrade = async () => {
+  const handleTrade = async (isDryRun = false) => {
     if (!turnkeyUser || !address || !connection || !signSolanaTransaction) {
       toast({
         variant: "error",
@@ -72,7 +73,9 @@ export default function TradingPanel({
     }
 
     try {
-      setIsSubmitting(true);
+      if (isDryRun) setIsDryRunning(true);
+      else setIsSubmitting(true);
+      
       const slippageBps = Math.round(parseFloat(slippage) * 100); // percent -> bps
 
       // Determine input and output mints
@@ -99,6 +102,7 @@ export default function TradingPanel({
         slippageBps,
         connection,
         signTransaction: signSolanaTransaction,
+        dryRun: isDryRun,
       });
 
       // Dismiss loading toast
@@ -107,7 +111,7 @@ export default function TradingPanel({
       if (result.success && result.signature) {
         toast({
           variant: "success",
-          title: `${tradeType === "buy" ? "Buy" : "Sell"} successful!`,
+          title: `${isDryRun ? "[DRY RUN] " : ""}${tradeType === "buy" ? "Buy" : "Sell"} successful!`,
           description: `Transaction: ${result.signature.slice(0, 8)}...`,
           action: (
             <ToastAction
@@ -141,6 +145,7 @@ export default function TradingPanel({
       });
     } finally {
       setIsSubmitting(false);
+      setIsDryRunning(false);
     }
   };
 
@@ -356,34 +361,50 @@ export default function TradingPanel({
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
-            <button
-              onClick={handleTrade}
-              disabled={isSubmitting || !amount || parseFloat(amount) <= 0}
-              className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer ${
-                tradeType === "buy"
-                  ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-600"
-                  : "bg-red-600 hover:bg-red-700 disabled:bg-gray-600"
-              } text-white disabled:cursor-not-allowed`}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <DollarSign className="w-4 h-4 cursor-pointer" />
-                  {tradeType === "buy" ? "Buy" : "Sell"} {token.symbol}
-                </>
-              )}
-            </button>
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleTrade(false)}
+                disabled={isSubmitting || isDryRunning || !amount || parseFloat(amount) <= 0}
+                className={`flex-1 py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer ${
+                  tradeType === "buy"
+                    ? "bg-green-600 hover:bg-green-700 disabled:bg-gray-600"
+                    : "bg-red-600 hover:bg-red-700 disabled:bg-gray-600"
+                } text-white disabled:cursor-not-allowed`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign className="w-4 h-4 cursor-pointer" />
+                    {tradeType === "buy" ? "Buy" : "Sell"} {token.symbol}
+                  </>
+                )}
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+            </div>
+            
+            {process.env.NODE_ENV === "development" && (
+              <button
+                onClick={() => handleTrade(true)}
+                disabled={isSubmitting || isDryRunning || !amount || parseFloat(amount) <= 0}
+                className="w-full py-2 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 cursor-pointer bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 border border-yellow-500/30 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDryRunning ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Simulating...</>
+                ) : (
+                  <>🛠 DRY RUN SWAP (DEV ONLY)</>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>

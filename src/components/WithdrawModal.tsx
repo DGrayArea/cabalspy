@@ -333,9 +333,14 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl p-4">
               <div className="flex items-start gap-3">
                 <AlertCircle className="w-5 h-5 text-yellow-500 shrink-0" />
-                <p className="text-xs font-bold text-yellow-500/90 leading-relaxed">
-                  You can only withdraw SOL. Trade tokens for SOL before withdrawing them.
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-yellow-500/90 leading-relaxed">
+                    You can only withdraw SOL. Trade tokens for SOL before withdrawing them.
+                  </p>
+                  <p className="text-[10px] font-medium text-yellow-500/70 leading-relaxed">
+                    Note: For your security, Cabalspy uses Turnkey secure enclaves. Your private keys can never be exported or exposed. To move your funds off-platform, you must use this withdrawal interface.
+                  </p>
+                </div>
               </div>
             </div>
 

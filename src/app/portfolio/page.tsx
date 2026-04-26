@@ -485,6 +485,10 @@ export default function PortfolioPage() {
             <PnLCalendar />
 
             {/* History Summary Stats */}
+            <div className="flex items-center gap-2 mb-2">
+              <h2 className="text-sm font-semibold">Performance History</h2>
+              <span className="px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 uppercase">Demo Data</span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
                 <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
@@ -513,8 +517,9 @@ export default function PortfolioPage() {
             </div>
 
             {/* History placeholder */}
-            <div className="bg-panel border border-gray-800/60 rounded-xl p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-4">
+            <div className="bg-panel border border-gray-800/60 rounded-xl p-4 sm:p-5 relative overflow-hidden">
+              <div className="absolute -right-6 top-4 bg-yellow-500/20 text-yellow-500 text-[8px] font-black tracking-widest uppercase border border-yellow-500/30 px-8 py-1 rotate-45 transform origin-center shadow-lg pointer-events-none">Demo Data</div>
+              <div className="flex items-center justify-between mb-4 pr-12">
                 <h2 className="text-sm font-semibold">Transaction History</h2>
                 <span className="text-xs text-gray-500">
                   Solana · swaps & transfers

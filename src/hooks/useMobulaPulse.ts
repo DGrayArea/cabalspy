@@ -6,6 +6,7 @@ import {
   mobulaPulseManager,
   FILTER_TO_VIEW_MAPPING,
 } from "@/services/mobula-pulse";
+import { multiChainTokenService, ChainTokenData } from "@/services/multichain-tokens";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
@@ -99,6 +100,36 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
     return () => {
       mobulaPulseManager.stopAutoRefresh();
       startedRef.current = false;
+    };
+  }, [enabled, updateTokens]);
+
+  // Handle real-time WebSocket updates
+  useEffect(() => {
+    if (!enabled) return;
+
+    const handleWsTokenUpdate = (token: unknown) => {
+      const chainToken = token as ChainTokenData;
+      mobulaPulseManager.injectRealtimeToken(chainToken, false);
+      updateTokens(); // Force React to re-render with new data
+    };
+
+    const handleWsMigrationUpdate = (token: unknown) => {
+      const chainToken = token as ChainTokenData;
+      mobulaPulseManager.injectRealtimeToken(chainToken, true);
+      updateTokens();
+    };
+
+    // Subscribe to events
+    multiChainTokenService.on("tokenUpdate", handleWsTokenUpdate);
+    multiChainTokenService.on("migrationUpdate", handleWsMigrationUpdate);
+    
+    // Connect WebSockets
+    multiChainTokenService.connectSolana();
+    multiChainTokenService.connectBSC();
+
+    return () => {
+      multiChainTokenService.off("tokenUpdate", handleWsTokenUpdate);
+      multiChainTokenService.off("migrationUpdate", handleWsMigrationUpdate);
     };
   }, [enabled, updateTokens]);
 

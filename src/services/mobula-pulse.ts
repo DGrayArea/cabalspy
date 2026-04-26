@@ -1163,6 +1163,30 @@ export class MobulaPulseManager {
     };
     this._initialLoadDone = false;
   }
+
+  /**
+   * Inject a real-time token from WebSocket
+   * Prepends to the start of the cache to show instantly
+   */
+  injectRealtimeToken(token: TokenData, isMigration: boolean = false): void {
+    const ensureUniqueAndPrepend = (arr: TokenData[], t: TokenData) => {
+      const filtered = arr.filter(existing => existing.id !== t.id);
+      return [t, ...filtered].slice(0, 500); // keep reasonable limit
+    };
+
+    if (isMigration) {
+      // Migrations go to bonded/graduated
+      this.basicViewsCache.bonded = ensureUniqueAndPrepend(this.basicViewsCache.bonded, token);
+      // Might also be in final stretch
+      this.basicViewsCache.bonding = ensureUniqueAndPrepend(this.basicViewsCache.bonding, token);
+    } else {
+      // New tokens go to new and latest
+      this.basicViewsCache.new = ensureUniqueAndPrepend(this.basicViewsCache.new, token);
+      this.customViewsCache["latest-tokens"] = ensureUniqueAndPrepend(this.customViewsCache["latest-tokens"], token);
+      // Also inject into trending so the dashboard feels alive instantly
+      this.customViewsCache.trending = ensureUniqueAndPrepend(this.customViewsCache.trending, token);
+    }
+  }
 }
 
 // Export singleton instance

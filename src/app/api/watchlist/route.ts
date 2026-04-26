@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/auth"; // Assuming this helper exists to get userId from session
+import { getSession } from "@/lib/auth";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   try {
     const session = await getSession(req);
-    if (!session?.userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -16,15 +17,15 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(watchlist);
   } catch (error) {
-    console.error("[WATCHLIST_GET]", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+    logger.error("Failed to fetch watchlist:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession(req);
-    if (!session?.userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -32,9 +33,10 @@ export async function POST(req: NextRequest) {
     const { mint, symbol, name, image, network } = body;
 
     if (!mint) {
-      return NextResponse.json({ error: "Mint address is required" }, { status: 400 });
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
+    // Upsert to handle potential duplicates gracefully
     const watchlistItem = await db.watchlist.upsert({
       where: {
         userId_mint: {
@@ -60,15 +62,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(watchlistItem);
   } catch (error) {
-    console.error("[WATCHLIST_POST]", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+    logger.error("Failed to add to watchlist:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getSession(req);
-    if (!session?.userId) {
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -76,7 +78,7 @@ export async function DELETE(req: NextRequest) {
     const mint = searchParams.get("mint");
 
     if (!mint) {
-      return NextResponse.json({ error: "Mint address is required" }, { status: 400 });
+      return NextResponse.json({ error: "Missing mint parameter" }, { status: 400 });
     }
 
     await db.watchlist.delete({
@@ -89,8 +91,12 @@ export async function DELETE(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("[WATCHLIST_DELETE]", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+  } catch (error: any) {
+    if (error.code === 'P2025') {
+      // Record to delete does not exist, which is fine
+      return NextResponse.json({ success: true });
+    }
+    logger.error("Failed to remove from watchlist:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

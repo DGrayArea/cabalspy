@@ -32,6 +32,7 @@ export interface JupiterSwapParams {
   signTransaction: (
     transaction: VersionedTransaction
   ) => Promise<VersionedTransaction>; // Turnkey signing function
+  dryRun?: boolean;        // If true, signs transaction but skips broadcasting
 }
 
 export interface JupiterSwapResult {
@@ -210,6 +211,7 @@ export async function executeJupiterSwap({
   slippageBps,
   connection,
   signTransaction,
+  dryRun = false,
 }: JupiterSwapParams): Promise<JupiterSwapResult> {
   try {
     if (!inputMint || !outputMint || !amount || amount <= 0) {
@@ -259,7 +261,21 @@ export async function executeJupiterSwap({
       );
     }
 
+    // Convert raw output → human-readable
+    const outAmountRaw = parseInt(order.outAmount || "0");
+    const outAmountHuman = outAmountRaw / Math.pow(10, outputTokenDecimals);
+
     // ── Step 3: Execute via Jupiter ────────────────────────────────────────
+    if (dryRun) {
+      console.log(`[DRY RUN] Successfully signed transaction for ${amount} -> ${outAmountHuman}`);
+      return {
+        success: true,
+        signature: `dry-run-${Date.now()}`,
+        outAmount: outAmountHuman.toString(),
+        outAmountRaw: order.outAmount,
+      };
+    }
+
     const result = await executeUltraOrder({
       signedTransaction: signedTransactionB64,
       requestId: order.requestId,
