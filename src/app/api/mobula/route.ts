@@ -7,6 +7,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
+import { rateLimit } from "@/lib/rateLimit";
+
+const limiter = rateLimit({
+  uniqueTokenPerInterval: 500,
+  interval: 60000,
+});
 
 const MOBULA_GET_API = "https://api.mobula.io/api/2/pulse";
 const MOBULA_POST_API = "https://pulse-v2-api.mobula.io/api/2/pulse"; // Use v2 API for POST
@@ -44,6 +50,16 @@ async function retryRequest<T>(
 
 export async function GET(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    try {
+      await limiter.check(60, ip); // 60 requests per minute per IP
+    } catch {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     
     const assetMode = searchParams.get("assetMode") || "true";
@@ -121,6 +137,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    try {
+      await limiter.check(30, ip); // 30 POST requests per minute per IP
+    } catch {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
 
     const response = await retryRequest(

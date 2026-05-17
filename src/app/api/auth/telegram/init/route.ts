@@ -23,11 +23,9 @@ export async function GET(request: NextRequest) {
     // Generate the bot link
     const botLink = generateBotLink(token);
 
-    // Get the base URL for the callback
     const baseUrl =
-      process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     const fullCallbackUrl = `${baseUrl}${callbackUrl.pathname}${callbackUrl.search}`;
 

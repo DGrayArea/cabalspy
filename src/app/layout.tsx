@@ -33,12 +33,62 @@ const geistMono = Geist_Mono({
   preload: false, // Only preload primary font
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://cabalspy-pi.vercel.app";
+
 export const metadata: Metadata = {
-  title: "Cabalspy - Real-time Token Pulse",
-  description: "Real-time token tracking and trading platform",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "Cabalspy - Real-time Token Pulse & Trading",
+    template: "%s | Cabalspy",
+  },
+  description: "Advanced real-time token tracking and direct trading terminal for Solana and BSC. Discover trending pairs, new launches, and execute instant swaps with embedded wallets.",
+  keywords: ["solana", "bsc", "token tracker", "crypto trading", "memecoins", "pump.fun", "dex screener", "turnkey wallets", "web3", "cabalspy"],
+  authors: [{ name: "Cabalspy" }],
+  creator: "Cabalspy",
+  publisher: "Cabalspy",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  openGraph: {
+    title: "Cabalspy Terminal",
+    description: "Advanced real-time token tracking and direct trading terminal for Solana and BSC.",
+    url: APP_URL,
+    siteName: "Cabalspy",
+    images: [
+      {
+        url: "/logo.jpg", // Note: For best results, consider a 1200x630 og-image.png in the future
+        width: 800,
+        height: 800,
+        alt: "Cabalspy Logo",
+      },
+    ],
+    locale: "en_US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cabalspy Terminal",
+    description: "Advanced real-time token tracking and direct trading terminal for Solana and BSC.",
+    images: ["/logo.jpg"], // Note: Consider a 1200x630 twitter-image.png in the future
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: "/logo.jpg",
+    apple: "/logo.jpg",
   },
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({

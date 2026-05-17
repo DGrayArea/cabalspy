@@ -47,9 +47,9 @@ export function getBaseUrl(): string {
       return `https://${process.env.VERCEL_URL}`;
     }
 
-    // Fallback to NEXTAUTH_URL
-    if (process.env.NEXTAUTH_URL) {
-      return process.env.NEXTAUTH_URL;
+    // Fallback to VERCEL_URL if NEXT_PUBLIC_APP_URL is somehow missing but we know we're on Vercel
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL}`;
     }
 
     // Last resort (shouldn't happen in Vercel)
@@ -184,9 +184,9 @@ export async function getCallbackBaseUrl(): Promise<string> {
     }
   }
 
-  // Fallback: Check NEXTAUTH_URL or use localhost
+  // Fallback: Check NEXT_PUBLIC_APP_URL or use localhost
   // But warn that HTTPS is needed
-  const fallback = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const fallback = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   if (!fallback.startsWith("https://") && logger) {
     logger.warn(
       "Callback URL is not HTTPS - Telegram buttons require HTTPS. Use ngrok for local development."
@@ -210,6 +210,6 @@ export function getEnvironmentInfo() {
     vercelEnv: process.env.VERCEL_ENV,
     nodeEnv: process.env.NODE_ENV,
     vercelUrl: process.env.VERCEL_URL,
-    nextauthUrl: process.env.NEXTAUTH_URL,
+    appUrl: process.env.NEXT_PUBLIC_APP_URL,
   };
 }

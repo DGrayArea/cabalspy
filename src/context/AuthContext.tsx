@@ -132,7 +132,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Sync with Turnkey's internal state
   useEffect(() => {
-    console.log("🔑 Turnkey State Check:", { authState, hasTkUser: !!tkUser });
+    // console.log("🔑 Turnkey State Check:", { authState, hasTkUser: !!tkUser });
     if (tkUser && authState === "authenticated") {
       setTurnkeyUser(tkUser as any);
     } else {
@@ -222,7 +222,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     if (authState === "authenticated" && tkUser && !user && !isSyncing && !syncFailedRef.current) {
-      console.log("🔄 Detected Turnkey auth, syncing with backend...");
+      // console.log("🔄 Detected Turnkey auth, syncing with backend...");
       syncBackendSession(tkUser);
     }
   }, [authState, tkUser, user, isSyncing, syncBackendSession]);
@@ -364,7 +364,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // 4 hours of inactivity = automatic logout
       timeoutId = setTimeout(() => {
         logout();
-        console.log("[Auth] Session expired due to inactivity.");
+        // console.log("[Auth] Session expired due to inactivity.");
       }, 4 * 60 * 60 * 1000);
     };
 

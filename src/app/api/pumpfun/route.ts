@@ -6,6 +6,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rateLimit";
+
+const limiter = rateLimit({
+  uniqueTokenPerInterval: 500,
+  interval: 60000,
+});
 
 const PUMPFUN_APIS = {
   base: "https://frontend-api.pump.fun",
@@ -21,6 +27,16 @@ export async function GET(request: NextRequest) {
   console.log(`[Pump.fun API] GET ${endpoint} (API: ${api})`);
   
   try {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    try {
+      await limiter.check(60, ip); // 60 requests per minute per IP
+    } catch {
+      return NextResponse.json(
+        { error: "Too many requests" },
+        { status: 429 }
+      );
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const endpoint = searchParams.get("endpoint") || "";
     const api = searchParams.get("api") || "v3";

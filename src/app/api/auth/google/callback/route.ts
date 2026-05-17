@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const redirectUri = process.env.NEXTAUTH_URL || 'http://localhost:3000';
+    const redirectUri = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',

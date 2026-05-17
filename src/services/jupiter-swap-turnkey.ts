@@ -10,36 +10,36 @@
 import { Connection, PublicKey, VersionedTransaction } from "@solana/web3.js";
 
 const JUPITER_ULTRA_API = "https://api.jup.ag/ultra/v1";
-const JUPITER_API_KEY =
-  process.env.NEXT_PUBLIC_JUPITER_API_KEY || "";
-const REFERRAL_ACCOUNT =
-  process.env.NEXT_PUBLIC_JUPITER_REFERRAL_ACCOUNT || "";
+const JUPITER_API_KEY = process.env.NEXT_PUBLIC_JUPITER_API_KEY || "";
+const REFERRAL_ACCOUNT = process.env.NEXT_PUBLIC_JUPITER_REFERRAL_ACCOUNT || "GNH7RSuVoZcWJigTg3adubrPFp4j32U8UaGkKDnvRS9Q";
 // 125 bps → Jupiter takes 20% (25 bps), platform nets 100 bps (1%)
-const REFERRAL_FEE_BPS =
-  parseInt(process.env.NEXT_PUBLIC_JUPITER_REFERRAL_FEE || "125", 10);
+const REFERRAL_FEE_BPS = parseInt(
+  process.env.NEXT_PUBLIC_JUPITER_REFERRAL_FEE || "125",
+  10,
+);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface JupiterSwapParams {
-  inputMint: string;       // Token mint address ("So11111111111111111111111111111111111111112" for SOL)
-  outputMint: string;      // Token mint address
-  amount: number;          // Human-readable amount (e.g. 0.1 SOL or 100 tokens)
-  inputDecimals?: number;  // Decimals for input token (default: 9 for SOL, 6 for others)
+  inputMint: string; // Token mint address ("So11111111111111111111111111111111111111112" for SOL)
+  outputMint: string; // Token mint address
+  amount: number; // Human-readable amount (e.g. 0.1 SOL or 100 tokens)
+  inputDecimals?: number; // Decimals for input token (default: 9 for SOL, 6 for others)
   outputDecimals?: number; // Decimals for output token (default: 6)
-  userPublicKey: string;   // User's wallet public key
-  slippageBps?: number;    // Ignored — Ultra manages slippage dynamically (kept for API compat)
-  connection: Connection;  // Solana connection (used for token decimal lookup)
+  userPublicKey: string; // User's wallet public key
+  slippageBps?: number; // Ignored — Ultra manages slippage dynamically (kept for API compat)
+  connection: Connection; // Solana connection (used for token decimal lookup)
   signTransaction: (
-    transaction: VersionedTransaction
+    transaction: VersionedTransaction,
   ) => Promise<VersionedTransaction>; // Turnkey signing function
-  dryRun?: boolean;        // If true, signs transaction but skips broadcasting
+  dryRun?: boolean; // If true, signs transaction but skips broadcasting
 }
 
 export interface JupiterSwapResult {
   success: boolean;
   signature?: string;
   error?: string;
-  outAmount?: string;    // Human-readable output amount
+  outAmount?: string; // Human-readable output amount
   outAmountRaw?: string; // Raw output amount from Jupiter
 }
 
@@ -50,8 +50,8 @@ interface UltraOrderResponse {
   outputMint: string;
   inAmount: string;
   outAmount: string;
-  feeMint?: string;  // Which token Ultra is collecting fees in
-  feeBps?: number;   // Actual fee bps (matches referralFee when token account is set up)
+  feeMint?: string; // Which token Ultra is collecting fees in
+  feeBps?: number; // Actual fee bps (matches referralFee when token account is set up)
   error?: string;
 }
 
@@ -76,7 +76,7 @@ function ultraHeaders(): HeadersInit {
  */
 async function getTokenDecimals(
   connection: Connection,
-  mintAddress: string
+  mintAddress: string,
 ): Promise<number> {
   // SOL always has 9 decimals
   if (mintAddress === "So11111111111111111111111111111111111111112") {
@@ -111,7 +111,7 @@ async function getTokenDecimals(
   }
 
   console.warn(
-    `⚠️ Could not determine decimals for ${mintAddress}, defaulting to 6`
+    `⚠️ Could not determine decimals for ${mintAddress}, defaulting to 6`,
   );
   return 6;
 }
@@ -186,7 +186,7 @@ async function executeUltraOrder({
 
   if (!response.ok) {
     throw new Error(
-      `Ultra execute failed: ${data.error ?? response.statusText}`
+      `Ultra execute failed: ${data.error ?? response.statusText}`,
     );
   }
 
@@ -230,7 +230,7 @@ export async function executeJupiterSwap({
 
     // Convert human-readable → raw units
     const amountRaw = Math.floor(
-      amount * Math.pow(10, inputTokenDecimals)
+      amount * Math.pow(10, inputTokenDecimals),
     ).toString();
 
     // ── Step 1: Get order ──────────────────────────────────────────────────
@@ -244,12 +244,12 @@ export async function executeJupiterSwap({
 
     // ── Step 2: Deserialize & sign ─────────────────────────────────────────
     const transaction = VersionedTransaction.deserialize(
-      Buffer.from(order.transaction, "base64")
+      Buffer.from(order.transaction, "base64"),
     );
 
     const signedTx = await signTransaction(transaction);
     const signedTransactionB64 = Buffer.from(signedTx.serialize()).toString(
-      "base64"
+      "base64",
     );
 
     // Log fee info so you can verify collection is working
@@ -257,7 +257,9 @@ export async function executeJupiterSwap({
       const collecting = order.feeBps === REFERRAL_FEE_BPS;
       console.log(
         `[Ultra] feeMint=${order.feeMint} feeBps=${order.feeBps ?? 0}` +
-          (collecting ? " ✅ fee collected" : " ⚠️ no token account for this mint — fee skipped")
+          (collecting
+            ? " ✅ fee collected"
+            : " ⚠️ no token account for this mint — fee skipped"),
       );
     }
 
@@ -265,9 +267,11 @@ export async function executeJupiterSwap({
     const outAmountRaw = parseInt(order.outAmount || "0");
     const outAmountHuman = outAmountRaw / Math.pow(10, outputTokenDecimals);
 
-    // ── Step 3: Execute via Jupiter ────────────────────────────────────────
+    // ── Step 3: Execute via Jupiter (with retries) ─────────────────────────
     if (dryRun) {
-      console.log(`[DRY RUN] Successfully signed transaction for ${amount} -> ${outAmountHuman}`);
+      console.log(
+        `[DRY RUN] Successfully signed transaction for ${amount} -> ${outAmountHuman}`,
+      );
       return {
         success: true,
         signature: `dry-run-${Date.now()}`,
@@ -276,18 +280,39 @@ export async function executeJupiterSwap({
       };
     }
 
-    const result = await executeUltraOrder({
-      signedTransaction: signedTransactionB64,
-      requestId: order.requestId,
-    });
+    let result: UltraExecuteResponse | null = null;
+    let executeError: any = null;
+    const MAX_RETRIES = 3;
 
-    if (result.status !== "Success" || !result.signature) {
-      throw new Error(result.error ?? "Ultra execute returned non-success status");
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        result = await executeUltraOrder({
+          signedTransaction: signedTransactionB64,
+          requestId: order.requestId,
+        });
+        
+        if (result.status === "Success" && result.signature) {
+          break; // Success!
+        }
+        throw new Error(result.error ?? "Ultra execute returned non-success status");
+      } catch (err: any) {
+        executeError = err;
+        console.warn(`[Jupiter Ultra] Execution attempt ${attempt} failed:`, err.message);
+        
+        // If it's the last attempt, don't sleep
+        if (attempt === MAX_RETRIES) break;
+        
+        // Exponential backoff: 500ms, 1000ms, 2000ms
+        const delay = 500 * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
 
-    // Convert raw output → human-readable
-    const outAmountRaw = parseInt(order.outAmount || "0");
-    const outAmountHuman = outAmountRaw / Math.pow(10, outputTokenDecimals);
+    if (!result || result.status !== "Success" || !result.signature) {
+      throw new Error(
+        executeError?.message ?? "Ultra execute failed after max retries",
+      );
+    }
 
     return {
       success: true,

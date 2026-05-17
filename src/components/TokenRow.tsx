@@ -6,12 +6,13 @@ import { TokenRowProps } from '@/types/token';
 import { 
   Link, 
   Search, 
-  User, 
-  BarChart3, 
-  TrendingUp, 
+  User,
+  BarChart3,
+  TrendingUp,
   TrendingDown,
   ExternalLink
 } from 'lucide-react';
+import { useFlashOnUpdate } from '@/hooks/useFlashOnUpdate';
 
 // Lazy load TradingPanel to reduce initial bundle size
 const TradingPanel = lazy(() => import('./TradingPanel'));
@@ -35,8 +36,10 @@ export default function TokenRow({ token }: TokenRowProps) {
     return 'bg-gray-500';
   };
 
+  const flashClass = useFlashOnUpdate(token.price, 0.00000001);
+
   return (
-    <div className="bg-panel-elev rounded-lg p-3 sm:p-4 hover:brightness-110 transition-colors">
+    <div className={`bg-panel-elev rounded-lg p-3 sm:p-4 hover:brightness-110 transition-colors ${flashClass}`}>
       <div className="flex items-center justify-between flex-wrap gap-2">
         {/* Left Section - Token Info */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">

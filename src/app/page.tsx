@@ -122,6 +122,7 @@ function AuthCallbackHandler() {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const discordAuth = searchParams.get("discord_auth");
+    const telegramAuth = searchParams.get("telegram_auth");
     const dataStr = searchParams.get("data");
 
     if (code && state) {
@@ -131,7 +132,11 @@ function AuthCallbackHandler() {
     } else if (discordAuth === "success") {
       // Always refresh the server session first so checkAccess sees the updated user
       refreshSession().finally(() => {
-        // Clean the URL after session is refreshed
+        router.replace("/");
+      });
+    } else if (telegramAuth === "success") {
+      // Telegram bot redirected back — refresh server session (cookie already set by callback route)
+      refreshSession().finally(() => {
         router.replace("/");
       });
     }
@@ -139,6 +144,7 @@ function AuthCallbackHandler() {
 
   return null;
 }
+
 
 export default function Home() {
   const { isAuthenticated, user, isLoggingIn, isLoading: authLoading } = useAuth();

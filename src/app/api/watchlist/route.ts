@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(watchlist);
   } catch (error) {
     logger.error("Failed to fetch watchlist:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -33,7 +36,10 @@ export async function POST(req: NextRequest) {
     const { mint, symbol, name, image, network } = body;
 
     if (!mint) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 },
+      );
     }
 
     // Upsert to handle potential duplicates gracefully
@@ -63,7 +69,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(watchlistItem);
   } catch (error) {
     logger.error("Failed to add to watchlist:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }
 
@@ -78,7 +87,10 @@ export async function DELETE(req: NextRequest) {
     const mint = searchParams.get("mint");
 
     if (!mint) {
-      return NextResponse.json({ error: "Missing mint parameter" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing mint parameter" },
+        { status: 400 },
+      );
     }
 
     await db.watchlist.delete({
@@ -92,11 +104,14 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    if (error.code === 'P2025') {
+    if (error.code === "P2025") {
       // Record to delete does not exist, which is fine
       return NextResponse.json({ success: true });
     }
     logger.error("Failed to remove from watchlist:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 },
+    );
   }
 }

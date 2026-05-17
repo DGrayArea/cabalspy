@@ -171,3 +171,22 @@ h1, h2, h3, h4, h5, h6 {
 .text-gradient {
   @apply bg-clip-text text-transparent bg-linear-to-r from-primary via-secondary to-accent;
 }
+
+/* Real-time WebSocket Flashes */
+@keyframes flashUp {
+  0% { background-color: rgba(0, 255, 157, 0.4); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flashDown {
+  0% { background-color: rgba(255, 0, 122, 0.4); }
+  100% { background-color: transparent; }
+}
+
+.flash-up {
+  animation: flashUp 1s ease-out forwards;
+}
+
+.flash-down {
+  animation: flashDown 1s ease-out forwards;
+}

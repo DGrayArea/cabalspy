@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2, ArrowLeft, ShieldCheck, Zap, Globe } from "lucide-react";
 import { Hero } from "@/components/Hero";
+import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
 
 function AuthContent() {
   const router = useRouter();
@@ -18,13 +19,12 @@ function AuthContent() {
 
   // Debug logging
   useEffect(() => {
-    console.log("🔐 Auth Page State:", { isAuthenticated, isLoggingIn, user: !!user });
+    // console.log("🔐 Auth Page State:", { isAuthenticated, isLoggingIn, user: !!user });
   }, [isAuthenticated, isLoggingIn, user]);
 
   // If already authenticated, redirect to home
   useEffect(() => {
     if (isAuthenticated && !isLoggingIn) {
-      console.log("🚀 Redirecting to terminal...");
       router.replace("/");
     }
   }, [isAuthenticated, isLoggingIn, router]);
@@ -46,17 +46,6 @@ function AuthContent() {
     }
   };
 
-  const onTelegramLogin = async () => {
-    try {
-      const response = await fetch("/api/auth/telegram/init");
-      if (response.ok) {
-        const { botLink } = await response.json();
-        window.open(botLink, "_blank", "noopener,noreferrer");
-      }
-    } catch (error) {
-      console.error("Telegram login error:", error);
-    }
-  };
 
 
 
@@ -118,18 +107,18 @@ function AuthContent() {
               <span className="font-bold text-sm sm:text-base">Continue with Google</span>
             </Button>
 
-            <Button 
-              onClick={onTelegramLogin}
-              variant="glass" 
-              className="w-full py-5 sm:py-7 rounded-xl sm:rounded-2xl border-white/5 hover:border-blue-400/40 hover:bg-blue-400/5 group"
-            >
-              <div className="bg-[#229ED9] p-1 sm:p-1.5 rounded-lg mr-2 sm:mr-3 group-hover:scale-110 transition-transform">
-                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-                </svg>
-              </div>
-              <span className="font-bold text-sm sm:text-base">Continue with Telegram</span>
-            </Button>
+            {/* Telegram Login Widget — official Telegram OAuth */}
+            <div className="w-full flex flex-col items-center gap-2">
+              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                Or sign in with Telegram
+              </p>
+              <TelegramLoginWidget
+                buttonSize="large"
+                cornerRadius={8}
+                requestAccess={true}
+                className="w-full"
+              />
+            </div>
 
 
 

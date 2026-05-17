@@ -60,6 +60,7 @@ import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { Loader2 } from "lucide-react";
+import { useFlashOnUpdate } from "@/hooks/useFlashOnUpdate";
 
 import {
   Dialog,
@@ -110,6 +111,9 @@ export function CompactTokenCard({
   const isAuthenticated = user || turnkeyUser || turnkeySession;
   const { toast, dismiss } = useToast();
   const { address, connection, signSolanaTransaction } = useTurnkeySolana();
+  
+  // Real-time flash animation when price updates
+  const flashClass = useFlashOnUpdate(token.price, 0.00000001);
 
   const handleQuickBuy = async () => {
     if (!turnkeyUser || !address || !connection || !signSolanaTransaction || isQuickBuying) return;
@@ -257,7 +261,7 @@ export function CompactTokenCard({
     <>
       <Link
         href={`/${chainRoute}/${tokenAddress}`}
-        className="block group relative transition-all duration-500 rounded-4xl p-4 sm:p-6 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl bg-linear-to-br from-white/2 to-transparent"
+        className={`block group relative transition-all duration-500 rounded-4xl p-4 sm:p-6 glass border border-white/10 hover:border-primary/40 hover:shadow-neon shadow-2xl bg-linear-to-br from-white/2 to-transparent ${flashClass}`}
       >
         <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors duration-500 rounded-4xl" />
         

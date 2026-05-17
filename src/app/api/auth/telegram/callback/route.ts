@@ -118,9 +118,8 @@ export async function GET(request: NextRequest) {
     // Redirect to frontend with auth data
     // The frontend will handle the actual login via AuthContext
     const baseUrl =
-      process.env.NEXTAUTH_URL || process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : "http://localhost:3000";
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
 
     const frontendUrl = new URL("/", baseUrl);
     frontendUrl.searchParams.set("telegram_auth", "success");

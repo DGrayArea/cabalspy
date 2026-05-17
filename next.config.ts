@@ -1,12 +1,21 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
+  // Fixes Vercel multi-lockfile warning and ensures correct dep tracing
+  outputFileTracingRoot: path.join(__dirname),
+
   // Production optimizations
   compress: true,
   poweredByHeader: false,
   
   // Performance optimizations
   reactStrictMode: true,
+
+  // Tree-shake icon libraries to reduce first-load JS
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@heroicons/react"],
+  },
   
   // ESLint configuration (treat lint errors as warnings during build)
   eslint: {
