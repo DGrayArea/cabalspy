@@ -5,6 +5,7 @@ Real-time token tracking and trading platform.
 ## Quick Setup
 
 ### 1. Install Dependencies
+
 ```bash
 npm install
 ```
@@ -49,6 +50,7 @@ NEXT_PUBLIC_PUMPAPI_URL=wss://pumpportal.fun/api/data
 **Note**: PumpAPI is free - no API key needed!
 
 ### 4. Run Development Server
+
 ```bash
 npm run dev
 ```
@@ -64,3 +66,6 @@ Open [http://localhost:3000](http://localhost:3000)
 - ✅ Trading interface
 - ✅ Pagination (15 tokens per page)
 
+## Development checklist
+
+See `FEATURE_CHECKLIST.md` for progress tracking and completed fixes.

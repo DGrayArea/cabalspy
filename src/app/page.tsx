@@ -8,6 +8,7 @@ import {
   lazy,
   Suspense,
 } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams, usePathname } from "next/navigation";
@@ -28,14 +29,15 @@ import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
 import { SearchModal } from "@/components/SearchModal";
-import TokenComparison from "@/components/TokenComparison";
 import {
   TokenListSkeleton,
   MarqueeSkeleton,
 } from "@/components/TokenCardSkeleton";
-import LaunchpadStatsCard from "@/components/LaunchpadStatsCard";
-import CallsFeed from "@/components/CallsFeed";
 import { pumpFunService } from "@/services/pumpfun";
+
+const TokenComparison = dynamic(() => import("@/components/TokenComparison"), { ssr: false });
+const LaunchpadStatsCard = dynamic(() => import("@/components/LaunchpadStatsCard"), { ssr: false });
+const CallsFeed = dynamic(() => import("@/components/CallsFeed"), { ssr: false });
 import { protocolService } from "@/services/protocols";
 import {
   Dialog,
