@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { db } from "@/lib/db";
 import { syncUserWallets } from "@/lib/walletSync";
 import { getSession } from "@/lib/auth";
+import { randomBytes } from "crypto";
 
 // Roles defined in original python app
 const ALLOWED_ROLES = new Set(["1440085206785720413", "1386648661391441920"]); // Holder + Pre-Sale
@@ -192,7 +193,6 @@ export async function GET(request: NextRequest) {
     await syncUserWallets(user.id, user.name);
 
     // 7. Create session
-    const { randomBytes } = require("crypto");
     const sessionToken = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
 

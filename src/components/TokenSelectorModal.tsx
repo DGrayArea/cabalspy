@@ -64,6 +64,10 @@ export function TokenSelectorModal({ isOpen, onClose, onSelect }: TokenSelectorM
     if (tokens.length <= 2) {
       fetchTokens();
     }
+    
+    return () => {
+      mounted = false;
+    };
   }, [isOpen, tokens.length]);
 
   const filteredTokens = useMemo(() => {

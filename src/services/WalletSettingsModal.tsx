@@ -687,7 +687,7 @@ export function WalletSettingsModal({
                 <ul className="list-disc list-inside space-y-1 text-sm text-gray-400 ml-2">
                   <li>Understand the security risks</li>
                   <li>Will store it securely</li>
-                  <li>Trust the device you're using</li>
+                  <li>Trust the device you&apos;re using</li>
                 </ul>
               </div>
 

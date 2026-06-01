@@ -31,7 +31,6 @@ import {
   Target,
   Globe,
   MessageCircle,
-  MessageCircle,
   Loader2,
   Settings,
   ArrowUpRight,
@@ -63,12 +62,23 @@ import {
 import { SearchModal } from "@/components/SearchModal";
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
 
-const TokenChart = dynamic(() => import("@/components/TokenChart").then(m => m.TokenChart), { ssr: false });
-const TradeHistoryList = dynamic(() => import("@/components/TradeHistoryList").then(m => m.TradeHistoryList), { ssr: false });
+const TokenChart = dynamic(
+  () => import("@/components/TokenChart").then((m) => m.TokenChart),
+  { ssr: false },
+);
+const TradeHistoryList = dynamic(
+  () => import("@/components/TradeHistoryList").then((m) => m.TradeHistoryList),
+  { ssr: false },
+);
+const TokenPerformancePanel = dynamic(
+  () => import("@/components/TokenPerformancePanel").then((m) => m.TokenPerformancePanel),
+  { ssr: false },
+);
 import { jupiterSwapService } from "@/services/jupiter-swap";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useToast } from "@/components/ui/use-toast";
+import { useTradeHistory } from "@/hooks/useTradeHistory";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -129,7 +139,7 @@ function TokenDetailContent() {
 
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    "trades" | "history" | "holders" | "info"
+    "trades" | "history" | "performance" | "holders" | "info"
   >("trades");
   const [showWalletSettings, setShowWalletSettings] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
@@ -149,42 +159,11 @@ function TokenDetailContent() {
   const [tradeQuoteError, setTradeQuoteError] = useState<string | null>(null);
   const [isFetchingQuote, setIsFetchingQuote] = useState(false);
 
-  type LocalTradeHistoryEntry = {
-    id: string;
-    timestamp: number;
-    direction: "buy" | "sell";
-    amount: string;
-    output: string;
-    symbol: string;
-    signature?: string;
-    status: "success" | "failed";
-  };
-
-  const [tradeHistory, setTradeHistory] = useState<LocalTradeHistoryEntry[]>(
-    [],
-  );
-  const tradeHistoryKey = `cabalspy-trade-history-${walletAddress || "guest"}`;
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const data = window.localStorage.getItem(tradeHistoryKey);
-    if (!data) return;
-    try {
-      setTradeHistory(JSON.parse(data));
-    } catch {
-      setTradeHistory([]);
-    }
-  }, [tradeHistoryKey]);
-
-  const addTradeHistory = (entry: LocalTradeHistoryEntry) => {
-    setTradeHistory((current) => {
-      const next = [entry, ...current].slice(0, 10);
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(tradeHistoryKey, JSON.stringify(next));
-      }
-      return next;
-    });
-  };
+  // ── Shared trade history (synced across all pages via localStorage) ────
+  const { trades: tradeHistory, addTrade: addTradeHistory } = useTradeHistory({
+    walletAddress: walletAddress ?? undefined,
+    filterMint: tokenAddress,
+  });
 
   const isWatchlisted = watchlist.some((t) => t.mint === tokenAddress);
 
@@ -366,13 +345,15 @@ function TokenDetailContent() {
       const historyEntry = {
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         timestamp: Date.now(),
-        direction: tradeType,
+        direction: tradeType as "buy" | "sell",
         amount: tradeAmount,
         output: result.outAmount ?? "",
         symbol: tradeType === "buy" ? tokenSymbol : "SOL",
         signature: result.signature,
-        status: result.success ? "success" : "failed",
-      } as const;
+        status: (result.success ? "success" : "failed") as "success" | "failed",
+        priceUsd: price > 0 ? price : undefined,
+        tokenMint: tokenAddress,
+      };
 
       addTradeHistory(historyEntry);
 
@@ -397,6 +378,8 @@ function TokenDetailContent() {
         symbol: tradeType === "buy" ? tokenSymbol : "SOL",
         signature: undefined,
         status: "failed",
+        priceUsd: price > 0 ? price : undefined,
+        tokenMint: tokenAddress,
       });
     } finally {
       setIsTrading(false);
@@ -854,6 +837,7 @@ function TokenDetailContent() {
                 {[
                   { id: "trades", label: "TERMINAL", icon: Activity },
                   { id: "history", label: "MY TRADES", icon: Wallet },
+                  { id: "performance", label: "STATS", icon: BarChart3 },
                   { id: "holders", label: "HOLDERS", icon: Users },
                   { id: "info", label: "PROTOCOL", icon: Globe },
                 ].map((tab) => (
@@ -863,7 +847,7 @@ function TokenDetailContent() {
                     className={`cursor-pointer flex-1 py-3.5 flex items-center justify-center gap-2 text-[9px] font-black tracking-[0.15em] transition-all relative ${activeTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}
                   >
                     <tab.icon className="w-3.5 h-3.5" />
-                    {tab.label}
+                    <span className="hidden sm:inline">{tab.label}</span>
                     {activeTab === tab.id && (
                       <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary shadow-neon" />
                     )}
@@ -1027,7 +1011,20 @@ function TokenDetailContent() {
                 {/* ── MY TRADES ── */}
                 {activeTab === "history" && (
                   <div className="space-y-3">
-                    <TradeHistoryList />
+                    <TradeHistoryList filterMint={tokenAddress} currentPrice={price} />
+                  </div>
+                )}
+
+                {/* ── PERFORMANCE ── */}
+                {activeTab === "performance" && (
+                  <div className="space-y-3">
+                    <TokenPerformancePanel
+                      trades={tradeHistory}
+                      currentPrice={price}
+                      tokenSymbol={tokenSymbol}
+                      tokenAddress={tokenAddress}
+                      solPrice={solPrice}
+                    />
                   </div>
                 )}
 

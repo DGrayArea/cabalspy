@@ -48,7 +48,7 @@ export class PortfolioAnalyticsService {
     // In a production environment, you'd use a more robust parser (like Helius or dedicated indexers)
     let totalTrades = 0;
     let wins = 0;
-    let totalPnLUsd = 0;
+    const totalPnLUsd = 0;
     
     // Mock parsing logic for demonstration
     // Real implementation would involve calculating diffs in token balances

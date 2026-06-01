@@ -7,25 +7,26 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
 }
 
 model User {
-  id         String   @id @default(uuid())
-  email      String?  @unique
-  telegramId String?  @unique
-  googleId   String?  @unique
-  discordId  String?  @unique
-  name       String
-  avatar     String?
+  id          String   @id @default(uuid())
+  email       String?  @unique
+  telegramId  String?  @unique
+  googleId    String?  @unique
+  discordId   String?  @unique
+  name        String
+  avatar      String?
   accessLevel String   @default("user") // 'user', 'holder', 'admin'
   settings    Json?    @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  wallets   Wallet[]
-  sessions  Session[]
-  watchlist Watchlist[]
+  wallets      Wallet[]
+  sessions     Session[]
+  watchlist    Watchlist[]
+  tradeHistory TradeHistory[]
 }
 
 model Watchlist {
@@ -42,6 +43,25 @@ model Watchlist {
 
   @@unique([userId, mint])
   @@index([userId])
+}
+
+model TradeHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenMint String
+  symbol    String
+  direction String   // "buy" | "sell"
+  amount    String   // SOL in (buy) or token amount (sell)
+  output    String   // token out (buy) or SOL out (sell)
+  priceUsd  Float?   // token USD price at time of trade
+  signature String?  // Solana transaction signature
+  status    String   // "success" | "failed"
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, tokenMint])
 }
 
 model Wallet {

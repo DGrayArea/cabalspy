@@ -26,6 +26,9 @@ import WithdrawModal from "@/components/WithdrawModal";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { PnLCalendar } from "@/components/PnLCalendar";
+import { WatchlistPanel } from "@/components/WatchlistPanel";
+import { TradeHistoryList } from "@/components/TradeHistoryList";
+import { useTradeHistory } from "@/hooks/useTradeHistory";
 import { lazy, Suspense } from "react";
 
 const WalletSettingsModal = lazy(() =>
@@ -51,12 +54,14 @@ export default function PortfolioPage() {
   } = usePortfolio();
 
   const [copied, setCopied] = useState(false);
-  const [activeTab, setActiveTab] = useState<"assets" | "history">("assets");
+  const [activeTab, setActiveTab] = useState<"assets" | "history" | "watchlist">("assets");
   const [assetSearch, setAssetSearch] = useState("");
   const [hideSmall, setHideSmall] = useState(false);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
+
+  const { stats, allTrades } = useTradeHistory({ walletAddress: walletAddress ?? undefined });
 
   const copyAddress = async () => {
     if (!walletAddress) return;
@@ -242,7 +247,7 @@ export default function PortfolioPage() {
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
         <div className="flex border-b border-white/10 mb-8 bg-black/20 rounded-t-2xl overflow-hidden">
-          {(["assets", "history"] as const).map((tab) => (
+          {(["assets", "history", "watchlist"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -481,102 +486,63 @@ export default function PortfolioPage() {
         {/* ── History tab ─────────────────────────────────────────────────── */}
         {activeTab === "history" && (
           <div className="space-y-8 animate-fade-in">
-            {/* Real Performance Section */}
+            {/* PnL Calendar (Mobula) */}
             <PnLCalendar />
 
-            {/* History Summary Stats */}
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-sm font-semibold">Performance History</h2>
-              <span className="px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 uppercase">Demo Data</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
-                  Total Wins
-                </span>
-                <span className="text-xl font-black text-primary italic">
-                  19 ORDERS
-                </span>
+            {/* Real Performance Summary */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-sm font-semibold">Performance History</h2>
+                {allTrades.length === 0 && (
+                  <span className="px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-muted/10 text-muted border border-muted/20 uppercase">No trades yet</span>
+                )}
               </div>
-              <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
-                  Total Losses
-                </span>
-                <span className="text-xl font-black text-accent italic">
-                  12 ORDERS
-                </span>
-              </div>
-              <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">
-                  Win Rate
-                </span>
-                <span className="text-xl font-black text-white italic">
-                  61.2%
-                </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Total Wins</span>
+                  <span className="text-xl font-black text-primary italic">
+                    {stats.wins} {stats.wins === 1 ? "TRADE" : "TRADES"}
+                  </span>
+                </div>
+                <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Total Losses</span>
+                  <span className="text-xl font-black text-accent italic">
+                    {stats.losses} {stats.losses === 1 ? "TRADE" : "TRADES"}
+                  </span>
+                </div>
+                <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
+                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Win Rate</span>
+                  <span className="text-xl font-black text-white italic">
+                    {stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : "—"}
+                  </span>
+                </div>
               </div>
             </div>
 
-            {/* History placeholder */}
-            <div className="bg-panel border border-gray-800/60 rounded-xl p-4 sm:p-5 relative overflow-hidden">
-              <div className="absolute -right-6 top-4 bg-yellow-500/20 text-yellow-500 text-[8px] font-black tracking-widest uppercase border border-yellow-500/30 px-8 py-1 rotate-45 transform origin-center shadow-lg pointer-events-none">Demo Data</div>
-              <div className="flex items-center justify-between mb-4 pr-12">
+            {/* Real Transaction History */}
+            <div className="bg-panel border border-gray-800/60 rounded-xl p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-semibold">Transaction History</h2>
                 <span className="text-xs text-gray-500">
-                  Solana · swaps & transfers
+                  {allTrades.length} swaps recorded
                 </span>
               </div>
-              <div className="space-y-2">
-                {[
-                  {
-                    icon: ArrowDownLeft,
-                    color: "emerald",
-                    label: "Receive · 1.2 SOL",
-                    sub: "Today · From some-wallet...123",
-                    value: "+$180.24",
-                    positive: true,
-                  },
-                  {
-                    icon: ArrowUpRight,
-                    color: "red",
-                    label: "Send · 0.5 SOL",
-                    sub: "Yesterday · To pump_fun_token...xyz",
-                    value: "-$75.10",
-                    positive: false,
-                  },
-                ].map((tx, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between bg-panel-elev/40 rounded-xl px-3 py-2.5"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`w-7 h-7 rounded-full flex items-center justify-center bg-${tx.color}-500/15 text-${tx.color}-400`}
-                      >
-                        <tx.icon className="w-3.5 h-3.5" />
-                      </span>
-                      <div>
-                        <div className="text-xs font-medium text-gray-200">
-                          {tx.label}
-                        </div>
-                        <div className="text-[11px] text-gray-500">
-                          {tx.sub}
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      className={`text-xs font-semibold ${
-                        tx.positive ? "text-emerald-400" : "text-red-400"
-                      }`}
-                    >
-                      {tx.value}
-                    </div>
-                  </div>
-                ))}
-                <p className="text-[11px] text-gray-600 pt-1 text-center">
-                  Live Helius transaction history coming soon
-                </p>
-              </div>
+              {allTrades.length > 0 ? (
+                <TradeHistoryList />
+              ) : (
+                <div className="py-8 text-center space-y-2">
+                  <p className="text-xs text-muted uppercase tracking-widest font-bold">No transactions yet</p>
+                  <p className="text-[10px] text-muted/50">Execute swaps on any token page to see your history here</p>
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* ── Watchlist tab ──────────────────────────────────────────────────── */}
+        {activeTab === "watchlist" && (
+          <div className="animate-fade-in">
+            <WatchlistPanel />
           </div>
         )}
       </div>

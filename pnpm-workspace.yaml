@@ -1,2 +1,10 @@
 allowBuilds:
+  '@prisma/engines': true
   '@sentry/cli': true
+  bigint-buffer: true
+  bufferutil: true
+  esbuild: true
+  prisma: true
+  sharp: true
+  unrs-resolver: true
+  utf-8-validate: true

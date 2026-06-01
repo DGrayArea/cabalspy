@@ -29,6 +29,10 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
+import { TradeHistoryList } from "@/components/TradeHistoryList";
+import { WatchlistPanel } from "@/components/WatchlistPanel";
+import { useTradeHistory } from "@/hooks/useTradeHistory";
 
 interface PerformanceMetrics {
   totalPnLUsd: number;
@@ -44,6 +48,8 @@ export default function ProfilePage() {
   const { wallets: turnkeyWallets } = useTurnkey();
   const router = useRouter();
   const { totalValueUsd } = usePortfolio();
+  const { address: walletAddress } = useTurnkeySolana();
+  const { allTrades, stats: tradeStats } = useTradeHistory({ walletAddress: walletAddress ?? undefined });
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
   const isAuthenticated = user || turnkeyUser || turnkeySession;
@@ -191,7 +197,7 @@ export default function ProfilePage() {
               },
               { 
                 label: "LIFETIME TRADES", 
-                value: metricsLoading ? "..." : metrics?.totalTrades || 0, 
+                value: allTrades.length, 
                 icon: Activity, 
                 color: "text-secondary", 
                 shadow: "shadow-secondary-neon" 
@@ -205,9 +211,9 @@ export default function ProfilePage() {
               },
               { 
                 label: "WIN RATE", 
-                value: metricsLoading ? "..." : `${(metrics?.winRate || 0).toFixed(1)}%`, 
+                value: tradeStats.winRate !== null ? `${tradeStats.winRate.toFixed(1)}%` : metricsLoading ? "..." : `${(metrics?.winRate || 0).toFixed(1)}%`, 
                 icon: TrendingUp, 
-                color: (metrics?.winRate || 0) > 50 ? "text-green-400" : "text-white", 
+                color: (tradeStats.winRate ?? metrics?.winRate ?? 0) > 50 ? "text-green-400" : "text-white", 
                 shadow: "shadow-white-neon" 
               }
             ].map((stat, i) => (
@@ -247,20 +253,26 @@ export default function ProfilePage() {
                     <Activity className="w-8 h-8 text-secondary" />
                     LIVE ACTIVITY
                   </h3>
-                  <button className="text-[10px] font-black text-primary hover:underline italic uppercase tracking-widest">
-                    VIEW ALL
-                  </button>
+                  <span className="text-[10px] font-black text-muted uppercase tracking-widest">
+                    {allTrades.length} TRADE{allTrades.length !== 1 ? "S" : ""}
+                  </span>
                 </div>
-                <div className="py-20 text-center space-y-6">
-                  <div className="relative inline-block">
-                    <div className="absolute inset-0 bg-secondary/10 blur-3xl" />
-                    <BarChart3 className="relative w-24 h-24 mx-auto text-secondary/30" />
+                {allTrades.length > 0 ? (
+                  <div className="max-h-[480px] overflow-y-auto space-y-2 pr-1">
+                    <TradeHistoryList />
                   </div>
-                  <div>
-                    <p className="text-xl font-black italic tracking-tighter text-muted">TERMINAL IS COLD</p>
-                    <p className="text-[10px] font-bold text-muted/50 uppercase tracking-[0.3em] mt-2">NO RECENT EXECUTIONS DETECTED</p>
+                ) : (
+                  <div className="py-20 text-center space-y-6">
+                    <div className="relative inline-block">
+                      <div className="absolute inset-0 bg-secondary/10 blur-3xl" />
+                      <BarChart3 className="relative w-24 h-24 mx-auto text-secondary/30" />
+                    </div>
+                    <div>
+                      <p className="text-xl font-black italic tracking-tighter text-muted">TERMINAL IS COLD</p>
+                      <p className="text-[10px] font-bold text-muted/50 uppercase tracking-[0.3em] mt-2">NO RECENT EXECUTIONS DETECTED</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </section>
             </div>
 
@@ -366,6 +378,11 @@ export default function ProfilePage() {
                     </div>
                   ))}
                 </div>
+              </section>
+
+              {/* Live Watchlist */}
+              <section>
+                <WatchlistPanel compact limit={8} />
               </section>
             </div>
           </div>
