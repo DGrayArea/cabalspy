@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   // Prevents infinite retry loop if the sync endpoint returns a server error
   const syncFailedRef = useRef(false);
-  const { user: tkUser, authState, clientState } = useTurnkey();
+  const { user: tkUser, authState, clientState, logout: turnkeyLogout } = useTurnkey();
 
   // Sync with Turnkey's internal state
   useEffect(() => {
@@ -306,6 +306,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const logout = async () => {
     try {
+      if (turnkeyLogout) {
+        await turnkeyLogout();
+      }
       await fetch("/api/auth/session", { method: "DELETE" });
       localStorage.removeItem("lastActive");
     } catch (error) {
