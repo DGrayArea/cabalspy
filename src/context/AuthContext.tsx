@@ -128,7 +128,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isSyncing, setIsSyncing] = useState(false);
   // Prevents infinite retry loop if the sync endpoint returns a server error
   const syncFailedRef = useRef(false);
-  const { user: tkUser, authState } = useTurnkey();
+  const { user: tkUser, authState, clientState } = useTurnkey();
 
   // Sync with Turnkey's internal state
   useEffect(() => {
@@ -385,7 +385,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // isLoggingIn should be true if:
   // 1. Initial session check is running (isLoading)
   // 2. Metadata sync with backend is running (isSyncing)
-  const isLoggingIn = isLoading || isSyncing;
+  // 3. Turnkey is initializing client state
+  const isLoggingIn = isLoading || isSyncing || clientState === "loading";
 
   const value = {
     user,
