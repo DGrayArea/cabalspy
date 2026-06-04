@@ -10,7 +10,7 @@
  * Requires: NEXT_PUBLIC_TELEGRAM_BOT_USERNAME env var (no @, just the username)
  */
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 
 interface TelegramUser {
   id: number;
@@ -40,6 +40,7 @@ export function TelegramLoginWidget({
   className = "",
 }: TelegramLoginWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [widgetError, setWidgetError] = useState<string | null>(null);
   const botUsername =
     process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME ||
     process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME_PROD ||
@@ -75,6 +76,8 @@ export function TelegramLoginWidget({
   useEffect(() => {
     if (!containerRef.current) return;
 
+    setWidgetError(null);
+
     // Expose callback globally for the Telegram script
     (window as any).onTelegramAuth = handleTelegramAuth;
 
@@ -88,6 +91,21 @@ export function TelegramLoginWidget({
     script.setAttribute("data-onauth", "onTelegramAuth(user)");
     script.setAttribute("data-request-access", requestAccess ? "write" : "");
 
+    // Catch widget load errors (e.g. "Bot domain invalid")
+    script.onerror = () => {
+      setWidgetError("Telegram login unavailable");
+    };
+
+    // Intercept console.error from the Telegram script
+    const origError = console.error;
+    console.error = (...args: unknown[]) => {
+      const msg = args.join(" ");
+      if (msg.includes("Bot domain") || msg.includes("bot")) {
+        setWidgetError("Telegram login unavailable");
+      }
+      origError.apply(console, args);
+    };
+
     // Clear any previous widget before injecting
     containerRef.current.innerHTML = "";
     containerRef.current.appendChild(script);
@@ -98,8 +116,19 @@ export function TelegramLoginWidget({
         containerRef.current.innerHTML = "";
       }
       delete (window as any).onTelegramAuth;
+      console.error = origError;
     };
   }, [botUsername, buttonSize, cornerRadius, requestAccess, handleTelegramAuth]);
+
+  if (widgetError) {
+    return (
+      <div className={`flex items-center justify-center min-h-[48px] ${className}`}>
+        <p className="text-[10px] text-muted/40 font-medium italic">
+          Telegram login is not configured
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -8,7 +8,7 @@ import { ShieldOff, ExternalLink, ArrowLeft, CheckCircle2, Lock, AlertCircle, Sp
 import { Button } from "@/components/ui/button";
 
 function AccessDeniedContent() {
-  const { isAuthenticated, user, isLoggingIn } = useAuth();
+  const { isAuthenticated, user, isLoggingIn, logout } = useAuth();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
 
@@ -36,22 +36,28 @@ function AccessDeniedContent() {
     }
   };
 
+  // Logout then redirect to /auth so the user can sign in with a different account
+  const onSwitchAccount = async () => {
+    await logout();
+    window.location.href = "/auth";
+  };
+
   return (
     <div className="min-h-screen bg-app text-white flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="absolute inset-0 bg-grid opacity-5 pointer-events-none" />
 
-      {/* Back Link */}
-      <Link
-        href="/auth"
+      {/* Back Link — logs out first so user can sign in with a different account */}
+      <button
+        onClick={onSwitchAccount}
         className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-muted hover:text-white transition-colors group z-20"
       >
         <div className="p-1.5 sm:p-2 rounded-full bg-white/5 border border-white/10 group-hover:border-white/30 transition-all">
           <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
         </div>
         <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest">Back to Login</span>
-      </Link>
+      </button>
 
       <div className="relative z-10 w-full max-w-[90%] sm:max-w-lg animate-fade-in py-8">
         {/* Icon */}
@@ -108,6 +114,14 @@ function AccessDeniedContent() {
                 >
                   <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-12 transition-transform" />
                   LINK DISCORD ACCOUNT
+                </Button>
+
+                <Button
+                  onClick={onSwitchAccount}
+                  variant="glass"
+                  className="w-full py-4 rounded-2xl border-white/10 hover:border-white/30 text-[10px] sm:text-xs font-black tracking-widest"
+                >
+                  Sign in with a different account
                 </Button>
                 
                 <a

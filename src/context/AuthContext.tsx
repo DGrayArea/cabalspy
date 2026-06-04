@@ -126,6 +126,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   // Prevents infinite retry loop if the sync endpoint returns a server error
   const syncFailedRef = useRef(false);
   const { user: tkUser, authState, clientState, logout: turnkeyLogout } = useTurnkey();
@@ -305,19 +306,29 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
+    setIsLoggingOut(true);
     try {
       if (turnkeyLogout) {
         await turnkeyLogout();
       }
       await fetch("/api/auth/session", { method: "DELETE" });
-      localStorage.removeItem("lastActive");
     } catch (error) {
       console.error("Error logging out:", error);
+    }
+    // Explicitly nuke all Turnkey session data from localStorage so a hard
+    // refresh cannot restore the session automatically
+    try {
+      localStorage.removeItem("@turnkey/session/v2");
+      localStorage.removeItem("@turnkey/client");
+      localStorage.removeItem("lastActive");
+    } catch {
+      // ignore storage errors
     }
     syncFailedRef.current = false; // Allow sync to retry on next login
     setUser(null);
     setTurnkeyUser(null);
     setTurnkeySession(null);
+    setIsLoggingOut(false);
   };
 
   const connectWallet = (address: string) => {
@@ -388,8 +399,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // isLoggingIn should be true if:
   // 1. Initial session check is running (isLoading)
   // 2. Metadata sync with backend is running (isSyncing)
-  // 3. Turnkey is initializing client state
-  const isLoggingIn = isLoading || isSyncing || clientState === "loading";
+  // Note: clientState==="loading" is intentionally excluded — after logout Turnkey
+  // briefly resets its clientState to "loading", which falsely shows "Finalizing your
+  // session...". The OAuth processing gap is now handled by isProcessingOAuth in auth/page.tsx.
+  const isLoggingIn = !isLoggingOut && (isLoading || isSyncing);
 
   const value = {
     user,

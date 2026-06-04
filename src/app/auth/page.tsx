@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -14,13 +14,19 @@ import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
 
 function AuthContent() {
   const router = useRouter();
-  const { isAuthenticated, isLoggingIn, user } = useAuth();
-  const { handleLogin } = useTurnkey();
+  const { isAuthenticated, isLoggingIn, isLoading, user } = useAuth();
+  const { handleGoogleOauth } = useTurnkey();
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+  const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Debug logging
+  // When Turnkey picks up the OAuth result (isLoggingIn becomes true)
+  // or auth completes, clear the processing flag
   useEffect(() => {
-    // console.log("🔐 Auth Page State:", { isAuthenticated, isLoggingIn, user: !!user });
-  }, [isAuthenticated, isLoggingIn, user]);
+    if (isLoggingIn || isAuthenticated) {
+      setIsProcessingOAuth(false);
+      if (processingTimerRef.current) clearTimeout(processingTimerRef.current);
+    }
+  }, [isLoggingIn, isAuthenticated]);
 
   // If already authenticated, redirect to home
   useEffect(() => {
@@ -29,7 +35,17 @@ function AuthContent() {
     }
   }, [isAuthenticated, isLoggingIn, router]);
 
-  if (isLoggingIn) {
+  // Show a plain spinner for initial page load
+  if (isLoading && !isProcessingOAuth && !isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-app flex flex-col items-center justify-center gap-4">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" />
+      </div>
+    );
+  }
+
+  // Show "Finalizing..." only when actually processing a login/sync
+  if (isLoggingIn || isProcessingOAuth) {
     return (
       <div className="min-h-screen bg-app flex flex-col items-center justify-center gap-4">
         <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -39,15 +55,22 @@ function AuthContent() {
   }
 
   const onGoogleLogin = async () => {
+    setIsProcessingOAuth(true);
+    // Safety net: clear after 15s in case Turnkey never responds (e.g. user closed popup)
+    if (processingTimerRef.current) clearTimeout(processingTimerRef.current);
+    processingTimerRef.current = setTimeout(() => setIsProcessingOAuth(false), 15000);
     try {
-      await handleLogin();
+      await handleGoogleOauth();
+      // In popup mode, resolves after popup closes.
+      // Keep isProcessingOAuth=true so we show loading until Turnkey
+      // begins processing (isLoggingIn becomes true via the useEffect above)
     } catch (error) {
       console.error("Google login error:", error);
+      // On error (e.g. popup closed by user), clear immediately
+      setIsProcessingOAuth(false);
+      if (processingTimerRef.current) clearTimeout(processingTimerRef.current);
     }
   };
-
-
-
 
   return (
     <div className="min-h-screen bg-app flex flex-col items-center justify-center p-4 relative overflow-hidden">
