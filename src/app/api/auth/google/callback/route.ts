@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
     await syncUserWallets(user.id, user.name);
 
     const sessionToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 86400 * 3 * 1000); // 3 days
 
     await db.session.create({
       data: {
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 86400 * 7,
+      maxAge: 86400 * 3,
       path: '/',
     });
 

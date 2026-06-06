@@ -16,6 +16,13 @@ import axios, { AxiosResponse } from "axios";
 import { TokenData } from "@/types/token";
 import { logger } from "@/lib/logger";
 
+/**
+ * BSC Kill-Switch
+ * Set NEXT_PUBLIC_ENABLE_BSC=true in .env.local to enable BSC data fetching.
+ * When false (default): zero BSC API calls, no background polling, no WebSocket.
+ */
+const BSC_ENABLED = process.env.NEXT_PUBLIC_ENABLE_BSC === "true";
+
 // Use proxy route to avoid CORS issues - works in both dev and production
 const GET_API_URL = "/api/mobula";
 const POST_API_URL = "/api/mobula";
@@ -30,6 +37,17 @@ const SOLANA_POOL_TYPES = [
   "raydium",
   "moonit",
   "letsbonk",
+];
+
+// Pool types for BSC
+const BSC_POOL_TYPES = [
+  "pancakeswap",
+  "pancakeswap-v3",
+  "four.meme",
+  "woop",
+  "biswap",
+  "babyswap",
+  "apeswap",
 ];
 
 /**
@@ -269,7 +287,8 @@ interface MobulaResponse {
  * Maps the rich Mobula data to our internal format
  */
 function transformToken(mobulaToken: MobulaToken): TokenData {
-  const chain = mobulaToken.chainId === "solana:solana" ? "solana" : "bsc";
+  const isBSC = mobulaToken.chainId === "bsc:56" || mobulaToken.chainId?.includes("bsc");
+  const chain = isBSC ? "bsc" : "solana";
 
   // Get creation timestamp
   const createdAt = mobulaToken.createdAt || mobulaToken.created_at;
@@ -551,7 +570,8 @@ function mergeTokens(
  */
 export async function fetchBasicViews(
   limit = 100,
-  offset = 0
+  offset = 0,
+  chain: "solana" | "bsc" = "solana"
 ): Promise<{
   new: TokenData[];
   bonding: TokenData[];
@@ -572,8 +592,8 @@ export async function fetchBasicViews(
   try {
     const params = new URLSearchParams({
       assetMode: "true",
-      chainId: "solana:solana",
-      poolTypes: SOLANA_POOL_TYPES.join(","),
+      chainId: chain === "solana" ? "solana:solana" : "bsc:56",
+      poolTypes: (chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES).join(","),
       limit: limit.toString(),
       offset: offset.toString(),
     });
@@ -632,7 +652,8 @@ export async function fetchBasicViews(
  */
 export async function fetchCustomViews(
   limit = 100,
-  offset = 0
+  offset = 0,
+  chain: "solana" | "bsc" = "solana"
 ): Promise<{
   trending: TokenData[];
   "quality-tokens": TokenData[];
@@ -645,8 +666,8 @@ export async function fetchCustomViews(
       views: [
         {
           name: "trending",
-          chainId: ["solana:solana"],
-          poolTypes: SOLANA_POOL_TYPES,
+          chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+          poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
           sortBy: "volume_1h",
           sortOrder: "desc",
           limit,
@@ -654,8 +675,8 @@ export async function fetchCustomViews(
         },
         {
           name: "quality-tokens",
-          chainId: ["solana:solana"],
-          poolTypes: SOLANA_POOL_TYPES,
+          chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+          poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
           sortBy: "volume_1h",
           sortOrder: "desc",
           limit,
@@ -668,8 +689,8 @@ export async function fetchCustomViews(
         },
         {
           name: "top-market-cap",          // marketCap tab
-          chainId: ["solana:solana"],
-          poolTypes: SOLANA_POOL_TYPES,
+          chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+          poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
           sortBy: "market_cap",
           sortOrder: "desc",
           limit,
@@ -677,8 +698,8 @@ export async function fetchCustomViews(
         },
         {
           name: "latest-tokens",           // latest tab
-          chainId: ["solana:solana"],
-          poolTypes: SOLANA_POOL_TYPES,
+          chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+          poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
           sortBy: "created_at",
           sortOrder: "desc",
           limit,
@@ -738,13 +759,14 @@ export async function fetchCustomViews(
 export async function fetchSingleView(
   viewName: "trending" | "quality-tokens" | "top-market-cap" | "latest-tokens",
   limit = 100,
-  offset = 0
+  offset = 0,
+  chain: "solana" | "bsc" = "solana"
 ): Promise<TokenData[]> {
   const VIEW_CONFIGS: Record<string, any> = {
     trending: {
       name: "trending",
-      chainId: ["solana:solana"],
-      poolTypes: SOLANA_POOL_TYPES,
+      chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+      poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
       sortBy: "volume_1h",
       sortOrder: "desc",
       limit,
@@ -752,8 +774,8 @@ export async function fetchSingleView(
     },
     "quality-tokens": {
       name: "quality-tokens",
-      chainId: ["solana:solana"],
-      poolTypes: SOLANA_POOL_TYPES,
+      chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+      poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
       sortBy: "volume_1h",
       sortOrder: "desc",
       limit,
@@ -766,8 +788,8 @@ export async function fetchSingleView(
     },
     "top-market-cap": {
       name: "top-market-cap",
-      chainId: ["solana:solana"],
-      poolTypes: SOLANA_POOL_TYPES,
+      chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+      poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
       sortBy: "market_cap",
       sortOrder: "desc",
       limit,
@@ -775,8 +797,8 @@ export async function fetchSingleView(
     },
     "latest-tokens": {
       name: "latest-tokens",
-      chainId: ["solana:solana"],
-      poolTypes: SOLANA_POOL_TYPES,
+      chainId: [chain === "solana" ? "solana:solana" : "bsc:56"],
+      poolTypes: chain === "solana" ? SOLANA_POOL_TYPES : BSC_POOL_TYPES,
       sortBy: "created_at",
       sortOrder: "desc",
       limit,
@@ -827,7 +849,7 @@ export async function fetchTokenByAddress(
         {
           name: "token-search",
           chainId: [chainId],
-          poolTypes: SOLANA_POOL_TYPES,
+          poolTypes: chainId.includes("bsc") ? BSC_POOL_TYPES : SOLANA_POOL_TYPES,
           sortBy: "volume_24h",
           sortOrder: "desc",
           limit: 1000, // Fetch more tokens to increase chance of finding our token
@@ -1011,28 +1033,50 @@ export class MobulaPulseManager {
   }
 
   private async _doRefresh(): Promise<void> {
-    // Fetch GET endpoint (basic views) - handle errors independently
+    // Fetch Solana GET endpoint (basic views) - handle errors independently
     try {
-      const basicViews = await fetchBasicViews(100, 0);
-
-      // Smart merge - add new tokens, keep existing ones
+      const basicViews = await fetchBasicViews(100, 0, "solana");
       this.basicViewsCache.new = mergeTokens(this.basicViewsCache.new, basicViews.new);
       this.basicViewsCache.bonding = mergeTokens(this.basicViewsCache.bonding, basicViews.bonding);
       this.basicViewsCache.bonded = mergeTokens(this.basicViewsCache.bonded, basicViews.bonded);
     } catch (error) {
-      logger.error("Error fetching basic views from Mobula:", error);
+      logger.error("Error fetching Solana basic views from Mobula:", error);
     }
 
-    // Fetch POST endpoint (custom views) - handle errors independently
+    // Fetch Solana POST endpoint (custom views) - handle errors independently
     try {
-      const customViews = await fetchCustomViews(100, 0);
-
+      const customViews = await fetchCustomViews(100, 0, "solana");
       this.customViewsCache.trending = mergeTokens(this.customViewsCache.trending, customViews.trending);
       this.customViewsCache["quality-tokens"] = mergeTokens(this.customViewsCache["quality-tokens"], customViews["quality-tokens"]);
       this.customViewsCache["top-market-cap"] = mergeTokens(this.customViewsCache["top-market-cap"], customViews["top-market-cap"]);
       this.customViewsCache["latest-tokens"] = mergeTokens(this.customViewsCache["latest-tokens"], customViews["latest-tokens"]);
     } catch (error) {
-      logger.error("Error fetching custom views from Mobula:", error);
+      logger.error("Error fetching Solana custom views from Mobula:", error);
+    }
+
+    // ── BSC (gated by kill-switch) ──────────────────────────────────────────
+    if (BSC_ENABLED) {
+      try {
+        const bscBasicViews = await fetchBasicViews(100, 0, "bsc");
+        // Merge BSC tokens into the same lists — they carry chain:"bsc" so
+        // the UI chain filter separates them correctly.
+        this.basicViewsCache.new = mergeTokens(this.basicViewsCache.new, bscBasicViews.new);
+        this.basicViewsCache.bonding = mergeTokens(this.basicViewsCache.bonding, bscBasicViews.bonding);
+        this.basicViewsCache.bonded = mergeTokens(this.basicViewsCache.bonded, bscBasicViews.bonded);
+      } catch (error) {
+        logger.error("Error fetching BSC basic views from Mobula (non-fatal):", error);
+        // Do NOT rethrow — BSC failure must never break Solana feed
+      }
+
+      try {
+        const bscCustomViews = await fetchCustomViews(100, 0, "bsc");
+        this.customViewsCache.trending = mergeTokens(this.customViewsCache.trending, bscCustomViews.trending);
+        this.customViewsCache["quality-tokens"] = mergeTokens(this.customViewsCache["quality-tokens"], bscCustomViews["quality-tokens"]);
+        this.customViewsCache["top-market-cap"] = mergeTokens(this.customViewsCache["top-market-cap"], bscCustomViews["top-market-cap"]);
+        this.customViewsCache["latest-tokens"] = mergeTokens(this.customViewsCache["latest-tokens"], bscCustomViews["latest-tokens"]);
+      } catch (error) {
+        logger.error("Error fetching BSC custom views from Mobula (non-fatal):", error);
+      }
     }
 
     logger.info("Mobula auto-refresh completed", {
@@ -1043,6 +1087,7 @@ export class MobulaPulseManager {
       quality: this.customViewsCache["quality-tokens"].length,
       topMarketCap: this.customViewsCache["top-market-cap"].length,
       latestTokens: this.customViewsCache["latest-tokens"].length,
+      bscEnabled: BSC_ENABLED,
     });
   }
 

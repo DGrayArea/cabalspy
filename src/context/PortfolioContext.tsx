@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { useTurnkeySolana } from "./TurnkeySolanaContext";
+import { useAuth } from "./AuthContext";
+import { env } from "@/lib/env";
 
 export interface TokenBalance {
   mint: string;
@@ -12,6 +14,7 @@ export interface TokenBalance {
   priceUsd?: number;
   valueUsd?: number;
   logoUrl?: string;
+  chain?: "solana" | "bsc"; // which chain the token is on
 }
 
 export interface PortfolioData {
@@ -36,6 +39,9 @@ const PortfolioContext = React.createContext<PortfolioContextType | null>(null);
 
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   const { address: walletAddress } = useTurnkeySolana();
+  const { user } = useAuth();
+  // BNB address from session — only used when BSC is enabled
+  const bnbAddress = env.NEXT_PUBLIC_ENABLE_BSC ? user?.bnbWalletAddress ?? null : null;
   const [portfolio, setPortfolio] = React.useState<PortfolioData>({
     solBalance: 0,
     solBalanceUsd: 0,
@@ -511,6 +517,72 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [walletAddress, fetchSolPrice]);
 
+  // ── BSC Portfolio (BEP-20 tokens via Mobula Portfolio API) ──────────────────
+  const fetchBSCPortfolio = React.useCallback(async () => {
+    // Hard-gated: only runs when kill-switch is on AND user has a BNB address
+    if (!env.NEXT_PUBLIC_ENABLE_BSC || !bnbAddress) return;
+
+    try {
+      const mobulaKey = process.env.NEXT_PUBLIC_MOBULA_API_KEY || "";
+      const url = `https://api.mobula.io/api/1/wallet/portfolio?wallet=${bnbAddress}&chain=bsc`;
+      
+      const res = await fetch(url, {
+        headers: mobulaKey ? { Authorization: mobulaKey } : {},
+      });
+      
+      if (!res.ok) return;
+      const data = await res.json();
+      const assets = data?.data?.assets;
+      if (!Array.isArray(assets) || assets.length === 0) return;
+
+      const bscTokens: TokenBalance[] = assets
+        .map((item: any) => {
+          // Find the contract address from contracts_balances (Mobula returns multiple for multichain, but we filtered by chain=bsc)
+          const contractInfo = item.contracts_balances?.[0];
+          const contract = contractInfo?.address || item.cross_chain_balances?.["BNB Smart Chain (BEP20)"]?.address;
+          if (!contract) return null;
+
+          const amount = item.token_balance || 0;
+          if (amount <= 0) return null;
+
+          const priceUsd = item.price || 0;
+
+          const token: TokenBalance = {
+            mint: contract,        // EVM contract address used as mint key
+            amount: amount,
+            decimals: contractInfo?.decimals || 18,
+            symbol: item.asset?.symbol,
+            name: item.asset?.name,
+            priceUsd: priceUsd > 0 ? priceUsd : undefined,
+            valueUsd: item.estimated_balance > 0 ? item.estimated_balance : (priceUsd > 0 ? priceUsd * amount : undefined),
+            logoUrl: item.asset?.logo,
+            chain: "bsc" as const,
+          };
+          return token;
+        })
+        .filter((t): t is TokenBalance => t !== null && t.amount > 0);
+
+      // Merge BSC tokens into portfolio state (Solana tokens are already there)
+      setPortfolio((prev) => ({
+        ...prev,
+        tokenBalances: [
+          ...prev.tokenBalances.filter((t) => t.chain !== "bsc"), // remove stale BSC
+          ...bscTokens,
+        ],
+      }));
+    } catch (err) {
+      console.warn("[BSC Portfolio] Non-fatal fetch error:", err);
+      // Never let BSC errors affect the SOL portfolio state
+    }
+  }, [bnbAddress]);
+
+  // Auto-fetch BSC portfolio when BNB address is available
+  React.useEffect(() => {
+    if (bnbAddress) {
+      fetchBSCPortfolio();
+    }
+  }, [bnbAddress, fetchBSCPortfolio]);
+
   // Auto-fetch when wallet address changes
   React.useEffect(() => {
     if (walletAddress) {
@@ -530,13 +602,18 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     [portfolio.tokenBalances]
   );
 
+  const refreshAll = React.useCallback(async () => {
+    await fetchPortfolio();
+    await fetchBSCPortfolio();
+  }, [fetchPortfolio, fetchBSCPortfolio]);
+
   const value = React.useMemo(
     () => ({
       ...portfolio,
-      refreshPortfolio: fetchPortfolio,
+      refreshPortfolio: refreshAll,
       getTokenBalance,
     }),
-    [portfolio, fetchPortfolio, getTokenBalance]
+    [portfolio, refreshAll, getTokenBalance]
   );
 
   return (

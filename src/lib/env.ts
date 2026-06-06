@@ -51,6 +51,8 @@ const optionalEnvVars = {
     "7b7ba456-f454-4a42-a80e-897319cb0ac1",
   NEXT_PUBLIC_USE_MOBULA:
     process.env.NEXT_PUBLIC_USE_MOBULA === "false" ? false : true, // Enabled by default as requested
+  NEXT_PUBLIC_ENABLE_BSC:
+    process.env.NEXT_PUBLIC_ENABLE_BSC === "true" ? true : false, // Disabled by default for safety, but can be enabled
 } as const;
 
 export function validateEnv() {

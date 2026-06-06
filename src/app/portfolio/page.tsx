@@ -30,6 +30,7 @@ import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { TradeHistoryList } from "@/components/TradeHistoryList";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
 import { lazy, Suspense } from "react";
+import { env } from "@/lib/env";
 
 const WalletSettingsModal = lazy(() =>
   import("@/services/WalletSettingsModal").then((mod) => ({
@@ -94,8 +95,8 @@ export default function PortfolioPage() {
     );
   }
 
-  // ── Filtered token list ──────────────────────────────────────────────────────
-  const filteredTokens = tokenBalances
+  // ── Filtered token lists ─────────────────────────────────────────────────────
+  const allFiltered = tokenBalances
     .filter((t) => {
       const hasPrice = t.priceUsd !== undefined && t.priceUsd > 0;
       const hasValue = t.valueUsd !== undefined && t.valueUsd > 0;
@@ -110,6 +111,11 @@ export default function PortfolioPage() {
       );
     })
     .sort((a, b) => (b.valueUsd ?? 0) - (a.valueUsd ?? 0));
+
+  const filteredTokens = allFiltered.filter((t) => t.chain !== "bsc");
+  const bscTokens = env.NEXT_PUBLIC_ENABLE_BSC
+    ? allFiltered.filter((t) => t.chain === "bsc")
+    : [];
 
   return (
     <div className="min-h-screen bg-app text-white pb-6">
@@ -316,170 +322,71 @@ export default function PortfolioPage() {
               </label>
             </div>
 
-            {/* SOL row */}
-            <div className="bg-panel border border-primary/20 rounded-xl p-4 mb-3">
-              {isLoading ? (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-800 animate-pulse" />
-                    <div>
-                      <div className="h-4 w-20 bg-gray-800 rounded animate-pulse mb-1.5" />
-                      <div className="h-3 w-14 bg-gray-800 rounded animate-pulse" />
-                    </div>
-                  </div>
-                  <div className="h-4 w-24 bg-gray-800 rounded animate-pulse" />
-                </div>
-              ) : (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="relative w-9 h-9 flex-shrink-0">
-                      <img
-                        src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
-                        alt="SOL"
-                        className="w-9 h-9 rounded-full object-cover"
-                        onError={(e) => {
-                          const t = e.target as HTMLImageElement;
-                          t.style.display = "none";
-                          const fb = t.parentElement?.querySelector(
-                            ".sol-fb",
-                          ) as HTMLElement;
-                          if (fb) fb.style.display = "flex";
-                        }}
-                      />
-                      <div className="sol-fb w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-blue-500 items-center justify-center font-bold text-xs absolute inset-0 hidden">
-                        SOL
+              {/* SOL row */}
+              <div className="bg-panel border border-primary/20 rounded-xl p-4 mb-3">
+                {isLoading ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gray-800 animate-pulse" />
+                      <div>
+                        <div className="h-4 w-20 bg-gray-800 rounded animate-pulse mb-1.5" />
+                        <div className="h-3 w-14 bg-gray-800 rounded animate-pulse" />
                       </div>
                     </div>
-                    <div>
-                      <div className="font-semibold text-sm">Solana</div>
-                      <div className="text-xs text-gray-500">Native token</div>
+                    <div className="h-4 w-24 bg-gray-800 rounded animate-pulse" />
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-9 h-9 flex-shrink-0">
+                        <img
+                          src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
+                          alt="SOL"
+                          className="w-9 h-9 rounded-full object-cover"
+                          onError={(e) => {
+                            const t = e.target as HTMLImageElement;
+                            t.style.display = "none";
+                            const fb = t.parentElement?.querySelector(
+                              ".sol-fb",
+                            ) as HTMLElement;
+                            if (fb) fb.style.display = "flex";
+                          }}
+                        />
+                        <div className="sol-fb w-9 h-9 rounded-full bg-linear-to-br from-purple-500 to-blue-500 items-center justify-center font-bold text-xs absolute inset-0 hidden">
+                          SOL
+                        </div>
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm">Solana</div>
+                        <div className="text-xs text-gray-500">Native token</div>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm">
+                      <div className="font-semibold">
+                        {formatNumber(solBalance)} SOL
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {formatCurrency(solBalanceUsd)}
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right text-sm">
-                    <div className="font-semibold">
-                      {formatNumber(solBalance)} SOL
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {formatCurrency(solBalanceUsd)}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Token list */}
-            <div className="bg-panel border border-gray-800/60 rounded-xl overflow-hidden">
-              {/* Table header */}
-              <div className="flex items-center justify-between text-[11px] text-gray-500 px-4 py-2.5 border-b border-gray-800/40">
-                <div className="flex-1">Asset</div>
-                <div className="flex items-center gap-4 flex-shrink-0">
-                  <div className="w-20 sm:w-24 text-right">Price</div>
-                  <div className="w-20 sm:w-24 text-right">Balance</div>
-                  <div className="w-20 sm:w-28 text-right">Value</div>
-                </div>
+                )}
               </div>
 
-              {isLoading ? (
-                <div className="divide-y divide-gray-800/30">
-                  {[...Array(4)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between px-4 py-3 gap-3"
-                    >
-                      <div className="flex items-center gap-3 flex-1">
-                        <div className="w-8 h-8 rounded-full bg-gray-800 animate-pulse flex-shrink-0" />
-                        <div>
-                          <div className="h-3.5 w-24 bg-gray-800 rounded animate-pulse mb-1.5" />
-                          <div className="h-3 w-16 bg-gray-800 rounded animate-pulse" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="h-3.5 w-16 bg-gray-800 rounded animate-pulse" />
-                        <div className="h-3.5 w-16 bg-gray-800 rounded animate-pulse" />
-                        <div className="h-3.5 w-20 bg-gray-800 rounded animate-pulse" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : filteredTokens.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-2">
-                  <BarChart3 className="w-8 h-8 text-gray-700" />
-                  <p className="text-sm">No tokens found</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-gray-800/30">
-                  {filteredTokens.map((token) => {
-                    const tokenParams = new URLSearchParams({
-                      name: token.name || token.symbol || "",
-                      symbol: token.symbol || "",
-                      logo: token.logoUrl || "",
-                      decimals: token.decimals?.toString() || "6",
-                    });
-                    return (
-                      <Link
-                        key={token.mint}
-                        href={`/sol/${token.mint}?${tokenParams.toString()}`}
-                        className="flex items-center justify-between px-4 py-3 gap-3 hover:bg-panel-elev/60 transition-colors"
-                      >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="relative w-8 h-8 flex-shrink-0">
-                            {token.logoUrl ? (
-                              <img
-                                src={token.logoUrl}
-                                alt={token.symbol || "Token"}
-                                className="w-8 h-8 rounded-full object-cover"
-                                onError={(e) => {
-                                  const t = e.target as HTMLImageElement;
-                                  t.style.display = "none";
-                                  const fb = t.parentElement?.querySelector(
-                                    ".tok-fb",
-                                  ) as HTMLElement;
-                                  if (fb) fb.style.display = "flex";
-                                }}
-                              />
-                            ) : null}
-                            <div
-                              className={`tok-fb w-8 h-8 rounded-full bg-linear-to-br from-purple-500/20 to-blue-500/20 items-center justify-center font-bold text-[10px] ${
-                                token.logoUrl
-                                  ? "absolute inset-0 hidden"
-                                  : "flex"
-                              }`}
-                            >
-                              {token.symbol?.slice(0, 3).toUpperCase() || "TOK"}
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm truncate">
-                              {token.name || token.symbol || "Unknown"}
-                            </div>
-                            <div className="text-xs text-gray-500 truncate">
-                              {token.symbol || token.mint.slice(0, 8) + "..."}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-4 flex-shrink-0 text-xs sm:text-sm">
-                          <div className="w-20 sm:w-24 text-right text-gray-300">
-                            {token.priceUsd !== undefined ? (
-                              formatCurrency(token.priceUsd)
-                            ) : (
-                              <span className="text-gray-600">--</span>
-                            )}
-                          </div>
-                          <div className="w-20 sm:w-24 text-right text-gray-400">
-                            {formatNumber(token.amount)}
-                          </div>
-                          <div className="w-20 sm:w-28 text-right font-semibold">
-                            {token.valueUsd !== undefined
-                              ? formatCurrency(token.valueUsd)
-                              : "--"}
-                          </div>
-                        </div>
-                      </Link>
-                    );
-                  })}
+              {/* SOL token list */}
+              <TokenTable tokens={filteredTokens} chain="sol" isLoading={isLoading} />
+
+              {/* BSC section — only when enabled and tokens exist */}
+              {env.NEXT_PUBLIC_ENABLE_BSC && bscTokens.length > 0 && (
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <div className="w-4 h-4 rounded-full bg-yellow-400/20 flex items-center justify-center text-[8px] font-black text-yellow-400">B</div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">BSC Tokens</h3>
+                    <span className="px-1.5 py-0.5 rounded bg-yellow-400/10 text-yellow-400 text-[9px] font-black">{bscTokens.length}</span>
+                  </div>
+                  <TokenTable tokens={bscTokens} chain="bsc" isLoading={false} />
                 </div>
               )}
-            </div>
           </>
         )}
 
@@ -566,6 +473,130 @@ export default function PortfolioPage() {
             onClose={() => setShowWalletSettings(false)}
           />
         </Suspense>
+      )}
+    </div>
+  );
+}
+
+// ──────────────── Shared token table component (SOL & BSC) ──────────────────────────────────────────────────────
+
+import { TokenBalance } from "@/context/PortfolioContext";
+
+function TokenTable({
+  tokens,
+  chain,
+  isLoading,
+}: {
+  tokens: TokenBalance[];
+  chain: "sol" | "bsc";
+  isLoading: boolean;
+}) {
+  const isBsc = chain === "bsc";
+
+  return (
+    <div className="bg-panel border border-gray-800/60 rounded-xl overflow-hidden">
+      <div className="flex items-center justify-between text-[11px] text-gray-500 px-4 py-2.5 border-b border-gray-800/40">
+        <div className="flex-1">Asset</div>
+        <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="w-20 sm:w-24 text-right">Price</div>
+          <div className="w-20 sm:w-24 text-right">Balance</div>
+          <div className="w-20 sm:w-28 text-right">Value</div>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="divide-y divide-gray-800/30">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="flex items-center justify-between px-4 py-3 gap-3">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-8 h-8 rounded-full bg-gray-800 animate-pulse flex-shrink-0" />
+                <div>
+                  <div className="h-3.5 w-24 bg-gray-800 rounded animate-pulse mb-1.5" />
+                  <div className="h-3 w-16 bg-gray-800 rounded animate-pulse" />
+                </div>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="h-3.5 w-16 bg-gray-800 rounded animate-pulse" />
+                <div className="h-3.5 w-16 bg-gray-800 rounded animate-pulse" />
+                <div className="h-3.5 w-20 bg-gray-800 rounded animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : tokens.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-gray-500 gap-2">
+          <BarChart3 className="w-8 h-8 text-gray-700" />
+          <p className="text-sm">No tokens found</p>
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-800/30">
+          {tokens.map((token) => {
+            const tokenParams = new URLSearchParams({
+              name: token.name || token.symbol || "",
+              symbol: token.symbol || "",
+              logo: token.logoUrl || "",
+              decimals: token.decimals?.toString() || "18",
+            });
+            const href = `/${chain}/${token.mint}?${tokenParams.toString()}`;
+
+            return (
+              <Link
+                key={token.mint}
+                href={href}
+                className="flex items-center justify-between px-4 py-3 gap-3 hover:bg-panel-elev/60 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="relative w-8 h-8 flex-shrink-0">
+                    {token.logoUrl ? (
+                      <img
+                        src={token.logoUrl}
+                        alt={token.symbol || "Token"}
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                          const t = e.target as HTMLImageElement;
+                          t.style.display = "none";
+                          const fb = t.parentElement?.querySelector(".tok-fb") as HTMLElement;
+                          if (fb) fb.style.display = "flex";
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`tok-fb w-8 h-8 rounded-full ${isBsc ? "bg-linear-to-br from-yellow-500/20 to-orange-500/20" : "bg-linear-to-br from-purple-500/20 to-blue-500/20"} items-center justify-center font-bold text-[10px] ${token.logoUrl ? "absolute inset-0 hidden" : "flex"}`}
+                    >
+                      {token.symbol?.slice(0, 3).toUpperCase() || "TOK"}
+                    </div>
+                    {isBsc && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-yellow-400 flex items-center justify-center text-[6px] font-black text-black">B</div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm truncate">
+                      {token.name || token.symbol || "Unknown"}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {token.symbol || token.mint.slice(0, 8) + "..."}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 flex-shrink-0 text-xs sm:text-sm">
+                  <div className="w-20 sm:w-24 text-right text-gray-300">
+                    {token.priceUsd !== undefined ? (
+                      formatCurrency(token.priceUsd)
+                    ) : (
+                      <span className="text-gray-600">--</span>
+                    )}
+                  </div>
+                  <div className="w-20 sm:w-24 text-right text-gray-400">
+                    {formatNumber(token.amount)}
+                  </div>
+                  <div className="w-20 sm:w-28 text-right font-semibold">
+                    {token.valueUsd !== undefined ? formatCurrency(token.valueUsd) : "--"}
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       )}
     </div>
   );

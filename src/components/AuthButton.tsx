@@ -26,6 +26,7 @@ export default function AuthButton() {
     setTurnkeyUser,
     setTurnkeySession,
     isLoading: authLoading,
+    isLoggingOut,
   } = useAuth();
 
   const {
@@ -189,6 +190,7 @@ export default function AuthButton() {
   // Show loading state while checking authentication
   const isCheckingAuth =
     authLoading ||
+    isLoggingOut ||
     clientState === ClientState.Loading ||
     clientState === undefined;
 

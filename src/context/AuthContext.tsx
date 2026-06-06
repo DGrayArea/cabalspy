@@ -20,7 +20,8 @@ export interface User {
   googleId?: string;
   avatar?: string;
   accessLevel?: string;
-  walletAddress?: string;
+  walletAddress?: string;    // Solana address
+  bnbWalletAddress?: string;  // BNB/BSC EVM address
   wallets?: {
     solana?: {
       walletId: string;
@@ -95,6 +96,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   isLoggingIn: boolean;
+  isLoggingOut: boolean;
   login: (provider: "google" | "telegram" | "discord", data: AuthData) => Promise<void>;
   logout: () => void;
   connectWallet: (address: string) => void;
@@ -129,15 +131,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   // Prevents infinite retry loop if the sync endpoint returns a server error
   const syncFailedRef = useRef(false);
+  // Tracks whether a logout is in-flight so we block any sync attempts
+  const isLoggingOutRef = useRef(false);
+  // Set true on logout, cleared only once Turnkey's authState leaves "authenticated".
+  // This prevents the sync from firing for the OLD user in the brief window after
+  // logout() resolves but before Turnkey has fully settled on unauthenticated state.
+  const pendingLogoutRef = useRef(false);
   const { user: tkUser, authState, clientState, logout: turnkeyLogout } = useTurnkey();
 
-  // Sync with Turnkey's internal state
+  // Sync with Turnkey's internal state + clear pendingLogoutRef once Turnkey settles
   useEffect(() => {
     // console.log("🔑 Turnkey State Check:", { authState, hasTkUser: !!tkUser });
     if (tkUser && authState === "authenticated") {
       setTurnkeyUser(tkUser as any);
     } else {
+      // Turnkey has confirmed it is no longer authenticated — safe to allow sync again
       setTurnkeyUser(null);
+      if (pendingLogoutRef.current) {
+        pendingLogoutRef.current = false;
+        syncFailedRef.current = false; // re-arm for next login
+      }
     }
   }, [tkUser, authState]);
 
@@ -157,6 +170,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             avatar: data.user.avatar,
             accessLevel: data.user.accessLevel,
             walletAddress: data.wallet?.address,
+            bnbWalletAddress: data.bnbWallet?.address,
             createdAt: new Date(),
           });
           // Keep lastActive current so in-app idle timer stays accurate
@@ -178,7 +192,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // Sync Turnkey with Backend
   const syncBackendSession = useCallback(async (tkUser: any) => {
-    if (isSyncing || syncFailedRef.current) return;
+    // Never sync while a logout is in-flight or pending Turnkey settlement
+    if (isSyncing || syncFailedRef.current || isLoggingOutRef.current || pendingLogoutRef.current) return;
     
     setIsSyncing(true);
     try {
@@ -222,7 +237,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, [isSyncing]);
 
   useEffect(() => {
-    if (authState === "authenticated" && tkUser && !user && !isSyncing && !syncFailedRef.current) {
+    if (
+      authState === "authenticated" &&
+      tkUser &&
+      !user &&
+      !isSyncing &&
+      !syncFailedRef.current &&
+      !isLoggingOutRef.current &&
+      !pendingLogoutRef.current
+    ) {
       // console.log("🔄 Detected Turnkey auth, syncing with backend...");
       syncBackendSession(tkUser);
     }
@@ -288,6 +311,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
               googleId: data.user.googleId,
               avatar: data.user.avatar,
               walletAddress: data.wallet?.address,
+              bnbWalletAddress: data.bnbWallet?.address,
               createdAt: new Date(),
             };
           }
@@ -306,7 +330,25 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const logout = async () => {
+    // Mark logout in-flight immediately so syncBackendSession is blocked
+    isLoggingOutRef.current = true;
+    // pendingLogoutRef stays true until Turnkey's authState settles (in the
+    // tkUser/authState useEffect above). This prevents the sync from firing
+    // for the old user in the window after logout() resolves but before
+    // Turnkey has fully transitioned its authState away from "authenticated".
+    pendingLogoutRef.current = true;
     setIsLoggingOut(true);
+
+    // Nuke Turnkey localStorage FIRST so the old session cannot be replayed
+    // if the page re-renders before turnkeyLogout() resolves
+    try {
+      localStorage.removeItem("@turnkey/session/v2");
+      localStorage.removeItem("@turnkey/client");
+      localStorage.removeItem("lastActive");
+    } catch {
+      // ignore storage errors
+    }
+
     try {
       if (turnkeyLogout) {
         await turnkeyLogout();
@@ -315,20 +357,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     } catch (error) {
       console.error("Error logging out:", error);
     }
-    // Explicitly nuke all Turnkey session data from localStorage so a hard
-    // refresh cannot restore the session automatically
-    try {
-      localStorage.removeItem("@turnkey/session/v2");
-      localStorage.removeItem("@turnkey/client");
-      localStorage.removeItem("lastActive");
-    } catch {
-      // ignore storage errors
-    }
-    syncFailedRef.current = false; // Allow sync to retry on next login
+
+    // NOTE: syncFailedRef.current is intentionally NOT reset here.
+    // It is reset by the authState useEffect once Turnkey confirms it is
+    // unauthenticated — ensuring we never sync for the previous user.
     setUser(null);
     setTurnkeyUser(null);
     setTurnkeySession(null);
     setIsLoggingOut(false);
+    isLoggingOutRef.current = false;
+    // pendingLogoutRef.current is cleared by the authState useEffect, not here.
   };
 
   const connectWallet = (address: string) => {
@@ -394,7 +432,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     };
   }, [user, turnkeyUser]);
 
-  const isAuthenticated = !!turnkeySession || !!user || !!turnkeyUser;
+  // While logging out, treat the user as still "authenticated" so the auth page
+  // does NOT flash during the sign-out transition.
+  const isAuthenticated = !!turnkeySession || !!user || !!turnkeyUser || isLoggingOut;
   
   // isLoggingIn should be true if:
   // 1. Initial session check is running (isLoading)
@@ -411,6 +451,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     isLoading,
     isAuthenticated,
     isLoggingIn,
+    isLoggingOut,
     login,
     logout,
     connectWallet,

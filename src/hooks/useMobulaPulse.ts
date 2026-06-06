@@ -10,6 +10,9 @@ import { multiChainTokenService, ChainTokenData } from "@/services/multichain-to
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 
+/** Mirrors the kill-switch in mobula-pulse.ts — read from env for client-side checks */
+const BSC_ENABLED = env.NEXT_PUBLIC_ENABLE_BSC;
+
 type FilterType = keyof typeof FILTER_TO_VIEW_MAPPING;
 
 export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
@@ -125,7 +128,10 @@ export function useMobulaPulse(enabled = env.NEXT_PUBLIC_USE_MOBULA) {
     
     // Connect WebSockets
     multiChainTokenService.connectSolana();
-    multiChainTokenService.connectBSC();
+    // Only connect BSC WebSocket if the kill-switch is on
+    if (BSC_ENABLED) {
+      multiChainTokenService.connectBSC();
+    }
 
     return () => {
       multiChainTokenService.off("tokenUpdate", handleWsTokenUpdate);

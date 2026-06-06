@@ -722,38 +722,51 @@ export default function Home() {
                   <h4 className="text-[10px] font-black italic text-muted uppercase tracking-[0.2em]">Launchpads & Protocols</h4>
                   <button
                     onClick={() => {
-                      const pList = ["pump","raydium","meteora","meteora-amm","meteora-amm-v2","orca","bonk","bags","moonshot","heaven","daos-fun","candle","sugar","believe","jupiter-studio","moonit","boop","launchlab","dynamic-bc","mayhem","pump-amm","wavebreak"];
+                      const solList = ["pump","raydium","meteora","meteora-amm","meteora-amm-v2","orca","bonk","bags","moonshot","heaven","daos-fun","candle","sugar","believe","jupiter-studio","moonit","boop","launchlab","dynamic-bc","mayhem","pump-amm","wavebreak"];
+                      const bscList = env.NEXT_PUBLIC_ENABLE_BSC ? ["pancakeswap","pancakeswap-v3","four.meme","woop","biswap","babyswap","apeswap"] : [];
+                      const pList = [...solList, ...bscList];
                       setSelectedProtocols(selectedProtocols.length === pList.length ? [] : pList);
                     }}
                     className="text-[9px] font-black italic text-primary hover:text-primary/70 transition-colors cursor-pointer uppercase tracking-widest"
                   >
-                    {selectedProtocols.length === 22 ? "Unselect All" : "Select All"}
+                    {selectedProtocols.length > 0 ? "Unselect All" : "Select All"}
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
-                    { id: "pump", label: "Pump", color: "bg-green-500" },
-                    { id: "raydium", label: "Raydium", color: "bg-blue-500" },
-                    { id: "meteora", label: "Meteora", color: "bg-purple-500" },
-                    { id: "meteora-amm", label: "Meteora AMM", color: "bg-purple-400" },
-                    { id: "meteora-amm-v2", label: "Meteora AMM V2", color: "bg-purple-300" },
-                    { id: "orca", label: "Orca", color: "bg-cyan-500" },
-                    { id: "bonk", label: "Bonk", color: "bg-orange-500" },
-                    { id: "bags", label: "Bags", color: "bg-yellow-500" },
-                    { id: "moonshot", label: "Moonshot", color: "bg-pink-500" },
-                    { id: "heaven", label: "Heaven", color: "bg-indigo-500" },
-                    { id: "daos-fun", label: "Daos.fun", color: "bg-teal-500" },
-                    { id: "candle", label: "Candle", color: "bg-red-500" },
-                    { id: "sugar", label: "Sugar", color: "bg-rose-500" },
-                    { id: "believe", label: "Believe", color: "bg-emerald-500" },
-                    { id: "jupiter-studio", label: "Jupiter Studio", color: "bg-violet-500" },
-                    { id: "moonit", label: "Moonit", color: "bg-sky-500" },
-                    { id: "boop", label: "Boop", color: "bg-lime-500" },
-                    { id: "launchlab", label: "LaunchLab", color: "bg-amber-500" },
-                    { id: "dynamic-bc", label: "Dynamic BC", color: "bg-fuchsia-500" },
-                    { id: "mayhem", label: "Mayhem", color: "bg-red-600" },
-                    { id: "pump-amm", label: "Pump AMM", color: "bg-green-400" },
-                    { id: "wavebreak", label: "Wavebreak", color: "bg-blue-400" },
+                    // ── Solana protocols ──────────────────────────
+                    { id: "pump", label: "Pump", color: "bg-green-500", chain: "sol" },
+                    { id: "raydium", label: "Raydium", color: "bg-blue-500", chain: "sol" },
+                    { id: "meteora", label: "Meteora", color: "bg-purple-500", chain: "sol" },
+                    { id: "meteora-amm", label: "Meteora AMM", color: "bg-purple-400", chain: "sol" },
+                    { id: "meteora-amm-v2", label: "Meteora AMM V2", color: "bg-purple-300", chain: "sol" },
+                    { id: "orca", label: "Orca", color: "bg-cyan-500", chain: "sol" },
+                    { id: "bonk", label: "Bonk", color: "bg-orange-500", chain: "sol" },
+                    { id: "bags", label: "Bags", color: "bg-yellow-500", chain: "sol" },
+                    { id: "moonshot", label: "Moonshot", color: "bg-pink-500", chain: "sol" },
+                    { id: "heaven", label: "Heaven", color: "bg-indigo-500", chain: "sol" },
+                    { id: "daos-fun", label: "Daos.fun", color: "bg-teal-500", chain: "sol" },
+                    { id: "candle", label: "Candle", color: "bg-red-500", chain: "sol" },
+                    { id: "sugar", label: "Sugar", color: "bg-rose-500", chain: "sol" },
+                    { id: "believe", label: "Believe", color: "bg-emerald-500", chain: "sol" },
+                    { id: "jupiter-studio", label: "Jupiter Studio", color: "bg-violet-500", chain: "sol" },
+                    { id: "moonit", label: "Moonit", color: "bg-sky-500", chain: "sol" },
+                    { id: "boop", label: "Boop", color: "bg-lime-500", chain: "sol" },
+                    { id: "launchlab", label: "LaunchLab", color: "bg-amber-500", chain: "sol" },
+                    { id: "dynamic-bc", label: "Dynamic BC", color: "bg-fuchsia-500", chain: "sol" },
+                    { id: "mayhem", label: "Mayhem", color: "bg-red-600", chain: "sol" },
+                    { id: "pump-amm", label: "Pump AMM", color: "bg-green-400", chain: "sol" },
+                    { id: "wavebreak", label: "Wavebreak", color: "bg-blue-400", chain: "sol" },
+                    // ── BSC protocols (only shown when BSC is enabled) ──────
+                    ...(env.NEXT_PUBLIC_ENABLE_BSC ? [
+                      { id: "pancakeswap", label: "PancakeSwap", color: "bg-yellow-400", chain: "bsc" },
+                      { id: "pancakeswap-v3", label: "PancakeSwap V3", color: "bg-yellow-300", chain: "bsc" },
+                      { id: "four.meme", label: "Four.meme", color: "bg-orange-400", chain: "bsc" },
+                      { id: "woop", label: "Woop", color: "bg-pink-400", chain: "bsc" },
+                      { id: "biswap", label: "Biswap", color: "bg-blue-300", chain: "bsc" },
+                      { id: "babyswap", label: "BabySwap", color: "bg-rose-400", chain: "bsc" },
+                      { id: "apeswap", label: "ApeSwap", color: "bg-green-600", chain: "bsc" },
+                    ] : []),
                   ].map((protocol) => {
                     const isSelected = selectedProtocols.includes(protocol.id);
                     return (

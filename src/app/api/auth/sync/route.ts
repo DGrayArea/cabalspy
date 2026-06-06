@@ -22,15 +22,20 @@ export async function POST(request: NextRequest) {
 
     logger.info("Syncing Turnkey user", { tkUserId, email });
 
-    // 1. Find or create user
+    // 1. Find or create user — look up by googleId FIRST (exact match),
+    //    then by email as a secondary fallback. Using an OR across both
+    //    fields can silently return the wrong user if two accounts share
+    //    an email address or if Turnkey reuses cached credentials.
     let user = await db.user.findFirst({
-      where: {
-        OR: [
-          { googleId: tkUserId },
-          { email: email || undefined }
-        ]
-      }
+      where: { googleId: tkUserId }
     });
+
+    if (!user && email) {
+      // Only fall back to email lookup if there is no googleId-linked user
+      user = await db.user.findFirst({
+        where: { email, googleId: null } // only match unlinked email users
+      });
+    }
 
     if (!user) {
       user = await db.user.create({
@@ -59,9 +64,14 @@ export async function POST(request: NextRequest) {
       // We continue since the user is authenticated, we can fix wallets later
     }
 
-    // 3. Create session
+    // 3. Delete any stale sessions for this user before creating a new one.
+    //    This prevents a previous account's session token from remaining
+    //    valid in the browser after the user switches Google accounts.
+    await db.session.deleteMany({ where: { userId: user.id } }).catch(() => {});
+
+    // 4. Create session
     const sessionToken = randomBytes(32).toString('hex');
-    const expiresAt = new Date(Date.now() + 86400 * 7 * 1000); // 7 days
+    const expiresAt = new Date(Date.now() + 86400 * 3 * 1000); // 3 days
 
     await db.session.create({
       data: {
@@ -87,7 +97,7 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 86400 * 7,
+      maxAge: 86400 * 3,
       path: '/',
     });
 

@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
       where: { userId: user.id, network: 'solana' },
     });
 
+    const bnbWallet = await db.wallet.findFirst({
+      where: { userId: user.id, network: 'bnb' },
+    });
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -56,6 +60,10 @@ export async function GET(request: NextRequest) {
       wallet: wallet ? {
         address: wallet.address,
         network: wallet.network,
+      } : null,
+      bnbWallet: bnbWallet ? {
+        address: bnbWallet.address,
+        network: bnbWallet.network,
       } : null,
     });
   } catch (error) {
@@ -75,7 +83,15 @@ export async function DELETE(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true });
-    response.cookies.delete('session');
+    // Explicitly expire the cookie so the browser drops it immediately.
+    // .delete() alone may not send the Set-Cookie header in all Next.js versions.
+    response.cookies.set('session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
+    });
     return response;
   } catch (error) {
     logger.error('Logout error', error);
