@@ -330,12 +330,19 @@ export default function AuthButton() {
                 <Separator className="bg-white/5" />
 
                 <Button
-                  onClick={() => {
-                    logout();
-                    if (turnkeyUser) {
-                      setTurnkeyUser(null);
-                      setTurnkeySession(null);
-                    }
+                  onClick={async () => {
+                    // 1. Clear Turnkey localStorage immediately (synchronous)
+                    try {
+                      localStorage.removeItem("@turnkey/session/v2");
+                      localStorage.removeItem("@turnkey/client");
+                      localStorage.removeItem("lastActive");
+                    } catch {}
+                    // 2. Delete server-side session cookie
+                    try {
+                      await fetch("/api/auth/session", { method: "DELETE" });
+                    } catch {}
+                    // 3. Hard full-page reload to /auth — bypasses stale React/Turnkey state
+                    window.location.replace("/auth");
                   }}
                   variant="destructive"
                   className="w-full rounded-xl font-bold"

@@ -413,10 +413,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Update persistent last active timestamp
       localStorage.setItem("lastActive", Date.now().toString());
 
-      // 4 hours of inactivity = automatic logout
-      timeoutId = setTimeout(() => {
-        logout();
-        // console.log("[Auth] Session expired due to inactivity.");
+      // 4 hours of inactivity = automatic logout (hard reset, same as manual logout)
+      timeoutId = setTimeout(async () => {
+        try { localStorage.removeItem("@turnkey/session/v2"); } catch {}
+        try { localStorage.removeItem("@turnkey/client"); } catch {}
+        try { localStorage.removeItem("lastActive"); } catch {}
+        try { await fetch("/api/auth/session", { method: "DELETE" }); } catch {}
+        window.location.replace("/auth");
       }, 4 * 60 * 60 * 1000);
     };
 

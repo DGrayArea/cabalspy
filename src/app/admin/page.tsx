@@ -396,7 +396,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (isLoading || isLoggingIn) return;
     if (!isAuthenticated) { router.replace("/auth"); return; }
-    if (user && user.accessLevel !== "admin") router.replace("/access-denied");
+    if (user && user.accessLevel !== "admin") router.replace("/admin-required");
   }, [isAuthenticated, isLoading, isLoggingIn, user, router]);
 
   const fetchMetrics = useCallback(async () => {

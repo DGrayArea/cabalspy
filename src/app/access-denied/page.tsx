@@ -36,10 +36,23 @@ function AccessDeniedContent() {
     }
   };
 
-  // Logout then redirect to /auth so the user can sign in with a different account
+  // Logout then redirect to /auth so the user can sign in with a different account.
+  // We bypass logout() (which involves async Turnkey teardown) and directly nuke the
+  // server session cookie, then hard-reload. This ensures the auth page sees no session
+  // and doesn't bounce the user back to / before Turnkey settles.
   const onSwitchAccount = async () => {
-    await logout();
-    window.location.href = "/auth";
+    try {
+      // Clear Turnkey localStorage immediately
+      localStorage.removeItem("@turnkey/session/v2");
+      localStorage.removeItem("@turnkey/client");
+      localStorage.removeItem("lastActive");
+    } catch {}
+    try {
+      // Delete server-side session cookie
+      await fetch("/api/auth/session", { method: "DELETE" });
+    } catch {}
+    // Hard navigate — forces a full page reload so React/Turnkey starts fresh
+    window.location.replace("/auth");
   };
 
   return (
