@@ -143,7 +143,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   useEffect(() => {
     // console.log("🔑 Turnkey State Check:", { authState, hasTkUser: !!tkUser });
     if (tkUser && authState === "authenticated") {
-      setTurnkeyUser(tkUser as any);
+      if (!pendingLogoutRef.current) {
+        setTurnkeyUser(tkUser as any);
+      }
     } else {
       // Turnkey has confirmed it is no longer authenticated — safe to allow sync again
       setTurnkeyUser(null);
@@ -413,12 +415,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Update persistent last active timestamp
       localStorage.setItem("lastActive", Date.now().toString());
 
-      // 4 hours of inactivity = automatic logout (hard reset, same as manual logout)
+      // 4 hours of inactivity = automatic logout
       timeoutId = setTimeout(async () => {
-        try { localStorage.removeItem("@turnkey/session/v2"); } catch {}
-        try { localStorage.removeItem("@turnkey/client"); } catch {}
-        try { localStorage.removeItem("lastActive"); } catch {}
-        try { await fetch("/api/auth/session", { method: "DELETE" }); } catch {}
+        await logout();
         window.location.replace("/auth");
       }, 4 * 60 * 60 * 1000);
     };

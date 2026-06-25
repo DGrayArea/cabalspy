@@ -83,15 +83,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const response = NextResponse.json({ success: true });
-    // Explicitly expire the cookie so the browser drops it immediately.
-    // .delete() alone may not send the Set-Cookie header in all Next.js versions.
-    response.cookies.set('session', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 0,
-      path: '/',
-    });
+    response.cookies.delete('session');
     return response;
   } catch (error) {
     logger.error('Logout error', error);

@@ -15,7 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { OnboardingModal } from "@/components/OnboardingModal";
 
+import { useRouter } from "next/navigation";
+
 export default function AuthButton() {
+  const router = useRouter();
   const {
     user,
     turnkeyUser,
@@ -331,18 +334,10 @@ export default function AuthButton() {
 
                 <Button
                   onClick={async () => {
-                    // 1. Clear Turnkey localStorage immediately (synchronous)
-                    try {
-                      localStorage.removeItem("@turnkey/session/v2");
-                      localStorage.removeItem("@turnkey/client");
-                      localStorage.removeItem("lastActive");
-                    } catch {}
-                    // 2. Delete server-side session cookie
-                    try {
-                      await fetch("/api/auth/session", { method: "DELETE" });
-                    } catch {}
-                    // 3. Hard full-page reload to /auth — bypasses stale React/Turnkey state
-                    window.location.replace("/auth");
+                    await logout();
+                    // Soft navigation ensures Turnkey's iframe isn't instantly killed 
+                    // and can fully process the logout event
+                    router.replace("/auth");
                   }}
                   variant="destructive"
                   className="w-full rounded-xl font-bold"

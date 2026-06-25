@@ -7,7 +7,10 @@ import { useAuth } from "@/context/AuthContext";
 import { ShieldOff, ExternalLink, ArrowLeft, CheckCircle2, Lock, AlertCircle, Sparkles, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+import { useRouter } from "next/navigation";
+
 function AccessDeniedContent() {
+  const router = useRouter();
   const { isAuthenticated, user, isLoggingIn, logout } = useAuth();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
@@ -36,22 +39,10 @@ function AccessDeniedContent() {
     }
   };
 
-  // Logout then redirect to /auth so the user can sign in with a different account.
-  // We bypass logout() (which involves async Turnkey teardown) and directly nuke the
-  // server session cookie, then hard-reload. This ensures the auth page sees no session
-  // and doesn't bounce the user back to / before Turnkey settles.
+  // Logout then hard redirect to /auth so the user can sign in with a different account.
   const onSwitchAccount = async () => {
-    try {
-      // Clear Turnkey localStorage immediately
-      localStorage.removeItem("@turnkey/session/v2");
-      localStorage.removeItem("@turnkey/client");
-      localStorage.removeItem("lastActive");
-    } catch {}
-    try {
-      // Delete server-side session cookie
-      await fetch("/api/auth/session", { method: "DELETE" });
-    } catch {}
-    // Hard navigate — forces a full page reload so React/Turnkey starts fresh
+    await logout();
+    // Use a hard reload to completely wipe React and Turnkey state memory
     window.location.replace("/auth");
   };
 
