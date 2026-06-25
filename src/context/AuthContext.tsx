@@ -359,6 +359,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       console.error("Error logging out from Turnkey:", error);
     }
 
+    // Wait 1 second to ensure Turnkey's network requests have fully resolved
+    // before the browser terminates the page environment via location.assign
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     // Force server-side redirect to guarantee cookie is deleted and state is wiped
     window.location.assign("/api/auth/logout");
   };
