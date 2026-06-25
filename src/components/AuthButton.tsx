@@ -335,9 +335,6 @@ export default function AuthButton() {
                 <Button
                   onClick={async () => {
                     await logout();
-                    // Soft navigation ensures Turnkey's iframe isn't instantly killed 
-                    // and can fully process the logout event
-                    router.replace("/auth");
                   }}
                   variant="destructive"
                   className="w-full rounded-xl font-bold"

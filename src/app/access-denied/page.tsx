@@ -42,8 +42,6 @@ function AccessDeniedContent() {
   // Logout then hard redirect to /auth so the user can sign in with a different account.
   const onSwitchAccount = async () => {
     await logout();
-    // Use a hard reload to completely wipe React and Turnkey state memory
-    window.location.replace("/auth");
   };
 
   return (

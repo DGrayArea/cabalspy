@@ -355,20 +355,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       if (turnkeyLogout) {
         await turnkeyLogout();
       }
-      await fetch("/api/auth/session", { method: "DELETE" });
     } catch (error) {
-      console.error("Error logging out:", error);
+      console.error("Error logging out from Turnkey:", error);
     }
 
-    // NOTE: syncFailedRef.current is intentionally NOT reset here.
-    // It is reset by the authState useEffect once Turnkey confirms it is
-    // unauthenticated — ensuring we never sync for the previous user.
-    setUser(null);
-    setTurnkeyUser(null);
-    setTurnkeySession(null);
-    setIsLoggingOut(false);
-    isLoggingOutRef.current = false;
-    // pendingLogoutRef.current is cleared by the authState useEffect, not here.
+    // Force server-side redirect to guarantee cookie is deleted and state is wiped
+    window.location.assign("/api/auth/logout");
   };
 
   const connectWallet = (address: string) => {
