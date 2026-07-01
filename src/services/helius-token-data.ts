@@ -1,6 +1,6 @@
 /**
  * Helius / Solana RPC token data service
- * Provides: top holders, recent transactions, token supply
+ * Provides: top holders, token supply
  * Uses Solana public RPC with Helius endpoint when configured
  */
 
@@ -14,16 +14,6 @@ export interface TokenHolder {
   decimals: number;
   uiAmount: number;
   percentage?: number;
-}
-
-export interface TokenTransaction {
-  signature: string;
-  blockTime: number | null;
-  type: "buy" | "sell" | "transfer" | "unknown";
-  amountSol: number;
-  amountUsd: number;
-  walletAddress: string;
-  solscanUrl: string;
 }
 
 export interface TokenSupplyInfo {
@@ -107,46 +97,6 @@ class HeliusTokenDataService {
   }
 
   /**
-   * Get recent transactions for a mint address
-   * Uses getSignaturesForAddress to find recent signatures
-   */
-  async getRecentTransactions(
-    mint: string,
-    limit = 10,
-    solPrice = 0
-  ): Promise<TokenTransaction[]> {
-    try {
-      // Get recent signatures for the mint address
-      const sigsResult = (await this.rpcCall("getSignaturesForAddress", [
-        mint,
-        { limit, commitment: "finalized" },
-      ])) as Array<{ signature: string; blockTime: number | null; err: unknown }>;
-
-      if (!sigsResult || sigsResult.length === 0) return [];
-
-      // Parse into minimal display format without needing full tx parsing
-      return sigsResult
-        .filter((sig) => !sig.err)
-        .map((sig, i) => {
-          const blockTime = sig.blockTime;
-          return {
-            signature: sig.signature,
-            blockTime,
-            // We can't determine buy/sell without full tx parsing, alternate for visual effect
-            type: i % 3 === 0 ? "sell" : "buy" as "buy" | "sell",
-            amountSol: 0, // Would need full tx parse for this
-            amountUsd: 0,
-            walletAddress: "",
-            solscanUrl: `https://solscan.io/tx/${sig.signature}`,
-          };
-        });
-    } catch (err) {
-      console.warn("Failed to fetch recent transactions:", err);
-      return [];
-    }
-  }
-
-  /**
    * Format a wallet address for display
    */
   formatAddress(address: string, chars = 4): string {
@@ -154,17 +104,6 @@ class HeliusTokenDataService {
     return `${address.slice(0, chars)}...${address.slice(-chars)}`;
   }
 
-  /**
-   * Format seconds since blockTime to human-readable
-   */
-  formatAge(blockTime: number | null): string {
-    if (!blockTime) return "unknown";
-    const diff = Math.floor(Date.now() / 1000) - blockTime;
-    if (diff < 60) return `${diff}s`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
-    return `${Math.floor(diff / 86400)}d`;
-  }
 }
 
 export const heliusTokenDataService = new HeliusTokenDataService();

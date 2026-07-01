@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
+import { getSession } from "@/lib/auth";
 import { turnkeyService } from "@/services/turnkey";
 
 /**
@@ -17,6 +18,11 @@ import { turnkeyService } from "@/services/turnkey";
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession(request);
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
     const {
       walletId,
@@ -33,10 +39,6 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
-    // Verify user is authenticated (you should add proper session verification here)
-    // For now, we'll rely on the frontend to only call this when authenticated
-    // In production, verify the session token or user ID
 
     logger.info("Signing transaction via backend", {
       walletId,

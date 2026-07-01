@@ -1,7 +1,5 @@
-import { Connection, PublicKey, ParsedTransactionWithMeta } from "@solana/web3.js";
+import { db } from "@/lib/db";
 import { logger } from "@/lib/logger";
-
-const SOLANA_RPC_URL = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || "https://api.mainnet-beta.solana.com";
 
 export interface PerformanceMetrics {
   totalPnLUsd: number;
@@ -12,69 +10,104 @@ export interface PerformanceMetrics {
   worstTrade: { symbol: string; roi: number };
 }
 
+interface Position {
+  tokens: number;
+  costUsd: number;
+  symbol: string;
+}
+
 export class PortfolioAnalyticsService {
-  private connection: Connection;
-
-  constructor() {
-    this.connection = new Connection(SOLANA_RPC_URL);
-  }
-
-  async getPerformanceMetrics(walletAddress: string): Promise<PerformanceMetrics> {
+  /**
+   * Compute realized performance from the user's recorded trades.
+   *
+   * Replays successful trades in chronological order keeping an
+   * average-cost basis per mint; each sell realizes PnL against that
+   * basis. Trades without a recorded USD price are counted in
+   * totalTrades but excluded from PnL/win-rate math.
+   */
+  async getPerformanceMetrics(userId: string): Promise<PerformanceMetrics> {
     try {
-      const pubkey = new PublicKey(walletAddress);
-      
-      // Fetch recent signatures (limit to last 50 for performance)
-      const signatures = await this.connection.getSignaturesForAddress(pubkey, { limit: 50 });
-      
-      if (signatures.length === 0) {
+      const trades = await db.tradeHistory.findMany({
+        where: { userId, status: "success" },
+        orderBy: { timestamp: "asc" },
+      });
+
+      if (trades.length === 0) {
         return this.getDefaultMetrics();
       }
 
-      // Fetch transaction details
-      const transactions = await this.connection.getParsedTransactions(
-        signatures.map(s => s.signature),
-        { maxSupportedTransactionVersion: 0 }
-      );
+      const positions = new Map<string, Position>();
+      const closedTrades: { symbol: string; roi: number; pnlUsd: number }[] = [];
+      let totalPnLUsd = 0;
+      let totalCostOfSoldUsd = 0;
 
-      return this.analyzeTransactions(transactions.filter((t): t is ParsedTransactionWithMeta => t !== null));
+      for (const trade of trades) {
+        if (!trade.tokenMint || !trade.priceUsd || trade.priceUsd <= 0) continue;
+
+        const pos = positions.get(trade.tokenMint) ?? {
+          tokens: 0,
+          costUsd: 0,
+          symbol: trade.symbol,
+        };
+
+        if (trade.direction === "buy") {
+          // On buys: output = token amount received, symbol = token symbol
+          const tokensBought = parseFloat(trade.output || "0");
+          if (tokensBought > 0) {
+            pos.tokens += tokensBought;
+            pos.costUsd += tokensBought * trade.priceUsd;
+            pos.symbol = trade.symbol;
+            positions.set(trade.tokenMint, pos);
+          }
+        } else if (trade.direction === "sell") {
+          // On sells: amount = token amount sold (symbol is "SOL", the output side)
+          const tokensSold = parseFloat(trade.amount || "0");
+          if (tokensSold <= 0 || pos.tokens <= 0 || pos.costUsd <= 0) continue;
+
+          const avgEntry = pos.costUsd / pos.tokens;
+          const soldFromPosition = Math.min(tokensSold, pos.tokens);
+          const costOfSold = soldFromPosition * avgEntry;
+          const pnlUsd = soldFromPosition * (trade.priceUsd - avgEntry);
+          const roi = ((trade.priceUsd - avgEntry) / avgEntry) * 100;
+
+          totalPnLUsd += pnlUsd;
+          totalCostOfSoldUsd += costOfSold;
+          closedTrades.push({ symbol: pos.symbol, roi, pnlUsd });
+
+          pos.tokens -= soldFromPosition;
+          pos.costUsd -= costOfSold;
+          positions.set(trade.tokenMint, pos);
+        }
+      }
+
+      const wins = closedTrades.filter((t) => t.pnlUsd > 0).length;
+      const winRate =
+        closedTrades.length > 0 ? (wins / closedTrades.length) * 100 : 0;
+
+      let bestTrade = { symbol: "N/A", roi: 0 };
+      let worstTrade = { symbol: "N/A", roi: 0 };
+      for (const t of closedTrades) {
+        if (bestTrade.symbol === "N/A" || t.roi > bestTrade.roi) {
+          bestTrade = { symbol: t.symbol, roi: t.roi };
+        }
+        if (worstTrade.symbol === "N/A" || t.roi < worstTrade.roi) {
+          worstTrade = { symbol: t.symbol, roi: t.roi };
+        }
+      }
+
+      return {
+        totalPnLUsd,
+        totalPnLPercent:
+          totalCostOfSoldUsd > 0 ? (totalPnLUsd / totalCostOfSoldUsd) * 100 : 0,
+        winRate,
+        totalTrades: trades.length,
+        bestTrade,
+        worstTrade,
+      };
     } catch (error) {
       logger.error("[PORTFOLIO_ANALYTICS]", error);
       return this.getDefaultMetrics();
     }
-  }
-
-  private analyzeTransactions(transactions: ParsedTransactionWithMeta[]): PerformanceMetrics {
-    // This is a simplified analyzer that looks for Jupiter/Raydium swap instructions
-    // In a production environment, you'd use a more robust parser (like Helius or dedicated indexers)
-    let totalTrades = 0;
-    let wins = 0;
-    const totalPnLUsd = 0;
-    
-    // Mock parsing logic for demonstration
-    // Real implementation would involve calculating diffs in token balances
-    transactions.forEach(tx => {
-      const isSwap = tx.meta?.logMessages?.some(log => 
-        log.includes("Jupiter") || log.includes("Raydium") || log.includes("Pump")
-      );
-      
-      if (isSwap) {
-        totalTrades++;
-        // Randomize for initial UI population if actual calculation fails
-        const lucky = Math.random() > 0.4;
-        if (lucky) wins++;
-      }
-    });
-
-    const winRate = totalTrades > 0 ? (wins / totalTrades) * 100 : 0;
-
-    return {
-      totalPnLUsd: 124.50, // Mocked for initial demo
-      totalPnLPercent: 12.5,
-      winRate,
-      totalTrades,
-      bestTrade: { symbol: "SOL", roi: 45.2 },
-      worstTrade: { symbol: "BONK", roi: -12.4 }
-    };
   }
 
   private getDefaultMetrics(): PerformanceMetrics {
@@ -84,7 +117,7 @@ export class PortfolioAnalyticsService {
       winRate: 0,
       totalTrades: 0,
       bestTrade: { symbol: "N/A", roi: 0 },
-      worstTrade: { symbol: "N/A", roi: 0 }
+      worstTrade: { symbol: "N/A", roi: 0 },
     };
   }
 }

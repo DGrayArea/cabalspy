@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
 import { jupiterSwapService } from "@/services/jupiter-swap";
+import { useTradeHistory } from "@/hooks/useTradeHistory";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { TokenSelectorModal, TokenInfo } from "./TokenSelectorModal";
@@ -47,6 +48,9 @@ export default function TradingPanel({
   const { toast, dismiss } = useToast();
   const { address, connection, signSolanaTransaction } = useTurnkeySolana();
   const { solBalance, getTokenBalance, refreshPortfolio } = usePortfolio();
+  const { addTrade } = useTradeHistory({
+    walletAddress: address ?? undefined,
+  });
 
   const pageTokenInfo: TokenInfo = useMemo(
     () => ({
@@ -193,6 +197,25 @@ export default function TradingPanel({
 
       dismiss(loadingToast.id);
 
+      const direction: "buy" | "sell" =
+        inputToken.address === SOL_MINT ? "buy" : "sell";
+      const tradedToken = direction === "buy" ? outputToken : inputToken;
+      addTrade({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        timestamp: Date.now(),
+        direction,
+        amount,
+        output: result.outAmount ?? "",
+        symbol: outputToken.symbol,
+        signature: result.signature,
+        status: result.success ? "success" : "failed",
+        priceUsd:
+          tradedToken.address === token.id && token.price > 0
+            ? token.price
+            : undefined,
+        tokenMint: tradedToken.address,
+      });
+
       if (result.success && result.signature) {
         toast({
           variant: "success",
@@ -225,6 +248,24 @@ export default function TradingPanel({
         variant: "error",
         title: `Failed to swap`,
         description: error.message,
+      });
+      const direction: "buy" | "sell" =
+        inputToken.address === SOL_MINT ? "buy" : "sell";
+      const tradedToken = direction === "buy" ? outputToken : inputToken;
+      addTrade({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        timestamp: Date.now(),
+        direction,
+        amount,
+        output: "",
+        symbol: outputToken.symbol,
+        signature: undefined,
+        status: "failed",
+        priceUsd:
+          tradedToken.address === token.id && token.price > 0
+            ? token.price
+            : undefined,
+        tokenMint: tradedToken.address,
       });
     } finally {
       setIsSubmitting(false);
