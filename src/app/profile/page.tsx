@@ -33,6 +33,7 @@ import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { TradeHistoryList } from "@/components/TradeHistoryList";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
+import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
 
 interface PerformanceMetrics {
   totalPnLUsd: number;
@@ -44,7 +45,7 @@ interface PerformanceMetrics {
 }
 
 export default function ProfilePage() {
-  const { user, turnkeyUser, turnkeySession, isLoading } = useAuth();
+  const { user, turnkeyUser, turnkeySession, isLoading, refreshSession } = useAuth();
   const { wallets: turnkeyWallets } = useTurnkey();
   const router = useRouter();
   const { totalValueUsd } = usePortfolio();
@@ -52,7 +53,27 @@ export default function ProfilePage() {
   const { allTrades, stats: tradeStats } = useTradeHistory({ walletAddress: walletAddress ?? undefined });
   const [metrics, setMetrics] = useState<PerformanceMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(true);
+  const [linkTelegramError, setLinkTelegramError] = useState<string | null>(null);
+  const [isUnlinkingTelegram, setIsUnlinkingTelegram] = useState(false);
   const isAuthenticated = user || turnkeyUser || turnkeySession;
+
+  const handleUnlinkTelegram = async () => {
+    try {
+      setIsUnlinkingTelegram(true);
+      setLinkTelegramError(null);
+      const res = await fetch("/api/auth/link/telegram", { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json();
+        setLinkTelegramError(data.error || "Failed to unlink Telegram");
+        return;
+      }
+      await refreshSession();
+    } catch {
+      setLinkTelegramError("Network error while unlinking Telegram");
+    } finally {
+      setIsUnlinkingTelegram(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -315,39 +336,67 @@ export default function ProfilePage() {
                     )}
                     {/* Verified Social Links */}
                     <div className="space-y-4">
-                      {[
-                        { 
-                          label: "X (TWITTER)", 
-                          icon: Twitter, 
-                          color: "text-white", 
-                          status: user?.discordId ? "VERIFIED" : "UNLINKED", 
-                          handle: user?.discordId ? `@${user.name}` : "NOT CONNECTED" 
-                        },
-                        { 
-                          label: "TELEGRAM", 
-                          icon: Send, 
-                          color: "text-blue-400", 
-                          status: user?.telegramId ? "VERIFIED" : "UNLINKED", 
-                          handle: user?.telegramId ? `@${user.name}` : "NOT CONNECTED" 
-                        }
-                      ].map((social, i) => (
-                        <div key={i} className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-[1.5rem] group hover:border-primary/30 transition-all">
+                      <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-[1.5rem] group hover:border-primary/30 transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+                            <Twitter className="w-5 h-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-black text-muted uppercase tracking-widest">X (TWITTER)</p>
+                            <p className="text-xs font-bold text-white uppercase italic">{user?.discordId ? `@${user.name}` : "NOT CONNECTED"}</p>
+                          </div>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-[8px] font-black ${
+                          user?.discordId ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
+                        }`}>
+                          {user?.discordId ? "VERIFIED" : "UNLINKED"}
+                        </div>
+                      </div>
+
+                      {/* Telegram — link/unlink so either method signs into this account */}
+                      <div className="p-5 bg-white/5 border border-white/10 rounded-[1.5rem] group hover:border-primary/30 transition-all space-y-4">
+                        <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5`}>
-                              <social.icon className={`w-5 h-5 ${social.color}`} />
+                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+                              <Send className="w-5 h-5 text-blue-400" />
                             </div>
                             <div>
-                              <p className="text-[10px] font-black text-muted uppercase tracking-widest">{social.label}</p>
-                              <p className="text-xs font-bold text-white uppercase italic">{social.handle}</p>
+                              <p className="text-[10px] font-black text-muted uppercase tracking-widest">TELEGRAM</p>
+                              <p className="text-xs font-bold text-white uppercase italic">{user?.telegramId ? "CONNECTED" : "NOT CONNECTED"}</p>
                             </div>
                           </div>
                           <div className={`px-3 py-1 rounded-full text-[8px] font-black ${
-                            social.status === "VERIFIED" ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
+                            user?.telegramId ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
                           }`}>
-                            {social.status}
+                            {user?.telegramId ? "VERIFIED" : "UNLINKED"}
                           </div>
                         </div>
-                      ))}
+                        {user?.telegramId ? (
+                          <button
+                            onClick={handleUnlinkTelegram}
+                            disabled={isUnlinkingTelegram}
+                            className="w-full text-[10px] font-black uppercase tracking-widest text-muted hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl py-2.5 transition-all disabled:opacity-50"
+                          >
+                            {isUnlinkingTelegram ? "UNLINKING..." : "UNLINK TELEGRAM"}
+                          </button>
+                        ) : (
+                          <div className="space-y-2">
+                            <TelegramLoginWidget
+                              authEndpoint="/api/auth/link/telegram"
+                              redirectOnSuccess={false}
+                              buttonSize="medium"
+                              onSuccess={() => {
+                                setLinkTelegramError(null);
+                                refreshSession();
+                              }}
+                              onError={(err) => setLinkTelegramError(err)}
+                            />
+                            {linkTelegramError && (
+                              <p className="text-[10px] font-bold text-red-400 text-center">{linkTelegramError}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

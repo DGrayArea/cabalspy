@@ -28,11 +28,11 @@
 
 ### Critical
 
-- [ ] **TradingPanel missing `addTrade` call** (`src/components/TradingPanel.tsx:196-215`): `handleExecute` calls `refreshPortfolio()` on success but never records the trade to the DB. Trades from the main listing and pulse pages are silently unrecorded. Mirror what `src/app/[chain]/[tokenAddress]/page.tsx:345-383` does — import `useTradeHistory` and call `addTrade` on success inside `handleExecute`.
+- [x] **TradingPanel missing `addTrade` call** (`src/components/TradingPanel.tsx`): `handleExecute` now records trades (success and failure) via `useTradeHistory`/`addTrade`, mirroring the token detail page.
 
-- [ ] **`/api/turnkey/sign-transaction` has no auth guard** (`src/app/api/turnkey/sign-transaction/route.ts:37-39`): There's a `// TODO` comment acknowledging this. Any caller with a `walletId/accountId` can request a backend signature. Add `getSession(request)` and return 401 if no valid session.
+- [x] **`/api/turnkey/sign-transaction` has no auth guard** (`src/app/api/turnkey/sign-transaction/route.ts`): Now checks `getSession(request)` and returns 401 without a valid session. Verified Telegram auth sets the same `session` cookie, so Telegram users are unaffected.
 
-- [ ] **`/api/auth/google` is a dead stub** (`src/app/api/auth/google/route.ts:63-66`): POST handler has `// TODO: Create Turnkey user and wallet here` and returns raw Google userInfo without creating a session, cookie, or DB user. Either wire it up fully or remove it to avoid confusion.
+- [x] **`/api/auth/google` is a dead stub**: Removed — all Google sign-in goes through Turnkey (`handleGoogleOauth`/`handleLogin`); the route had no callers. (`/api/auth/google/callback` left in place.)
 
 ### Per-User Stats & Recording
 
@@ -60,7 +60,7 @@
 
 - [ ] **Network fee display is static** (`src/components/TradingPanel.tsx:527`): Shows hardcoded `~0.000005 SOL`. Should pull actual priority fee from Jupiter Ultra response.
 
-- [ ] **Partial wallet creation fails silently** (`src/app/api/turnkey/create-wallets/route.ts:144`): If 1–3 of 4 wallets exist, the `verifiedCount === 4` check skips re-creation of missing wallets without error. Users with a partial wallet set may end up wallet-less.
+- [x] **Partial wallet creation fails silently**: The `/api/turnkey/create-wallets` route had no callers and was removed — all wallet creation goes through `src/lib/walletSync.ts` (`syncUserWallets`), which already creates each missing network wallet individually.
 
 - [ ] **Consolidate legacy `jupiter-swap.ts` with Ultra implementation**: `src/services/jupiter-swap.ts` (legacy v6 quote API) sits alongside the newer Ultra swap. Consider consolidating or at minimum adding an API key header to unauthenticated quote calls.
 
@@ -70,9 +70,9 @@
 
 ### Critical / Correctness
 
-- [ ] **`portfolio-analytics.ts` returns fully hardcoded fake data** (`src/services/portfolio-analytics.ts:71-77`): `totalPnLUsd: 124.50`, `totalPnLPercent: 12.5`, `bestTrade: { symbol: "SOL", roi: 45.2 }` are static values. Win/loss per trade uses `Math.random() > 0.4` — it's random garbage. This feeds `/api/analytics/performance`. Replace with real computation from `TradeHistory` records.
+- [x] **`portfolio-analytics.ts` returns fully hardcoded fake data**: Rewritten to compute realized PnL, win rate, and best/worst trade from `TradeHistory` records (average-cost basis per mint, replayed chronologically). `/api/analytics/performance` now passes `session.userId` instead of the wallet address.
 
-- [ ] **`helius-token-data.getRecentTransactions` returns fake transaction data** (`src/services/helius-token-data.ts:136`): Buy/sell type is `i % 3 === 0 ? "sell" : "buy"` (index-based, not real). `amountSol` and `amountUsd` are always `0`, `walletAddress` is always `""`. Any "recent transactions" display on token pages shows zero amounts.
+- [x] **`helius-token-data.getRecentTransactions` returns fake transaction data**: Removed — the method (and `TokenTransaction`/`formatAge` support code) had no callers anywhere. If a recent-transactions display is wanted later, implement it with real tx parsing (e.g. Helius enhanced API).
 
 - [ ] **Mobula fallback key logic sends unauthenticated requests** (`src/services/mobula.ts:311-338`): When the primary key 401s, the fallback path checks `NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY` but makes the request with no Authorization header — so it also 401s. Fix the fallback to actually set the Bearer header using the fallback key.
 
@@ -82,17 +82,17 @@
 
 ### Broken / Dead Services
 
-- [ ] **`AxiomService` generates fake tokens on every call** (`src/services/axiom.ts:68-126`): All attempted endpoints return 404, so it silently falls back to 50 randomly-priced demo tokens with placeholder images. Verify whether any page actually uses `axiomService` — if Mobula is the real feed source, delete `axiom.ts` entirely.
+- [x] **`AxiomService` fake tokens**: Verified nothing renders it — its only importer was the unused `useTokens` hook (now deleted). `axiom.ts` itself is kept intentionally (hardcoded key stays per decision), but it is currently unreferenced.
 
-- [ ] **`SolanaRPCSubscriptionService` is never connected** (`src/services/solana-rpc-subscription.ts`): The service is exported as a singleton but no page or hook ever calls `.connect()` or listens to its events. Dead infrastructure — either wire it up or remove it.
+- [x] **`SolanaRPCSubscriptionService` is never connected**: Removed — no importers.
 
-- [ ] **`/api/solana/new-tokens` is an incomplete stub**: Fetches signatures from the pump.fun program but intentionally doesn't parse transaction data (comment in code says so). No page or hook fetches this route. Either implement it or remove it.
+- [x] **`/api/solana/new-tokens` is an incomplete stub**: Removed — no callers.
 
 - [ ] **`helius-token-data.ts` doesn't actually use Helius** (`src/services/helius-token-data.ts`): Despite the name, it calls a generic Solana JSON-RPC endpoint with no Helius API key or Helius-specific methods. Rename or replace with real Helius enhanced API calls (`getTokenAccounts`, enhanced transactions, etc.).
 
 ### Reliability / Rate Limiting
 
-- [ ] **WebSocket reconnection gives up permanently after 5 attempts** (`src/services/websocket.ts:80-82`): After 5 reconnects the feed dies until hard refresh. Increase the cap or implement indefinite reconnection with a longer back-off ceiling.
+- [x] **WebSocket reconnection gives up permanently after 5 attempts**: Moot — `src/services/websocket.ts` had no importers anywhere and was removed (live feeds use `mobula-pulse`/`multichain-tokens`).
 
 - [ ] **`fetchTokenByAddress` in `mobula-pulse.ts` fetches 2000 tokens to find one** (`src/services/mobula-pulse.ts:838-920`): Scans up to 1000 trending tokens then another 1000 from basic views because Mobula Pulse has no address-filter param. Extremely wasteful in production — cache the full list or use Mobula's direct asset endpoint instead.
 

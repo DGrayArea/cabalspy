@@ -29,6 +29,12 @@ interface TelegramLoginWidgetProps {
   cornerRadius?: number;
   requestAccess?: boolean;
   className?: string;
+  /** Endpoint the verified payload is POSTed to (default: login). Use
+   * "/api/auth/link/telegram" to link Telegram to the signed-in account. */
+  authEndpoint?: string;
+  /** Redirect to "/" after success so AuthContext picks up the new session
+   * cookie. Disable for link mode where the session doesn't change. */
+  redirectOnSuccess?: boolean;
 }
 
 export function TelegramLoginWidget({
@@ -38,6 +44,8 @@ export function TelegramLoginWidget({
   cornerRadius = 8,
   requestAccess = true,
   className = "",
+  authEndpoint = "/api/auth/telegram",
+  redirectOnSuccess = true,
 }: TelegramLoginWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [widgetError, setWidgetError] = useState<string | null>(null);
@@ -49,7 +57,7 @@ export function TelegramLoginWidget({
   const handleTelegramAuth = useCallback(
     async (user: TelegramUser) => {
       try {
-        const response = await fetch("/api/auth/telegram", {
+        const response = await fetch(authEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(user),
@@ -63,14 +71,16 @@ export function TelegramLoginWidget({
 
         onSuccess?.(user);
 
-        // The server sets a secure httpOnly cookie — trigger a page reload
-        // so AuthContext picks up the new session from /api/auth/session
-        window.location.href = "/";
+        if (redirectOnSuccess) {
+          // The server sets a secure httpOnly cookie — trigger a page reload
+          // so AuthContext picks up the new session from /api/auth/session
+          window.location.href = "/";
+        }
       } catch (err) {
         onError?.("Network error during authentication");
       }
     },
-    [onSuccess, onError]
+    [onSuccess, onError, authEndpoint, redirectOnSuccess]
   );
 
   useEffect(() => {
