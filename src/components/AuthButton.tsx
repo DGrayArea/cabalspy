@@ -25,7 +25,6 @@ export default function AuthButton() {
     turnkeySession,
     logout,
     connectWallet,
-    login,
     setTurnkeyUser,
     setTurnkeySession,
     isLoading: authLoading,
@@ -33,7 +32,6 @@ export default function AuthButton() {
   } = useAuth();
 
   const {
-    handleLogin,
     fetchUser,
     getSession,
     wallets,
@@ -42,61 +40,6 @@ export default function AuthButton() {
   } = useTurnkey();
 
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
-
-  const handleGoogleLogin = async () => {
-    try {
-      // Use Turnkey's handleLogin() which shows the auth modal
-      // This will display Google OAuth option if configured in TurnkeyProvider
-      await handleLogin();
-    } catch (error) {
-      console.error("Google login error:", error);
-      alert(
-        "Failed to initiate Google login. Please check console for details."
-      );
-    }
-  };
-
-  const handleTelegramLogin = async () => {
-    try {
-      // Initiate Telegram bot authentication flow
-      // This will generate a token and redirect to the Telegram bot
-      const response = await fetch("/api/auth/telegram/init");
-
-      if (!response.ok) {
-        throw new Error("Failed to initiate Telegram authentication");
-      }
-
-      const { botLink } = await response.json();
-
-      // Open Telegram bot in a new tab
-      // The bot will then send them back to the callback URL with auth data
-      window.open(botLink, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      console.error("Telegram login error:", error);
-      alert(
-        "Failed to initiate Telegram login. Please make sure:\n\n" +
-          "1. Your Telegram bot is set up\n" +
-          "2. TELEGRAM_BOT_TOKEN is configured in your environment\n" +
-          "3. TELEGRAM_BOT_USERNAME is set (optional, defaults to 'your_bot_username')"
-      );
-    }
-  };
-
-  const handleDiscordLogin = async () => {
-    try {
-      const response = await fetch("/api/auth/discord/init");
-      const data = await response.json();
-      
-      if (data.success && data.authUrl) {
-        window.location.href = data.authUrl;
-      } else {
-        throw new Error("Failed to get Discord auth URL");
-      }
-    } catch (error) {
-      console.error("Discord login error:", error);
-      alert("Failed to initiate Discord login.");
-    }
-  };
 
   // useEffect must be called before any early returns (Rules of Hooks)
   useEffect(() => {

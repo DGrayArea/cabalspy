@@ -124,8 +124,6 @@ function AuthCallbackHandler() {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const discordAuth = searchParams.get("discord_auth");
-    const telegramAuth = searchParams.get("telegram_auth");
-    const dataStr = searchParams.get("data");
 
     if (code && state) {
       handleAuthCallback(code, state).finally(() => {
@@ -133,11 +131,6 @@ function AuthCallbackHandler() {
       });
     } else if (discordAuth === "success") {
       // Always refresh the server session first so checkAccess sees the updated user
-      refreshSession().finally(() => {
-        router.replace("/");
-      });
-    } else if (telegramAuth === "success") {
-      // Telegram bot redirected back — refresh server session (cookie already set by callback route)
       refreshSession().finally(() => {
         router.replace("/");
       });

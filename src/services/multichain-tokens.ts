@@ -7,7 +7,6 @@ import { pumpFunService } from "./pumpfun";
  * Multi-chain token fetching service
  * Fetches tokens from:
  * - Solana: pumpapi.io / pumpswap (via WebSocket/HTTP)
- *   Alternative: Direct Solana RPC subscriptions (see solana-rpc-subscription.ts)
  *   Reference: https://github.com/chainstacklabs/pumpfun-bonkfun-bot
  * - BSC: forr.meme (via WebSocket/HTTP)
  */

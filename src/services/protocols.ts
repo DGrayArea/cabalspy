@@ -14,10 +14,6 @@
  *   1. Comment out the fetchJupiterStudioTokens() method (lines ~150-250)
  *   2. Comment out the 'jupiter-studio' case in fetchTokensByProtocols() switch
  * 
- * To disable WebSocket monitoring:
- *   1. Set ENABLE_PROTOCOL_WS_MONITORING = false in protocol-websocket-monitor.ts
- *   2. Or comment out the entire protocol-websocket-monitor.ts file
- * 
  * All integrations are wrapped in try-catch blocks, so failures won't break
  * the rest of the service. They'll just return empty arrays on error.
  */
