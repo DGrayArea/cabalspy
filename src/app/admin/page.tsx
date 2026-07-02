@@ -21,6 +21,7 @@ interface AdminMetrics {
   overview: {
     totalUsers: number; activeUsers7d: number; totalTrades: number;
     totalSessions: number; totalVolumeSol: number; estimatedFeeSol: number;
+    collectedFeesSol: number;
   };
   charts: {
     signupsByDay: { date: string; count: number }[];
@@ -65,9 +66,9 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-[#0a0a0c] border border-white/10 rounded-xl px-4 py-3 shadow-2xl">
-      <p className="text-[10px] font-black uppercase tracking-widest text-[#64748b] mb-1">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-[#64748b] mb-1">{label}</p>
       {payload.map((p: any, i: number) => (
-        <p key={i} className="text-sm font-black" style={{ color: p.color || p.fill || C.primary }}>
+        <p key={i} className="text-sm font-bold" style={{ color: p.color || p.fill || C.primary }}>
           {p.name}: <span className="text-white">{typeof p.value === "number" ? p.value.toLocaleString() : p.value}</span>
         </p>
       ))}
@@ -89,14 +90,14 @@ function StatCard({ icon: Icon, label, value, sub, color = C.primary, change }: 
             <Icon className="w-5 h-5" style={{ color }} />
           </div>
           {change && (
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black ${change.value >= 0 ? "bg-[#00ff9d]/10 text-[#00ff9d]" : "bg-[#ff007a]/10 text-[#ff007a]"}`}>
+            <div className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold ${change.value >= 0 ? "bg-[#00ff9d]/10 text-[#00ff9d]" : "bg-[#ff007a]/10 text-[#ff007a]"}`}>
               {change.value >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
               {change.label}
             </div>
           )}
         </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#64748b] mb-1">{label}</p>
-        <p className="text-3xl font-black text-white tracking-tighter">{value}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#64748b] mb-1">{label}</p>
+        <p className="text-3xl font-bold text-white tracking-tighter">{value}</p>
         {sub && <p className="text-[11px] font-medium text-[#64748b] mt-1">{sub}</p>}
       </div>
     </div>
@@ -110,7 +111,7 @@ function SectionHeading({ icon: Icon, title, color = C.primary }: { icon: any; t
       <div className="p-2 rounded-xl" style={{ background: `${color}15` }}>
         <Icon className="w-4 h-4" style={{ color }} />
       </div>
-      <h2 className="text-base font-black uppercase tracking-widest text-white">{title}</h2>
+      <h2 className="text-base font-bold uppercase tracking-widest text-white">{title}</h2>
       <div className="flex-1 h-px bg-white/5" />
     </div>
   );
@@ -120,7 +121,7 @@ function SectionHeading({ icon: Icon, title, color = C.primary }: { icon: any; t
 function ChartCard({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={`glass rounded-3xl p-6 border border-white/5 ${className}`}>
-      <p className="text-[10px] font-black uppercase tracking-[0.25em] text-[#64748b] mb-5">{title}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-[#64748b] mb-5">{title}</p>
       {children}
     </div>
   );
@@ -152,6 +153,7 @@ function UserManagement() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "user" | "holder" | "admin">("all");
   const [updating, setUpdating] = useState<string | null>(null);
+  const [canEditRoles, setCanEditRoles] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   const fetchUsers = useCallback(async () => {
@@ -160,6 +162,7 @@ function UserManagement() {
       const res = await fetch("/api/admin/users");
       const data = await res.json();
       setUsers(data.users ?? []);
+      setCanEditRoles(!!data.requesterIsSuperAdmin);
     } catch {
       setToast({ message: "Failed to load users", type: "error" });
     } finally {
@@ -224,7 +227,7 @@ function UserManagement() {
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${
                 filter === f
                   ? "bg-[#00ff9d]/10 text-[#00ff9d] border border-[#00ff9d]/30"
                   : "text-[#64748b] hover:text-white border border-transparent"
@@ -256,7 +259,7 @@ function UserManagement() {
             <thead>
               <tr className="border-b border-white/5">
                 {["User", "Auth", "Access Level", "Joined", "Actions"].map(h => (
-                  <th key={h} className="text-left px-6 py-3 text-[9px] font-black uppercase tracking-[0.25em] text-[#64748b]">{h}</th>
+                  <th key={h} className="text-left px-6 py-3 text-[9px] font-bold uppercase tracking-[0.25em] text-[#64748b]">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -276,13 +279,13 @@ function UserManagement() {
                         {u.avatar ? (
                           <Image src={u.avatar} alt={u.name} width={32} height={32} className="w-8 h-8 rounded-full object-cover ring-1 ring-white/10" unoptimized />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[11px] font-black text-[#64748b]">
+                          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-[11px] font-bold text-[#64748b]">
                             {u.name[0]?.toUpperCase()}
                           </div>
                         )}
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-black text-white truncate max-w-[120px]">{u.name}</span>
+                            <span className="text-sm font-bold text-white truncate max-w-[120px]">{u.name}</span>
                             {u.isSuperAdmin && (
                               <span title="Super Admin — protected">
                                 <Crown className="w-3 h-3 text-[#f59e0b] shrink-0" />
@@ -296,14 +299,14 @@ function UserManagement() {
 
                     {/* Auth provider */}
                     <td className="px-6 py-4">
-                      <span className="text-[10px] font-black px-2 py-1 rounded-lg" style={{ color: provider.color, background: `${provider.color}15` }}>
+                      <span className="text-[10px] font-bold px-2 py-1 rounded-lg" style={{ color: provider.color, background: `${provider.color}15` }}>
                         {provider.label}
                       </span>
                     </td>
 
                     {/* Access level badge */}
                     <td className="px-6 py-4">
-                      <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border" style={{ color: meta.color, background: meta.bg, borderColor: `${meta.color}30` }}>
+                      <span className="text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg border" style={{ color: meta.color, background: meta.bg, borderColor: `${meta.color}30` }}>
                         {meta.label}
                       </span>
                     </td>
@@ -320,8 +323,12 @@ function UserManagement() {
                       {u.isSuperAdmin ? (
                         <div className="flex items-center gap-1.5 text-[#f59e0b]">
                           <Crown className="w-3.5 h-3.5" />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Super Admin</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest">Super Admin</span>
                         </div>
+                      ) : !canEditRoles ? (
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]/60">
+                          View only
+                        </span>
                       ) : (
                         <div className="flex items-center gap-2">
                           {isUpdating ? (
@@ -331,7 +338,7 @@ function UserManagement() {
                               {u.accessLevel !== "admin" && (
                                 <button
                                   onClick={() => changeLevel(u.id, "admin", u.name)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 hover:bg-[#f59e0b]/20 transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-[#f59e0b]/10 text-[#f59e0b] border border-[#f59e0b]/20 hover:bg-[#f59e0b]/20 transition-all"
                                 >
                                   <ShieldCheck className="w-3 h-3" />
                                   Make Admin
@@ -340,7 +347,7 @@ function UserManagement() {
                               {u.accessLevel === "admin" && (
                                 <button
                                   onClick={() => changeLevel(u.id, "holder", u.name)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#ff007a]/10 text-[#ff007a] border border-[#ff007a]/20 hover:bg-[#ff007a]/20 transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-[#ff007a]/10 text-[#ff007a] border border-[#ff007a]/20 hover:bg-[#ff007a]/20 transition-all"
                                 >
                                   <ShieldOff className="w-3 h-3" />
                                   Remove Admin
@@ -349,7 +356,7 @@ function UserManagement() {
                               {u.accessLevel === "user" && (
                                 <button
                                   onClick={() => changeLevel(u.id, "holder", u.name)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest bg-[#00ff9d]/10 text-[#00ff9d] border border-[#00ff9d]/20 hover:bg-[#00ff9d]/20 transition-all"
+                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest bg-[#00ff9d]/10 text-[#00ff9d] border border-[#00ff9d]/20 hover:bg-[#00ff9d]/20 transition-all"
                                 >
                                   <CheckCircle2 className="w-3 h-3" />
                                   Grant Holder
@@ -460,9 +467,9 @@ export default function AdminDashboard() {
                 <div className="p-1.5 rounded-lg bg-[#00ff9d]/10 border border-[#00ff9d]/20">
                   <ShieldCheck className="w-4 h-4 text-[#00ff9d]" />
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ff9d]">Admin Console</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-[#00ff9d]">Admin Console</span>
               </div>
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter text-white">
+              <h1 className="text-3xl sm:text-4xl font-bold tracking-tighter text-white">
                 PLATFORM{" "}
                 <span style={{ background: "linear-gradient(135deg, #00ff9d, #bd00ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   COMMAND
@@ -481,7 +488,7 @@ export default function AdminDashboard() {
               <button
                 onClick={fetchMetrics}
                 disabled={fetching}
-                className="flex items-center gap-2 px-4 py-2.5 glass rounded-2xl border border-white/10 hover:border-[#00ff9d]/30 hover:text-[#00ff9d] transition-all text-[11px] font-black uppercase tracking-widest disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2.5 glass rounded-2xl border border-white/10 hover:border-[#00ff9d]/30 hover:text-[#00ff9d] transition-all text-[11px] font-bold uppercase tracking-widest disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${fetching ? "animate-spin" : ""}`} />
                 Refresh
@@ -499,7 +506,7 @@ export default function AdminDashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all ${
                 activeTab === tab.id
                   ? "bg-[#00ff9d]/10 text-[#00ff9d] border border-[#00ff9d]/20"
                   : "text-[#64748b] hover:text-white"
@@ -521,7 +528,7 @@ export default function AdminDashboard() {
             {fetching && !metrics ? (
               <div className="flex flex-col items-center justify-center py-40 gap-4">
                 <Loader2 className="w-10 h-10 text-[#00ff9d] animate-spin" />
-                <p className="text-[11px] font-black uppercase tracking-widest text-[#64748b] animate-pulse">Loading platform data...</p>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-[#64748b] animate-pulse">Loading platform data...</p>
               </div>
             ) : (
               <>
@@ -534,7 +541,7 @@ export default function AdminDashboard() {
                     <StatCard icon={Activity}  label="Total Trades"   value={(o?.totalTrades ?? 0).toLocaleString()}        color={C.secondary} />
                     <StatCard icon={Zap}       label="Sessions"       value={(o?.totalSessions ?? 0).toLocaleString()}      color={C.gold} />
                     <StatCard icon={Wallet}    label="Volume (SOL)"   value={o ? o.totalVolumeSol.toFixed(2) : "0"}         color={C.accent}  sub="30-day sum" />
-                    <StatCard icon={DollarSign} label="Est. Fees"     value={o ? o.estimatedFeeSol.toFixed(4) : "0"}        color={C.gold}    sub="@ 0.3% rate" />
+                    <StatCard icon={DollarSign} label="Fees (SOL)"    value={o ? (o.collectedFeesSol > 0 ? o.collectedFeesSol.toFixed(4) : o.estimatedFeeSol.toFixed(4)) : "0"} color={C.gold} sub={o && o.collectedFeesSol > 0 ? "collected (30d)" : "est. @ 1% rate"} />
                   </div>
                 </div>
 
@@ -567,7 +574,7 @@ export default function AdminDashboard() {
                             {authPieData.map((_, i) => <Cell key={i} fill={AUTH_COLORS[i % AUTH_COLORS.length]} />)}
                           </Pie>
                           <Tooltip content={<CustomTooltip />} />
-                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">{v}</span>} />
+                          <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">{v}</span>} />
                         </PieChart>
                       </ResponsiveContainer>
                     </ChartCard>
@@ -589,9 +596,9 @@ export default function AdminDashboard() {
                             <div key={i} className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
                                 <div className="w-2 h-2 rounded-full" style={{ background: ACCESS_COLORS[i] }} />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">{item.name}</span>
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">{item.name}</span>
                               </div>
-                              <span className="text-sm font-black text-white">{item.value.toLocaleString()}</span>
+                              <span className="text-sm font-bold text-white">{item.value.toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
@@ -606,12 +613,12 @@ export default function AdminDashboard() {
                           const max = c!.topTokens[0]?.count ?? 1;
                           return (
                             <div key={i} className="flex items-center gap-3">
-                              <span className="text-[10px] font-black text-[#64748b] w-4">{i + 1}</span>
-                              <span className="text-[11px] font-black text-white w-20 truncate">{t.symbol}</span>
+                              <span className="text-[10px] font-bold text-[#64748b] w-4">{i + 1}</span>
+                              <span className="text-[11px] font-bold text-white w-20 truncate">{t.symbol}</span>
                               <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
                                 <div className="h-full rounded-full" style={{ width: `${(t.count / max) * 100}%`, background: `linear-gradient(90deg, ${C.primary}, ${C.secondary})` }} />
                               </div>
-                              <span className="text-[10px] font-black text-[#64748b] w-8 text-right">{t.count}</span>
+                              <span className="text-[10px] font-bold text-[#64748b] w-8 text-right">{t.count}</span>
                             </div>
                           );
                         })}
@@ -658,14 +665,14 @@ export default function AdminDashboard() {
                                 <div className="flex items-center justify-between mb-1">
                                   <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full" style={{ background: item.fill }} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-[#64748b]">{item.name}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#64748b]">{item.name}</span>
                                   </div>
-                                  <span className="text-[10px] font-black" style={{ color: item.fill }}>{pct}%</span>
+                                  <span className="text-[10px] font-bold" style={{ color: item.fill }}>{pct}%</span>
                                 </div>
                                 <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                                   <div className="h-full rounded-full" style={{ width: `${pct}%`, background: item.fill }} />
                                 </div>
-                                <p className="text-xs font-black text-white mt-1">{item.value.toLocaleString()}</p>
+                                <p className="text-xs font-bold text-white mt-1">{item.value.toLocaleString()}</p>
                               </div>
                             );
                           })}
@@ -697,12 +704,16 @@ export default function AdminDashboard() {
                     <div className="mt-4 flex flex-wrap gap-3">
                       {[
                         { label: "30d Volume", value: `${(o?.totalVolumeSol ?? 0).toFixed(4)} SOL`, color: C.gold },
-                        { label: "Est. Revenue (0.3%)", value: `${(o?.estimatedFeeSol ?? 0).toFixed(4)} SOL`, color: C.primary },
+                        {
+                          label: (o?.collectedFeesSol ?? 0) > 0 ? "Collected Fees (30d)" : "Est. Revenue (1%)",
+                          value: `${((o?.collectedFeesSol ?? 0) > 0 ? o!.collectedFeesSol : (o?.estimatedFeeSol ?? 0)).toFixed(4)} SOL`,
+                          color: C.primary,
+                        },
                         { label: "Total Trades", value: (o?.totalTrades ?? 0).toLocaleString(), color: C.secondary },
                       ].map(item => (
                         <div key={item.label} className="flex-1 min-w-[140px] px-4 py-3 rounded-2xl" style={{ background: `${item.color}08`, border: `1px solid ${item.color}25` }}>
-                          <p className="text-[9px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: `${item.color}aa` }}>{item.label}</p>
-                          <p className="text-xl font-black text-white">{item.value}</p>
+                          <p className="text-[9px] font-bold uppercase tracking-[0.2em] mb-1" style={{ color: `${item.color}aa` }}>{item.label}</p>
+                          <p className="text-xl font-bold text-white">{item.value}</p>
                         </div>
                       ))}
                     </div>

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-
-const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL;
+import { isSuperAdmin } from "@/lib/adminAuth";
 
 /** Verify the requester is an admin */
 async function requireAdmin(req: NextRequest) {
@@ -42,21 +41,33 @@ export async function GET(req: NextRequest) {
   // Mark which user is the protected super admin
   const enriched = users.map((u) => ({
     ...u,
-    isSuperAdmin: !!SUPER_ADMIN_EMAIL && u.email === SUPER_ADMIN_EMAIL,
+    isSuperAdmin: isSuperAdmin(u),
   }));
 
-  return NextResponse.json({ users: enriched });
+  return NextResponse.json({
+    users: enriched,
+    // Only the super admin may modify roles; the UI hides controls otherwise
+    requesterIsSuperAdmin: isSuperAdmin(admin),
+  });
 }
 
 /**
  * PATCH /api/admin/users
  * Body: { userId: string, accessLevel: "user" | "holder" | "admin" }
- * Promotes or demotes a user. The super admin can never be demoted.
+ * Promotes or demotes a user. Only the super admin can change roles —
+ * regular admins are view-only. The super admin can never be demoted.
  */
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (!isSuperAdmin(admin)) {
+    return NextResponse.json(
+      { error: "Only the super admin can change user roles." },
+      { status: 403 }
+    );
   }
 
   const body = await req.json();
@@ -78,11 +89,7 @@ export async function PATCH(req: NextRequest) {
   }
 
   // 🔒 Super admin protection — no one can remove their admin status
-  if (
-    SUPER_ADMIN_EMAIL &&
-    target.email === SUPER_ADMIN_EMAIL &&
-    accessLevel !== "admin"
-  ) {
+  if (isSuperAdmin(target) && accessLevel !== "admin") {
     return NextResponse.json(
       { error: "Cannot demote the super admin." },
       { status: 403 }

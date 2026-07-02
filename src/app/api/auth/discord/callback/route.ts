@@ -5,8 +5,10 @@ import { syncUserWallets } from "@/lib/walletSync";
 import { getSession } from "@/lib/auth";
 import { randomBytes } from "crypto";
 
-// Roles defined in original python app
-const ALLOWED_ROLES = new Set(["1440085206785720413", "1386648661391441920"]); // Holder + Pre-Sale
+import { ALLOWED_DISCORD_ROLE_IDS } from "@/lib/accessRoles";
+
+// Roles that grant access (Holder + Pre-Sale by default; env-overridable)
+const ALLOWED_ROLES = new Set(ALLOWED_DISCORD_ROLE_IDS);
 
 /**
  * Discord auth callback
