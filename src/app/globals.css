@@ -3,53 +3,57 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Midnight Neon Palette - Premium Dark Theme */
-  --background: #020203;     /* Deep black-blue for maximum depth */
-  --foreground: #f8fafc;     /* Crisp white for primary text */
-  --panel: #0a0a0c;          /* Base panel color */
-  --panel-elev: #121215;     /* Elevated panel (hover/inner) */
-  --muted: #64748b;          /* Muted slate for secondary info */
-  
-  /* Vibrant Neon Accents */
-  --primary: #00ff9d;        /* Neon Mint */
-  --primary-dark: #00cc7d;
-  --primary-darker: #00995e;
-  --primary-light: #66ffc2;
-  --primary-bg: rgba(0, 255, 157, 0.05);
-  --primary-border: rgba(0, 255, 157, 0.2);
-  
-  --secondary: #bd00ff;      /* Neon Purple */
-  --secondary-dark: #9600cc;
-  --secondary-bg: rgba(189, 0, 255, 0.05);
-  
-  --accent: #ff007a;         /* Neon Pink */
-  --accent-dark: #cc0062;
-  --accent-bg: rgba(255, 0, 122, 0.05);
-  
-  /* shadcn/ui Overrides */
+  /* Terminal Dark — refined, low-glare palette */
+  --background: #050608;     /* near-black, slightly cool */
+  --foreground: #eef2f6;     /* soft white for primary text */
+  --panel: #0b0d11;          /* base surface */
+  --panel-elev: #12151b;     /* elevated surface (inputs, rows, hover) */
+  --muted: #707a89;          /* secondary text */
+
+  /* Accents — one signal color, used sparingly */
+  --primary: #00d492;        /* refined mint (up / confirm) */
+  --primary-dark: #00b37c;
+  --primary-darker: #008f63;
+  --primary-light: #4ceeb4;
+  --primary-bg: rgba(0, 212, 146, 0.06);
+  --primary-border: rgba(0, 212, 146, 0.25);
+
+  --secondary: #8b5cf6;      /* violet — rare, informational */
+  --secondary-dark: #7c3aed;
+  --secondary-bg: rgba(139, 92, 246, 0.06);
+
+  --accent: #ff4d5e;         /* loss red (down / destructive) */
+  --accent-dark: #e13950;
+  --accent-bg: rgba(255, 77, 94, 0.06);
+
+  /* shadcn/ui overrides */
   --card: var(--panel);
   --card-foreground: var(--foreground);
   --popover: var(--panel);
   --popover-foreground: var(--foreground);
-  --border: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.07);
   --input: var(--panel-elev);
   --ring: var(--primary);
-  --radius: 1rem;            /* Modern rounded corners */
-  
-  /* Glassmorphism Defaults */
-  --glass-bg: rgba(10, 10, 12, 0.7);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  --radius: 0.75rem;
+
+  /* Elevated surfaces */
+  --glass-bg: rgba(11, 13, 17, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.07);
+  --glass-shadow: 0 16px 48px -16px rgba(0, 0, 0, 0.7);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-panel: var(--panel);
+  --color-panel-elev: var(--panel-elev);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-light: var(--primary-light);
+  --color-primary-dark: var(--primary-dark);
   --color-secondary: var(--secondary);
   --color-accent: var(--accent);
   --color-muted: var(--muted);
@@ -64,8 +68,8 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% { opacity: 0.5; filter: blur(40px); }
-    50% { opacity: 0.8; filter: blur(60px); }
+    0%, 100% { opacity: 0.4; filter: blur(40px); }
+    50% { opacity: 0.6; filter: blur(60px); }
   }
 }
 
@@ -79,67 +83,78 @@ body {
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  /* Aligned digits everywhere — prices, balances, PnL */
+  font-variant-numeric: tabular-nums;
 }
 
-/* Premium Glassmorphism */
+/* Typography — confident, not shouty */
+h1, h2, h3, h4, h5, h6 {
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+
+::selection {
+  background: rgba(0, 212, 146, 0.25);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary-border);
+  outline-offset: 2px;
+}
+
+/* Elevated glass surface — subtle, crisp edge */
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
 .glass-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0%, rgba(255, 255, 255, 0.008) 100%);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.05);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
 
 .glass-card:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
   border-color: rgba(255, 255, 255, 0.1);
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
-/* Neon Glows */
+/* Former neon glows — now quiet elevation with a faint signal ring.
+   Kept under the old names so existing markup stays valid. */
 .shadow-neon {
-  box-shadow: 0 0 20px rgba(0, 255, 157, 0.2);
+  box-shadow: 0 0 0 1px rgba(0, 212, 146, 0.08), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
 }
 
 .shadow-neon-strong {
-  box-shadow: 0 0 40px rgba(0, 255, 157, 0.4);
+  box-shadow: 0 0 0 1px rgba(0, 212, 146, 0.14), 0 12px 32px -12px rgba(0, 0, 0, 0.7);
 }
 
 .shadow-accent-neon {
-  box-shadow: 0 0 20px rgba(255, 0, 122, 0.2);
-}
-
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-  letter-spacing: -0.04em;
-  font-weight: 900;
-  text-transform: uppercase;
-  font-style: italic;
+  box-shadow: 0 0 0 1px rgba(255, 77, 94, 0.1), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
 }
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e1e22;
+  background: #22262e;
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-darker);
+  background: #2e3440;
 }
 
 /* Utilities */
@@ -148,6 +163,64 @@ h1, h2, h3, h4, h5, h6 {
 .text-muted { color: var(--muted); }
 .animate-float { animation: float 6s ease-in-out infinite; }
 .animate-pulse-glow { animation: pulse-glow 4s ease-in-out infinite; }
+
+/* ── Motion system ──────────────────────────────────────────────────── */
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fade-in { animation: fade-in 0.2s ease-out both; }
+.animate-fade-up { animation: fade-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-scale-in { animation: scale-in 0.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Overlay + panel pair for hand-rolled modals */
+.modal-overlay { animation: fade-in 0.18s ease-out both; }
+.modal-panel { animation: modal-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* Route transition (applied by app/template.tsx on every navigation).
+   Opacity only — a transform here would make the wrapper the containing
+   block for fixed/sticky children (navbar, filter bar) and break them. */
+.page-enter { animation: fade-in 0.25s ease-out both; }
+
+/* Staggered list entrance — apply to children of a feed/table */
+.stagger-children > * { animation: fade-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 25ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 50ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 75ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 125ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 150ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 175ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-up,
+  .animate-scale-in,
+  .modal-overlay,
+  .modal-panel,
+  .page-enter,
+  .stagger-children > * {
+    animation: none;
+  }
+}
 
 /* Grid Background */
 .bg-grid {
@@ -167,19 +240,19 @@ h1, h2, h3, h4, h5, h6 {
   scrollbar-width: none;     /* Firefox */
 }
 
-/* Gradient Text */
+/* Gradient Text — restrained two-tone */
 .text-gradient {
-  @apply bg-clip-text text-transparent bg-linear-to-r from-primary via-secondary to-accent;
+  @apply bg-clip-text text-transparent bg-linear-to-r from-primary to-primary-light;
 }
 
 /* Real-time WebSocket Flashes */
 @keyframes flashUp {
-  0% { background-color: rgba(0, 255, 157, 0.4); }
+  0% { background-color: rgba(0, 212, 146, 0.25); }
   100% { background-color: transparent; }
 }
 
 @keyframes flashDown {
-  0% { background-color: rgba(255, 0, 122, 0.4); }
+  0% { background-color: rgba(255, 77, 94, 0.25); }
   100% { background-color: transparent; }
 }
 

@@ -140,14 +140,14 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 z-50 backdrop-blur-sm modal-overlay"
         onClick={onClose}
       />
 
       {/* Modal */}
       <div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4">
         <div
-          className="bg-panel border border-gray-800/50 rounded-xl shadow-xl w-full max-w-md overflow-hidden"
+          className="bg-panel border border-white/10 rounded-xl shadow-2xl w-full max-w-md overflow-hidden modal-panel"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -212,7 +212,7 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-xl bg-panel flex items-center justify-center flex-shrink-0 text-xl font-black italic text-gradient uppercase border-2 border-white/10 group-hover:border-primary/30 transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-panel flex items-center justify-center flex-shrink-0 text-xl font-bold text-gradient uppercase border-2 border-white/10 group-hover:border-primary/30 transition-colors">
                       {tokenResult.symbol[0] || "?"}
                     </div>
                   )}
@@ -220,10 +220,10 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   {/* Token Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
-                      <h3 className="font-black italic text-lg text-white truncate tracking-tighter">
+                      <h3 className="font-bold text-lg text-white truncate tracking-tighter">
                         {tokenResult.name}
                       </h3>
-                      <span className="px-1.5 py-0.5 bg-white/10 rounded text-[9px] font-black uppercase text-white/70">
+                      <span className="px-1.5 py-0.5 bg-white/10 rounded text-[9px] font-bold uppercase text-white/70">
                         {tokenResult.chain === "solana" ? "SOL" : "BSC"}
                       </span>
                     </div>
@@ -237,13 +237,13 @@ export function SearchModal({ isOpen, onClose }: SearchModalProps) {
 
                     <div className="flex items-center gap-3">
                       {tokenResult.priceUsd !== undefined && (
-                        <span className="text-sm font-black italic text-white">
+                        <span className="text-sm font-bold text-white">
                           {formatCurrency(tokenResult.priceUsd)}
                         </span>
                       )}
                       {tokenResult.priceChange24h !== undefined && (
                         <span
-                          className={`flex items-center gap-1 text-[10px] font-black px-1.5 py-0.5 rounded ${
+                          className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded ${
                             tokenResult.priceChange24h >= 0
                               ? "bg-primary/10 text-primary"
                               : "bg-accent/10 text-accent"

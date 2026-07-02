@@ -69,7 +69,7 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
     return (
       <div className={`glass rounded-2xl sm:rounded-3xl border border-white/10 p-6 text-center ${className}`}>
         <Star className="w-8 h-8 text-muted/30 mx-auto mb-3" />
-        <p className="text-xs font-black text-muted uppercase tracking-widest">No Watchlist Items</p>
+        <p className="text-xs font-bold text-muted uppercase tracking-widest">No Watchlist Items</p>
         <p className="text-[9px] text-muted/50 mt-1">
           Star a token on any page to track it here
         </p>
@@ -84,11 +84,11 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
         <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Star className="w-3.5 h-3.5 text-primary fill-primary" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Watchlist</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest">Watchlist</span>
           </div>
           <div className="flex items-center gap-2">
             {loadingPrices && <Loader2 className="w-3 h-3 animate-spin text-muted" />}
-            <span className="text-[9px] font-black text-muted">{watchlist.length} tokens</span>
+            <span className="text-[9px] font-bold text-muted">{watchlist.length} tokens</span>
           </div>
         </div>
 
@@ -103,7 +103,7 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
                   {token.image ? (
                     <img src={token.image} alt={token.symbol} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[8px] font-black italic text-gradient uppercase">
+                    <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-gradient uppercase">
                       {token.symbol[0]}
                     </div>
                   )}
@@ -111,7 +111,7 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
 
                 {/* Name + symbol */}
                 <Link href={`/sol/${token.mint}`} className="flex-1 min-w-0">
-                  <div className="text-[10px] font-black truncate">{token.symbol}</div>
+                  <div className="text-[10px] font-bold truncate">{token.symbol}</div>
                   <div className="text-[8px] text-muted truncate">{token.name}</div>
                 </Link>
 
@@ -119,8 +119,8 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
                 <div className="text-right shrink-0">
                   {p ? (
                     <>
-                      <div className="text-[10px] font-black">{formatCurrency(p.price)}</div>
-                      <div className={`text-[8px] font-black ${isUp ? "text-primary" : "text-accent"}`}>
+                      <div className="text-[10px] font-bold">{formatCurrency(p.price)}</div>
+                      <div className={`text-[8px] font-bold ${isUp ? "text-primary" : "text-accent"}`}>
                         {isUp ? "+" : ""}{p.change24h.toFixed(1)}%
                       </div>
                     </>
@@ -143,7 +143,7 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
 
         {limit && watchlist.length > limit && (
           <div className="px-4 py-2 border-t border-white/5 text-center">
-            <Link href="/portfolio" className="text-[9px] font-black text-primary hover:underline uppercase tracking-widest">
+            <Link href="/portfolio" className="text-[9px] font-bold text-primary hover:underline uppercase tracking-widest">
               +{watchlist.length - limit} more
             </Link>
           </div>
@@ -162,7 +162,7 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
             <Star className="w-4 h-4 text-primary fill-primary" />
           </div>
           <div>
-            <h3 className="text-xs font-black italic tracking-tighter uppercase">Watchlist</h3>
+            <h3 className="text-xs font-bold tracking-tighter uppercase">Watchlist</h3>
             <p className="text-[9px] text-muted font-bold uppercase tracking-widest">
               {watchlist.length} token{watchlist.length !== 1 ? "s" : ""} tracked
             </p>
@@ -186,13 +186,13 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
                   {token.image ? (
                     <img src={token.image} alt={token.symbol} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs font-black italic text-gradient uppercase">
+                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gradient uppercase">
                       {token.symbol[0]}
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-black truncate">{token.symbol}</div>
+                  <div className="text-sm font-bold truncate">{token.symbol}</div>
                   <div className="text-[9px] text-muted truncate">{token.name}</div>
                 </div>
                 <button
@@ -209,8 +209,8 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
                 <div>
                   {p ? (
                     <>
-                      <div className="text-lg font-black italic leading-none">{formatCurrency(p.price)}</div>
-                      <div className={`flex items-center gap-1 mt-1 text-[9px] font-black ${isUp ? "text-primary" : "text-accent"}`}>
+                      <div className="text-lg font-bold leading-none">{formatCurrency(p.price)}</div>
+                      <div className={`flex items-center gap-1 mt-1 text-[9px] font-bold ${isUp ? "text-primary" : "text-accent"}`}>
                         {isUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                         {isUp ? "+" : ""}{p.change24h.toFixed(2)}% 24H
                       </div>
@@ -221,13 +221,13 @@ export function WatchlistPanel({ compact = false, limit, className = "" }: Watch
                       )}
                     </>
                   ) : (
-                    <div className="text-sm font-black italic text-muted/30">Loading...</div>
+                    <div className="text-sm font-bold text-muted/30">Loading...</div>
                   )}
                 </div>
 
                 <Link
                   href={`/sol/${token.mint}`}
-                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-[9px] font-black text-muted hover:text-white"
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 transition-all text-[9px] font-bold text-muted hover:text-white"
                 >
                   TRADE <ArrowUpRight className="w-3 h-3" />
                 </Link>

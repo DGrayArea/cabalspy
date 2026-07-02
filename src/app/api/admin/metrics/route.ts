@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
           direction: true,
           amount: true,
           priceUsd: true,
+          feesSOL: true,
           symbol: true,
           tokenMint: true,
           status: true,
@@ -138,8 +139,13 @@ export async function GET(req: NextRequest) {
     // 11. Volume by day
     const volumeByDay = buildDailyVolumeBuckets(allTrades, days30Ago, now);
 
-    // Estimated platform fee (0.3% of volume — common DEX rate, configurable)
-    const FEE_RATE = 0.003;
+    // Fees: prefer actual recorded referral fees (feesSOL, tracked per trade);
+    // fall back to a 1% estimate of volume for older trades without the field.
+    const collectedFeesSol = allTrades.reduce(
+      (sum, t) => sum + (t.status === "success" && t.feesSOL ? t.feesSOL : 0),
+      0
+    );
+    const FEE_RATE = 0.01; // matches the 125bps referral fee net of Jupiter's cut
     const estimatedFeeSol = totalVolumeSol * FEE_RATE;
 
     return NextResponse.json({
@@ -149,6 +155,7 @@ export async function GET(req: NextRequest) {
         totalTrades,
         totalSessions,
         totalVolumeSol: +totalVolumeSol.toFixed(4),
+        collectedFeesSol: +collectedFeesSol.toFixed(6),
         estimatedFeeSol: +estimatedFeeSol.toFixed(4),
       },
       charts: {

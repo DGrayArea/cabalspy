@@ -25,6 +25,7 @@ import { useWatchlist } from "@/context/WatchlistContext";
 import { useViewport } from "@/context/ViewportContext";
 import { useRouter } from "next/navigation";
 import { verifyNftOwnership } from "@/services/verify-nft";
+import { ALLOWED_DISCORD_ROLE_IDS } from "@/lib/accessRoles";
 import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
@@ -293,8 +294,8 @@ export default function Home() {
       }
 
       const discordUser = user as any;
-      const hasDiscordRole = discordUser?.roles?.some((r: string) => 
-        ["1440085206785720413", "1386648661391441920"].includes(r)
+      const hasDiscordRole = discordUser?.roles?.some((r: string) =>
+        ALLOWED_DISCORD_ROLE_IDS.includes(r)
       );
 
       if (hasDiscordRole) {
@@ -371,7 +372,7 @@ export default function Home() {
                   <button
                     key={c.id}
                     onClick={() => setChain(c.id as any)}
-                    className={`cursor-pointer px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all flex items-center gap-1.5 sm:gap-2 ${
+                    className={`cursor-pointer px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-[8px] sm:text-[9px] font-bold tracking-[0.2em] transition-all flex items-center gap-1.5 sm:gap-2 ${
                       chain === c.id
                         ? "bg-primary text-black shadow-neon scale-105"
                         : "text-muted hover:text-white hover:bg-white/5"
@@ -395,7 +396,7 @@ export default function Home() {
                   <button
                     key={m.id}
                     onClick={() => setSortBy(m.id as any)}
-                    className={`cursor-pointer px-3 sm:px-6 py-2 sm:py-2.5 rounded-[1.5rem] text-[8px] sm:text-[9px] font-black tracking-[0.2em] transition-all ${
+                    className={`cursor-pointer px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-[8px] sm:text-[9px] font-bold tracking-[0.2em] transition-all ${
                       sortBy === m.id
                         ? "bg-secondary text-white shadow-secondary-neon scale-105"
                         : "text-muted hover:text-white hover:bg-white/5"
@@ -412,7 +413,7 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary"></span>
               </span>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-primary">
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-primary">
                 Live Terminal Active
               </span>
             </div>
@@ -423,7 +424,7 @@ export default function Home() {
         <div className="mb-8 sm:mb-16 animate-fade-in mt-4 sm:mt-8">
           <div className="px-4 mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-            <h2 className="text-lg sm:text-xl font-black italic tracking-tight">
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight">
               TOP FEATURED
             </h2>
           </div>
@@ -490,34 +491,31 @@ export default function Home() {
                   icon: Star,
                   accent: "primary",
                 },
-              ].map(({ id, label, count, icon: Icon, accent }) => (
+              ].map(({ id, label, count, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setFilter(id as typeof filter)}
-                  className={`group shrink-0 relative cursor-pointer px-3 sm:px-5 rounded-xl sm:rounded-2xl transition-all flex items-center gap-2 sm:gap-3 whitespace-nowrap overflow-hidden snap-start h-10 sm:h-11 ${
-                    filter === id ? "text-white" : "text-muted hover:text-white"
+                  className={`group shrink-0 relative cursor-pointer px-3 sm:px-4 rounded-lg transition-all duration-150 flex items-center gap-2 sm:gap-2.5 whitespace-nowrap overflow-hidden snap-start h-10 sm:h-11 border ${
+                    filter === id
+                      ? "text-white bg-panel-elev border-white/10"
+                      : "text-muted border-transparent hover:text-white hover:bg-white/[0.03]"
                   }`}
                 >
-                  {filter === id && (
-                    <div
-                      className={`absolute inset-0 bg-${accent}/10 border border-${accent}/20 animate-fade-in`}
-                    />
-                  )}
                   <Icon
-                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 ${filter === id ? `text-${accent}` : "opacity-50"}`}
+                    className={`w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 transition-colors ${
+                      filter === id ? "text-primary" : "opacity-50 group-hover:opacity-80"
+                    }`}
                   />
                   <div className="flex flex-col items-start relative z-10">
-                    <span className="text-[9px] sm:text-[10px] font-black tracking-[0.1em]">
+                    <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.08em]">
                       {label}
                     </span>
-                    <span className="text-[8px] sm:text-[9px] font-bold opacity-40 group-hover:opacity-60 transition-opacity">
+                    <span className="text-[8px] sm:text-[9px] font-medium opacity-40 group-hover:opacity-60 transition-opacity">
                       {count.toLocaleString()} ITEMS
                     </span>
                   </div>
                   {filter === id && (
-                    <div
-                      className={`absolute bottom-0 left-0 right-0 h-0.5 bg-${accent} shadow-neon`}
-                    />
+                    <div className="absolute bottom-0 left-2 right-2 h-px bg-primary" />
                   )}
                 </button>
               ))}
@@ -535,7 +533,7 @@ export default function Home() {
                   selectedProtocols.length > 0 && selectedProtocols.length < 22 ? "text-primary" : "text-muted group-hover:text-primary"
                 }`} />
                 {selectedProtocols.length > 0 && selectedProtocols.length < 22 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-black text-[8px] font-black rounded-full flex items-center justify-center border border-black shadow-lg">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-black text-[8px] font-bold rounded-full flex items-center justify-center border border-black shadow-lg">
                     {selectedProtocols.length}
                   </span>
                 )}
@@ -572,7 +570,7 @@ export default function Home() {
           <div className="relative">
             <button
               onClick={() => setShowDisplaySettings(!showDisplaySettings)}
-              className={`px-3 sm:px-6 py-2 sm:py-3 bg-panel border rounded-xl sm:rounded-2xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 sm:gap-3 ${
+              className={`px-3 sm:px-6 py-2 sm:py-3 bg-panel border rounded-xl sm:rounded-2xl text-[8px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 sm:gap-3 ${
                 showDisplaySettings
                   ? "border-primary text-primary bg-primary/5 shadow-neon"
                   : "border-white/10 text-muted hover:border-white/20 hover:text-white"
@@ -608,7 +606,7 @@ export default function Home() {
               <div className="w-20 h-20 rounded-3xl bg-white/5 flex items-center justify-center mb-6">
                 <Activity className="w-10 h-10 text-muted" />
               </div>
-              <h3 className="text-xl font-black italic text-muted">
+              <h3 className="text-xl font-bold text-muted">
                 NO SIGNALS DETECTED
               </h3>
               <p className="text-xs font-bold text-muted/50 uppercase tracking-widest mt-2">
@@ -639,7 +637,7 @@ export default function Home() {
                     {isLoadingMore && (
                       <div className="flex items-center gap-3 text-muted">
                         <RefreshCw className="w-5 h-5 animate-spin text-primary" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Scanning blockchain...</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Scanning blockchain...</span>
                       </div>
                     )}
                   </div>
@@ -663,7 +661,7 @@ export default function Home() {
         <DialogContent className="sm:max-w-2xl bg-panel border border-white/10 rounded-4xl shadow-2xl p-0 overflow-hidden outline-none">
           <div className="p-8">
             <DialogHeader className="mb-8">
-              <DialogTitle className="text-2xl font-black italic text-white flex items-center gap-3">
+              <DialogTitle className="text-2xl font-bold text-white flex items-center gap-3">
                 <Sliders className="w-6 h-6 text-primary" />
                 ADVANCED DISCOVERY FILTERS
               </DialogTitle>
@@ -672,7 +670,7 @@ export default function Home() {
             <div className="space-y-8">
               {/* Quick Filters Section */}
               <div className="space-y-4">
-                <h4 className="text-[10px] font-black italic text-muted uppercase tracking-[0.2em]">Quick Metrics</h4>
+                <h4 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Quick Metrics</h4>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { label: "MC < $100K", icon: TrendingDown },
@@ -695,7 +693,7 @@ export default function Home() {
                             return next;
                           });
                         }}
-                        className={`px-4 py-2.5 rounded-2xl border transition-all text-[10px] font-black italic flex items-center gap-2 group cursor-pointer ${
+                        className={`px-4 py-2.5 rounded-2xl border transition-all text-[10px] font-bold flex items-center gap-2 group cursor-pointer ${
                           isActive 
                             ? "bg-primary/20 border-primary text-primary shadow-neon-sm" 
                             : "bg-white/5 border-white/5 hover:border-primary/30 hover:text-white"
@@ -712,7 +710,7 @@ export default function Home() {
               {/* Protocols Section */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-black italic text-muted uppercase tracking-[0.2em]">Launchpads & Protocols</h4>
+                  <h4 className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Launchpads & Protocols</h4>
                   <button
                     onClick={() => {
                       const solList = ["pump","raydium","meteora","meteora-amm","meteora-amm-v2","orca","bonk","bags","moonshot","heaven","daos-fun","candle","sugar","believe","jupiter-studio","moonit","boop","launchlab","dynamic-bc","mayhem","pump-amm","wavebreak"];
@@ -720,7 +718,7 @@ export default function Home() {
                       const pList = [...solList, ...bscList];
                       setSelectedProtocols(selectedProtocols.length === pList.length ? [] : pList);
                     }}
-                    className="text-[9px] font-black italic text-primary hover:text-primary/70 transition-colors cursor-pointer uppercase tracking-widest"
+                    className="text-[9px] font-bold text-primary hover:text-primary/70 transition-colors cursor-pointer uppercase tracking-widest"
                   >
                     {selectedProtocols.length > 0 ? "Unselect All" : "Select All"}
                   </button>
@@ -770,7 +768,7 @@ export default function Home() {
                             isSelected ? prev.filter((p) => p !== protocol.id) : [...prev, protocol.id]
                           );
                         }}
-                        className={`px-3 py-2 rounded-xl text-[10px] font-black italic transition-all cursor-pointer border-2 flex items-center gap-2 ${
+                        className={`px-3 py-2 rounded-xl text-[10px] font-bold transition-all cursor-pointer border-2 flex items-center gap-2 ${
                           isSelected
                             ? "bg-primary/10 text-white border-primary"
                             : "bg-white/5 text-gray-500 border-transparent hover:border-white/10"
@@ -794,14 +792,14 @@ export default function Home() {
                      localStorage.removeItem("cabalspy_adv_filters");
                    }
                 }}
-                className="text-xs font-black italic text-muted hover:text-white transition-colors cursor-pointer uppercase tracking-widest"
+                className="text-xs font-bold text-muted hover:text-white transition-colors cursor-pointer uppercase tracking-widest"
               >
                 Reset All
               </button>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowProtocolModal(false)}
-                  className="px-6 py-3 bg-white/5 text-gray-400 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer font-black italic text-xs uppercase"
+                  className="px-6 py-3 bg-white/5 text-gray-400 rounded-2xl hover:bg-white/10 transition-colors cursor-pointer font-bold text-xs uppercase"
                 >
                   Close
                 </button>
@@ -810,7 +808,7 @@ export default function Home() {
                     setShowProtocolModal(false);
                     refresh();
                   }}
-                  className="px-10 py-3 bg-primary text-black rounded-2xl hover:bg-primary-light transition-all cursor-pointer font-black italic text-xs uppercase shadow-neon"
+                  className="px-10 py-3 bg-primary text-black rounded-2xl hover:bg-primary-light transition-all cursor-pointer font-bold text-xs uppercase shadow-neon"
                 >
                   Apply Filters
                 </button>

@@ -212,7 +212,7 @@ export default function AuthButton() {
           >
             <Card className="border-0 bg-transparent">
               <CardHeader className="pb-4">
-                <CardTitle className="text-xl font-black tracking-tight text-white uppercase italic">
+                <CardTitle className="text-xl font-bold tracking-tight text-white uppercase">
                   Profile
                 </CardTitle>
               </CardHeader>

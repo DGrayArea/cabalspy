@@ -111,11 +111,11 @@ export function CustomFilterModal({
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/70 z-50" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/70 z-50 modal-overlay" onClick={onClose} />
 
       {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center z-51 p-4">
-        <div className="w-full max-w-3xl bg-panel border-2 border-gray-700/50 rounded-xl shadow-2xl overflow-hidden">
+        <div className="w-full max-w-3xl bg-panel border border-white/10 rounded-xl shadow-2xl overflow-hidden modal-panel">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-700/50 bg-panel-elev">
             <div className="flex items-center gap-3">

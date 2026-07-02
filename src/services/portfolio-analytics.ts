@@ -42,7 +42,10 @@ export class PortfolioAnalyticsService {
       let totalCostOfSoldUsd = 0;
 
       for (const trade of trades) {
-        if (!trade.tokenMint || !trade.priceUsd || trade.priceUsd <= 0) continue;
+        if (!trade.tokenMint) continue;
+        const hasPrice = trade.priceUsd !== null && trade.priceUsd > 0;
+        const hasOutUsd = trade.outAmountUsd !== null && trade.outAmountUsd > 0;
+        if (!hasPrice && !hasOutUsd) continue;
 
         const pos = positions.get(trade.tokenMint) ?? {
           tokens: 0,
@@ -54,8 +57,11 @@ export class PortfolioAnalyticsService {
           // On buys: output = token amount received, symbol = token symbol
           const tokensBought = parseFloat(trade.output || "0");
           if (tokensBought > 0) {
+            const costUsd = hasOutUsd
+              ? trade.outAmountUsd!
+              : tokensBought * trade.priceUsd!;
             pos.tokens += tokensBought;
-            pos.costUsd += tokensBought * trade.priceUsd;
+            pos.costUsd += costUsd;
             pos.symbol = trade.symbol;
             positions.set(trade.tokenMint, pos);
           }
@@ -67,8 +73,13 @@ export class PortfolioAnalyticsService {
           const avgEntry = pos.costUsd / pos.tokens;
           const soldFromPosition = Math.min(tokensSold, pos.tokens);
           const costOfSold = soldFromPosition * avgEntry;
-          const pnlUsd = soldFromPosition * (trade.priceUsd - avgEntry);
-          const roi = ((trade.priceUsd - avgEntry) / avgEntry) * 100;
+          // Prefer actual USD proceeds recorded at execution; scale down
+          // proportionally if part of the sell wasn't held as a position.
+          const grossProceedsUsd = hasOutUsd
+            ? trade.outAmountUsd! * (soldFromPosition / tokensSold)
+            : soldFromPosition * trade.priceUsd!;
+          const pnlUsd = grossProceedsUsd - costOfSold;
+          const roi = costOfSold > 0 ? (pnlUsd / costOfSold) * 100 : 0;
 
           totalPnLUsd += pnlUsd;
           totalCostOfSoldUsd += costOfSold;

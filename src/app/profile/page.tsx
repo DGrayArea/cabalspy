@@ -101,18 +101,18 @@ export default function ProfilePage() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-app text-white flex items-center justify-center p-4">
-        <div className="glass rounded-[3rem] p-12 text-center max-w-lg border border-white/10 shadow-neon">
+        <div className="glass rounded-2xl p-8 text-center max-w-lg border border-white/10 shadow-neon">
           <div className="relative mb-8 inline-block">
              <div className="absolute inset-[-10px] bg-accent/20 blur-2xl rounded-full" />
              <Lock className="relative w-20 h-20 text-accent animate-pulse" />
           </div>
-          <h1 className="text-4xl font-black italic mb-6 tracking-tighter">ACCESS DENIED</h1>
+          <h1 className="text-4xl font-bold mb-6 tracking-tighter">ACCESS DENIED</h1>
           <p className="text-muted font-medium mb-10 leading-relaxed uppercase tracking-widest text-xs">
             Connect your terminal to access your private trading portfolio and secure vault.
           </p>
           <Link
             href="/"
-            className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-black font-black italic rounded-2xl shadow-neon transition-all hover:scale-105 active:scale-95"
+            className="inline-flex items-center gap-3 px-8 py-4 bg-primary text-black font-bold rounded-2xl shadow-neon transition-all hover:scale-105 active:scale-95"
           >
             <Zap className="w-5 h-5" />
             INITIALIZE TERMINAL
@@ -154,7 +154,7 @@ export default function ProfilePage() {
       <main className="relative z-10 max-w-7xl mx-auto px-4 py-12">
         <div className="flex flex-col gap-12">
           {/* Profile Hero Section */}
-          <section className="glass rounded-[3rem] p-10 md:p-16 relative overflow-hidden group">
+          <section className="glass rounded-2xl p-6 md:p-10 relative overflow-hidden group">
             <div className="absolute top-[-20%] right-[-10%] w-96 h-96 bg-primary/10 blur-[120px] rounded-full animate-pulse" />
             <div className="absolute bottom-[-10%] left-[-5%] w-64 h-64 bg-secondary/10 blur-[100px] rounded-full" />
 
@@ -165,7 +165,7 @@ export default function ProfilePage() {
                   {displayUser.avatar ? (
                     <img src={displayUser.avatar} alt={displayUser.name} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-linear-to-br from-primary/30 to-accent/30 flex items-center justify-center text-6xl font-black italic text-gradient">
+                    <div className="w-full h-full bg-linear-to-br from-primary/30 to-accent/30 flex items-center justify-center text-6xl font-bold text-gradient">
                       {displayUser.name.charAt(0).toUpperCase()}
                     </div>
                   )}
@@ -174,11 +174,11 @@ export default function ProfilePage() {
 
               <div className="flex-1 text-center md:text-left">
                 <div className="flex flex-col md:flex-row md:items-center gap-4 mb-6">
-                  <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter leading-[0.8]">{displayUser.name}</h1>
+                  <h1 className="text-5xl md:text-7xl font-bold tracking-tighter leading-[0.8]">{displayUser.name}</h1>
                   {turnkeySession && (
                     <div className="inline-flex items-center gap-2 px-6 py-2 bg-green-500/10 border border-green-500/20 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.1)]">
                       <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
-                      <span className="text-[10px] text-green-400 font-black uppercase tracking-widest">SECURE LINK ACTIVE</span>
+                      <span className="text-[10px] text-green-400 font-bold uppercase tracking-widest">SECURE LINK ACTIVE</span>
                     </div>
                   )}
                 </div>
@@ -199,7 +199,7 @@ export default function ProfilePage() {
                   {sessionExpiry && (
                     <div className="flex items-center gap-3 text-muted">
                       <Clock className="w-5 h-5 text-accent" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">EXP: {sessionExpiry}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">EXP: {sessionExpiry}</span>
                     </div>
                   )}
                 </div>
@@ -240,10 +240,10 @@ export default function ProfilePage() {
             ].map((stat, i) => (
               <div key={i} className="glass rounded-[2rem] p-8 border border-white/10 group hover:border-white/20 transition-all">
                 <div className="flex items-center justify-between mb-6">
-                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">{stat.label}</span>
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">{stat.label}</span>
                   <stat.icon className={`w-5 h-5 ${stat.color}`} />
                 </div>
-                <div className={`text-4xl font-black italic tracking-tighter ${stat.color} ${stat.shadow}-sm`}>{stat.value}</div>
+                <div className={`text-4xl font-bold tracking-tighter ${stat.color} ${stat.shadow}-sm`}>{stat.value}</div>
               </div>
             ))}
           </section>
@@ -252,13 +252,13 @@ export default function ProfilePage() {
             {/* Left Main Column */}
             <div className="lg:col-span-2 space-y-8">
               {/* Wallet Manager */}
-              <section className="glass rounded-[3rem] p-10 border border-white/10 shadow-neon-strong/5">
+              <section className="glass rounded-2xl p-6 border border-white/10 shadow-neon-strong/5">
                 <div className="flex items-center justify-between mb-10">
-                   <h3 className="text-2xl font-black italic tracking-tighter flex items-center gap-4">
+                   <h3 className="text-2xl font-bold tracking-tighter flex items-center gap-4">
                      <Wallet className="w-8 h-8 text-primary" />
                      SECURE VAULTS
                    </h3>
-                   <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black uppercase tracking-widest text-muted">
+                   <div className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold uppercase tracking-widest text-muted">
                      {turnkeyWallets?.length || 0} TOTAL
                    </div>
                 </div>
@@ -268,13 +268,13 @@ export default function ProfilePage() {
               </section>
 
               {/* Transactions/Activity */}
-              <section className="glass rounded-[3rem] p-10 border border-white/10">
+              <section className="glass rounded-2xl p-6 border border-white/10">
                 <div className="flex items-center justify-between mb-10">
-                  <h3 className="text-2xl font-black italic tracking-tighter flex items-center gap-4">
+                  <h3 className="text-2xl font-bold tracking-tighter flex items-center gap-4">
                     <Activity className="w-8 h-8 text-secondary" />
                     LIVE ACTIVITY
                   </h3>
-                  <span className="text-[10px] font-black text-muted uppercase tracking-widest">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-widest">
                     {allTrades.length} TRADE{allTrades.length !== 1 ? "S" : ""}
                   </span>
                 </div>
@@ -289,7 +289,7 @@ export default function ProfilePage() {
                       <BarChart3 className="relative w-24 h-24 mx-auto text-secondary/30" />
                     </div>
                     <div>
-                      <p className="text-xl font-black italic tracking-tighter text-muted">TERMINAL IS COLD</p>
+                      <p className="text-xl font-bold tracking-tighter text-muted">TERMINAL IS COLD</p>
                       <p className="text-[10px] font-bold text-muted/50 uppercase tracking-[0.3em] mt-2">NO RECENT EXECUTIONS DETECTED</p>
                     </div>
                   </div>
@@ -300,18 +300,18 @@ export default function ProfilePage() {
             {/* Right Sidebar Column */}
             <div className="space-y-8">
               {/* Account Security */}
-              <section className="glass rounded-[3rem] p-10 border border-white/10 shadow-accent-neon-strong/5">
-                <h3 className="text-xl font-black italic mb-8 tracking-tighter flex items-center gap-3">
+              <section className="glass rounded-2xl p-6 border border-white/10 shadow-accent-neon-strong/5">
+                <h3 className="text-xl font-bold mb-8 tracking-tighter flex items-center gap-3">
                   <Shield className="w-6 h-6 text-accent" />
                   SECURITY
                 </h3>
                 
                 <div className="space-y-6">
-                  <div className="p-6 rounded-[1.5rem] bg-white/5 border border-white/5 space-y-4">
+                  <div className="p-6 rounded-xl bg-white/5 border border-white/5 space-y-4">
                     <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black text-muted uppercase tracking-widest">IDENTIFIER</span>
+                      <span className="text-[10px] font-bold text-muted uppercase tracking-widest">IDENTIFIER</span>
                       <div className="flex items-center gap-3">
-                        <code className="text-xs font-black italic tracking-tighter text-white">
+                        <code className="text-xs font-bold tracking-tighter text-white">
                           {displayUser.id.slice(0, 12)}...
                         </code>
                         <button 
@@ -326,27 +326,27 @@ export default function ProfilePage() {
 
                   <div className="space-y-3">
                     {turnkeyUser && (
-                      <div className="flex items-center gap-4 p-5 bg-primary/5 border border-primary/20 rounded-[1.5rem]">
+                      <div className="flex items-center gap-4 p-5 bg-primary/5 border border-primary/20 rounded-xl">
                         <Zap className="w-6 h-6 text-primary" />
                         <div>
-                          <p className="text-[10px] font-black text-white uppercase tracking-widest">TURNKEY CORE</p>
+                          <p className="text-[10px] font-bold text-white uppercase tracking-widest">TURNKEY CORE</p>
                           <p className="text-[10px] font-bold text-primary/70 uppercase">NON-CUSTODIAL ACTIVE</p>
                         </div>
                       </div>
                     )}
                     {/* Verified Social Links */}
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-[1.5rem] group hover:border-primary/30 transition-all">
+                      <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-xl group hover:border-primary/30 transition-all">
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
                             <Twitter className="w-5 h-5 text-white" />
                           </div>
                           <div>
-                            <p className="text-[10px] font-black text-muted uppercase tracking-widest">X (TWITTER)</p>
-                            <p className="text-xs font-bold text-white uppercase italic">{user?.discordId ? `@${user.name}` : "NOT CONNECTED"}</p>
+                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">X (TWITTER)</p>
+                            <p className="text-xs font-bold text-white uppercase">{user?.discordId ? `@${user.name}` : "NOT CONNECTED"}</p>
                           </div>
                         </div>
-                        <div className={`px-3 py-1 rounded-full text-[8px] font-black ${
+                        <div className={`px-3 py-1 rounded-full text-[8px] font-bold ${
                           user?.discordId ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
                         }`}>
                           {user?.discordId ? "VERIFIED" : "UNLINKED"}
@@ -354,18 +354,18 @@ export default function ProfilePage() {
                       </div>
 
                       {/* Telegram — link/unlink so either method signs into this account */}
-                      <div className="p-5 bg-white/5 border border-white/10 rounded-[1.5rem] group hover:border-primary/30 transition-all space-y-4">
+                      <div className="p-5 bg-white/5 border border-white/10 rounded-xl group hover:border-primary/30 transition-all space-y-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
                             <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
                               <Send className="w-5 h-5 text-blue-400" />
                             </div>
                             <div>
-                              <p className="text-[10px] font-black text-muted uppercase tracking-widest">TELEGRAM</p>
-                              <p className="text-xs font-bold text-white uppercase italic">{user?.telegramId ? "CONNECTED" : "NOT CONNECTED"}</p>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">TELEGRAM</p>
+                              <p className="text-xs font-bold text-white uppercase">{user?.telegramId ? "CONNECTED" : "NOT CONNECTED"}</p>
                             </div>
                           </div>
-                          <div className={`px-3 py-1 rounded-full text-[8px] font-black ${
+                          <div className={`px-3 py-1 rounded-full text-[8px] font-bold ${
                             user?.telegramId ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
                           }`}>
                             {user?.telegramId ? "VERIFIED" : "UNLINKED"}
@@ -375,7 +375,7 @@ export default function ProfilePage() {
                           <button
                             onClick={handleUnlinkTelegram}
                             disabled={isUnlinkingTelegram}
-                            className="w-full text-[10px] font-black uppercase tracking-widest text-muted hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl py-2.5 transition-all disabled:opacity-50"
+                            className="w-full text-[10px] font-bold uppercase tracking-widest text-muted hover:text-red-400 bg-white/5 hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 rounded-xl py-2.5 transition-all disabled:opacity-50"
                           >
                             {isUnlinkingTelegram ? "UNLINKING..." : "UNLINK TELEGRAM"}
                           </button>
@@ -403,8 +403,8 @@ export default function ProfilePage() {
               </section>
 
               {/* Preferences */}
-              <section className="glass rounded-[3rem] p-10 border border-white/10">
-                <h3 className="text-xl font-black italic mb-8 tracking-tighter flex items-center gap-3">
+              <section className="glass rounded-2xl p-6 border border-white/10">
+                <h3 className="text-xl font-bold mb-8 tracking-tighter flex items-center gap-3">
                   <Settings className="w-6 h-6 text-muted" />
                   PROTOCOL
                 </h3>
@@ -417,7 +417,7 @@ export default function ProfilePage() {
                   ].map((pref, i) => (
                     <div key={i} className="flex items-center justify-between">
                       <div>
-                        <div className="text-[10px] font-black text-white uppercase tracking-widest">{pref.label}</div>
+                        <div className="text-[10px] font-bold text-white uppercase tracking-widest">{pref.label}</div>
                         <div className="text-[8px] font-bold text-muted uppercase tracking-wider mt-1">{pref.sub}</div>
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer">

@@ -54,7 +54,7 @@ export default function CallsFeed() {
               status === "connected" ? "bg-primary" : "bg-red-500"
             }`}></span>
           </div>
-          <h3 className="text-[10px] font-black italic tracking-[0.2em] text-white">
+          <h3 className="text-[10px] font-bold tracking-[0.2em] text-white">
             LIVE CALLS FEED
           </h3>
         </div>
@@ -93,7 +93,7 @@ export default function CallsFeed() {
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-black italic text-white group-hover:text-primary transition-colors">
+                        <span className="text-xs font-bold text-white group-hover:text-primary transition-colors">
                           {signal.name || "Unknown Token"}
                         </span>
                         <span className="text-[8px] font-bold text-muted bg-white/5 px-1.5 py-0.5 rounded uppercase tracking-tighter">
@@ -111,7 +111,7 @@ export default function CallsFeed() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[8px] font-black italic text-primary uppercase flex items-center gap-1 justify-end">
+                    <div className="text-[8px] font-bold text-primary uppercase flex items-center gap-1 justify-end">
                       <TrendingUp className="w-2.5 h-2.5" />
                       ALPHA
                     </div>
@@ -124,11 +124,11 @@ export default function CallsFeed() {
                 {/* Bottom Actions */}
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex gap-2">
-                    <div className="px-2 py-0.5 rounded-lg bg-green-500/10 border border-green-500/20 text-[8px] font-black text-green-400 uppercase flex items-center gap-1">
+                    <div className="px-2 py-0.5 rounded-lg bg-green-500/10 border border-green-500/20 text-[8px] font-bold text-green-400 uppercase flex items-center gap-1">
                       <ShieldCheck className="w-2 h-2" />
                       SAFE
                     </div>
-                    <div className="px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-black text-primary uppercase">
+                    <div className="px-2 py-0.5 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-bold text-primary uppercase">
                       PUMP.FUN
                     </div>
                   </div>

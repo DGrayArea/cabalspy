@@ -106,7 +106,7 @@ export function TokenSelectorModal({ isOpen, onClose, onSelect }: TokenSelectorM
       {/* Modal */}
       <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="bg-panel border border-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden pointer-events-auto flex flex-col max-h-[80vh]"
+          className="bg-panel border border-white/10 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden pointer-events-auto flex flex-col max-h-[80vh] modal-panel"
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}

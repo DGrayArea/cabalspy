@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export function Hero() {
   return (
-    <div className="relative w-full py-8 sm:py-20 px-4 mb-4 sm:mb-8 overflow-hidden rounded-3xl sm:rounded-[3rem] glass border border-white/10 shadow-2xl">
+    <div className="relative w-full py-8 sm:py-20 px-4 mb-4 sm:mb-8 overflow-hidden rounded-3xl sm:rounded-2xl glass border border-white/10 shadow-2xl">
       {/* Decorative Glows */}
       <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
       <div className="absolute bottom-[-20%] left-[-10%] w-64 h-64 bg-secondary/20 blur-[100px] rounded-full animate-pulse transition-delay-1000" />
@@ -19,14 +19,14 @@ export function Hero() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
             </span>
-            <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] text-muted group-hover:text-primary transition-colors">
+            <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-[0.2em] text-muted group-hover:text-primary transition-colors">
               Market Intelligence Active
             </span>
           </div>
           
-          <h1 className="text-4xl sm:text-5xl md:text-7xl font-black tracking-tighter mb-4 sm:mb-6 leading-[0.9]">
+          <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold tracking-tighter mb-4 sm:mb-6 leading-[0.9]">
             HUNT THE <br />
-            <span className="bg-linear-to-r from-primary via-secondary to-accent bg-clip-text text-transparent italic">
+            <span className="bg-linear-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
               NEXT CABAL.
             </span>
           </h1>
@@ -38,7 +38,7 @@ export function Hero() {
           
           <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4">
             <Link href="/auth#login-section">
-              <Button size="lg" variant="neon" className="rounded-xl sm:rounded-2xl px-6 sm:px-8 h-12 sm:h-14 shadow-neon font-black italic text-xs sm:text-base">
+              <Button size="lg" variant="neon" className="rounded-xl sm:rounded-2xl px-6 sm:px-8 h-12 sm:h-14 shadow-neon font-bold text-xs sm:text-base">
                 GET STARTED <ArrowUpRight className="ml-2 w-4 h-4 sm:w-5 sm:h-5" />
               </Button>
             </Link>
@@ -99,7 +99,7 @@ export function Hero() {
                   <span className="text-secondary">-2.1%</span>
                 </div>
                 <div className="flex gap-2 mt-4 animate-pulse">
-                  <span className="text-primary italic">_</span>
+                  <span className="text-primary">_</span>
                 </div>
               </div>
             </div>

@@ -117,7 +117,7 @@ export function TokenChart({
 
       {showFallback && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/85 text-center p-6">
-          <div className="text-sm font-black uppercase tracking-[0.3em] text-primary">
+          <div className="text-sm font-bold uppercase tracking-[0.3em] text-primary">
             Chart unavailable
           </div>
           <p className="max-w-xs text-[11px] text-white/75 leading-relaxed">
@@ -151,7 +151,7 @@ export function TokenChart({
           href={publicUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="px-2.5 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-black italic text-muted hover:text-primary transition-all flex items-center gap-1.5"
+          className="px-2.5 py-1.5 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-bold text-muted hover:text-primary transition-all flex items-center gap-1.5"
         >
           VIEW ON {sourceLabel.toUpperCase()}{" "}
           <ExternalLink className="w-3 h-3" />

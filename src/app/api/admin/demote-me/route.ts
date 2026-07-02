@@ -1,13 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { isSuperAdmin } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession(request);
-    
+
     if (!session) {
       return NextResponse.json({ error: "Not logged in" }, { status: 401 });
+    }
+
+    const me = await db.user.findUnique({ where: { id: session.userId } });
+    if (me && isSuperAdmin(me)) {
+      return NextResponse.json(
+        { error: "The super admin cannot be demoted." },
+        { status: 403 }
+      );
     }
 
     // Demote user and clear Discord ID so they can test linking again from scratch

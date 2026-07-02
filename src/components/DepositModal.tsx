@@ -29,13 +29,13 @@ export default function DepositModal({ onClose }: DepositModalProps) {
 
   if (!address) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="glass bg-panel border border-white/10 rounded-3xl p-8 w-full max-w-sm text-center relative overflow-hidden">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 modal-overlay">
+        <div className="glass bg-panel border border-white/10 rounded-2xl p-8 w-full max-w-sm text-center relative overflow-hidden modal-panel">
           <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl pointer-events-none -mt-10 -mr-10" />
           <p className="font-bold text-muted mb-6 relative">Wallet not ready</p>
           <button
             onClick={onClose}
-            className="w-full relative py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors font-black italic uppercase tracking-wider text-sm border border-white/10"
+            className="w-full relative py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors font-bold uppercase tracking-wider text-sm border border-white/10"
           >
             Close
           </button>
@@ -45,8 +45,8 @@ export default function DepositModal({ onClose }: DepositModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="glass bg-panel border border-white/10 shadow-2xl rounded-[2rem] p-6 sm:p-8 w-full max-w-md relative overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 modal-overlay">
+      <div className="glass bg-panel border border-white/10 shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-md relative overflow-hidden modal-panel">
         {/* Glow Effects */}
         <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl pointer-events-none -mt-20 -ml-20" />
         
@@ -56,7 +56,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
               <div className="w-10 h-10 bg-primary/20 border border-primary/30 rounded-xl flex items-center justify-center">
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
-              <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white drop-shadow-neon">
+              <h3 className="text-2xl font-bold tracking-tighter uppercase text-white drop-shadow-neon">
                 Deposit SOL
               </h3>
             </div>
@@ -113,7 +113,7 @@ export default function DepositModal({ onClose }: DepositModalProps) {
 
             <button
               onClick={onClose}
-              className="w-full py-4 px-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all font-black italic uppercase tracking-widest text-sm border border-white/5 active:scale-95"
+              className="w-full py-4 px-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all font-bold uppercase tracking-widest text-sm border border-white/5 active:scale-95"
             >
               Done
             </button>

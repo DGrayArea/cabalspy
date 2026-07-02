@@ -15,7 +15,7 @@ const buttonVariants = cva(
         secondary: "bg-secondary text-white font-bold hover:bg-secondary/90 shadow-secondary active:scale-[0.98]",
         ghost: "hover:bg-panel-elev hover:text-primary",
         link: "text-primary underline-offset-4 hover:underline",
-        neon: "bg-primary text-black font-black hover:shadow-neon-strong transition-all duration-300 active:scale-95 uppercase tracking-wider",
+        neon: "bg-primary text-black font-bold hover:shadow-neon-strong transition-all duration-300 active:scale-95 uppercase tracking-wider",
         glass: "glass text-foreground hover:bg-white/5 border-white/10",
       },
       size: {

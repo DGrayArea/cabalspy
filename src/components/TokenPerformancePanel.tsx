@@ -124,21 +124,21 @@ function PnlBadge({ value, pct, label }: { value: number | null; pct?: number | 
   if (value === null) {
     return (
       <div className="flex flex-col gap-0.5">
-        <span className="text-[9px] font-black text-muted uppercase tracking-widest">{label}</span>
-        <span className="text-sm font-black italic text-muted/40">—</span>
+        <span className="text-[9px] font-bold text-muted uppercase tracking-widest">{label}</span>
+        <span className="text-sm font-bold text-muted/40">—</span>
       </div>
     );
   }
   const isPos = value >= 0;
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-black text-muted uppercase tracking-widest">{label}</span>
+      <span className="text-[9px] font-bold text-muted uppercase tracking-widest">{label}</span>
       <div className="flex items-baseline gap-1">
-        <span className={`text-sm font-black italic ${isPos ? "text-primary" : "text-accent"}`}>
+        <span className={`text-sm font-bold ${isPos ? "text-primary" : "text-accent"}`}>
           {isPos ? "+" : ""}{formatCurrency(value)}
         </span>
         {pct !== null && pct !== undefined && (
-          <span className={`text-[9px] font-black ${isPos ? "text-primary/70" : "text-accent/70"}`}>
+          <span className={`text-[9px] font-bold ${isPos ? "text-primary/70" : "text-accent/70"}`}>
             {isPos ? "+" : ""}{pct.toFixed(1)}%
           </span>
         )}
@@ -175,7 +175,7 @@ export function TokenPerformancePanel({
             <BarChart3 className="w-4 h-4 text-primary" />
           </div>
           <div>
-            <h3 className="text-xs font-black italic tracking-tighter uppercase">Performance History</h3>
+            <h3 className="text-xs font-bold tracking-tighter uppercase">Performance History</h3>
             <p className="text-[9px] text-muted font-bold uppercase tracking-widest">
               {tokenSymbol} · this session
             </p>
@@ -183,7 +183,7 @@ export function TokenPerformancePanel({
         </div>
         <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
           <Target className="w-8 h-8 text-muted/30" />
-          <p className="text-[10px] font-black text-muted uppercase tracking-widest">No Trades Yet</p>
+          <p className="text-[10px] font-bold text-muted uppercase tracking-widest">No Trades Yet</p>
           <p className="text-[9px] text-muted/60">
             Execute a swap to start tracking your performance on {tokenSymbol}
           </p>
@@ -206,7 +206,7 @@ export function TokenPerformancePanel({
               <BarChart3 className="w-4 h-4 text-primary" />
             </div>
             <div>
-              <h3 className="text-xs font-black italic tracking-tighter uppercase">Performance History</h3>
+              <h3 className="text-xs font-bold tracking-tighter uppercase">Performance History</h3>
               <p className="text-[9px] text-muted font-bold uppercase tracking-widest">
                 {tokenSymbol} · {tokenTrades.length} trade{tokenTrades.length !== 1 ? "s" : ""}
               </p>
@@ -216,7 +216,7 @@ export function TokenPerformancePanel({
           {/* Net PnL summary badge */}
           {(stats.unrealizedPnlUsd !== null || stats.realizedPnlUsd !== null) && (
             <div
-              className={`px-3 py-1.5 rounded-xl border text-xs font-black italic ${
+              className={`px-3 py-1.5 rounded-xl border text-xs font-bold ${
                 netIsPos
                   ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-accent/10 border-accent/30 text-accent"
@@ -236,30 +236,30 @@ export function TokenPerformancePanel({
         <div className="grid grid-cols-4 gap-3">
           {/* Total Buys */}
           <div className="bg-primary/5 border border-primary/10 rounded-xl p-3 text-center">
-            <div className="text-lg font-black italic text-primary leading-none">
+            <div className="text-lg font-bold text-primary leading-none">
               {stats.successfulBuys}
             </div>
-            <div className="text-[8px] font-black text-muted uppercase tracking-widest mt-1">
+            <div className="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">
               Buys
             </div>
           </div>
 
           {/* Total Sells */}
           <div className="bg-accent/5 border border-accent/10 rounded-xl p-3 text-center">
-            <div className="text-lg font-black italic text-accent leading-none">
+            <div className="text-lg font-bold text-accent leading-none">
               {stats.successfulSells}
             </div>
-            <div className="text-[8px] font-black text-muted uppercase tracking-widest mt-1">
+            <div className="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">
               Sells
             </div>
           </div>
 
           {/* Wins */}
           <div className="bg-white/5 border border-white/5 rounded-xl p-3 text-center">
-            <div className="text-lg font-black italic text-primary leading-none">
+            <div className="text-lg font-bold text-primary leading-none">
               {stats.winCount}
             </div>
-            <div className="text-[8px] font-black text-muted uppercase tracking-widest mt-1">
+            <div className="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">
               Wins
             </div>
           </div>
@@ -275,7 +275,7 @@ export function TokenPerformancePanel({
             }`}
           >
             <div
-              className={`text-lg font-black italic leading-none ${
+              className={`text-lg font-bold leading-none ${
                 stats.winRate !== null && stats.winRate >= 50
                   ? "text-primary"
                   : stats.winRate !== null
@@ -285,7 +285,7 @@ export function TokenPerformancePanel({
             >
               {stats.winRate !== null ? `${stats.winRate.toFixed(0)}%` : "—"}
             </div>
-            <div className="text-[8px] font-black text-muted uppercase tracking-widest mt-1">
+            <div className="text-[8px] font-bold text-muted uppercase tracking-widest mt-1">
               Win Rate
             </div>
           </div>
@@ -294,10 +294,10 @@ export function TokenPerformancePanel({
         {/* Row 2: Volume */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white/5 border border-white/5 rounded-xl p-3">
-            <div className="text-[8px] font-black text-muted uppercase tracking-widest mb-1">
+            <div className="text-[8px] font-bold text-muted uppercase tracking-widest mb-1">
               Total Buy Volume
             </div>
-            <div className="text-sm font-black italic">
+            <div className="text-sm font-bold">
               {stats.totalBuyVolumeSol.toFixed(3)}{" "}
               <span className="text-muted text-xs">SOL</span>
             </div>
@@ -308,10 +308,10 @@ export function TokenPerformancePanel({
             )}
           </div>
           <div className="bg-white/5 border border-white/5 rounded-xl p-3">
-            <div className="text-[8px] font-black text-muted uppercase tracking-widest mb-1">
+            <div className="text-[8px] font-bold text-muted uppercase tracking-widest mb-1">
               Total Sell Volume
             </div>
-            <div className="text-sm font-black italic">
+            <div className="text-sm font-bold">
               {stats.totalSellVolumeSol.toFixed(3)}{" "}
               <span className="text-muted text-xs">SOL</span>
             </div>
@@ -330,17 +330,17 @@ export function TokenPerformancePanel({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Target className="w-3.5 h-3.5 text-secondary" />
-                <span className="text-[9px] font-black text-muted uppercase tracking-widest">
+                <span className="text-[9px] font-bold text-muted uppercase tracking-widest">
                   Avg Entry Price
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black italic text-white">
+                <span className="text-xs font-bold text-white">
                   {formatCurrency(stats.avgEntryPrice)}
                 </span>
                 {currentPrice > 0 && (
                   <span
-                    className={`text-[9px] font-black px-1.5 py-0.5 rounded-lg ${
+                    className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg ${
                       currentPrice >= stats.avgEntryPrice
                         ? "bg-primary/10 text-primary"
                         : "bg-accent/10 text-accent"
@@ -387,7 +387,7 @@ export function TokenPerformancePanel({
             ) : (
               <TrendingDown className="w-3.5 h-3.5 text-accent" />
             )}
-            <span className="text-[9px] font-black text-muted uppercase tracking-widest">
+            <span className="text-[9px] font-bold text-muted uppercase tracking-widest">
               {stats.winRate >= 60
                 ? "Hot Streak — Keep it up!"
                 : stats.winRate >= 50

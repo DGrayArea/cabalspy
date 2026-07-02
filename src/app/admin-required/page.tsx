@@ -41,10 +41,10 @@ export default function AdminUnauthorizedPage() {
           <div>
             <div className="flex items-center justify-center gap-2 mb-3">
               <span className="h-px w-8 bg-[#ff007a]/30" />
-              <span className="text-[10px] font-black text-[#ff007a] uppercase tracking-[0.3em]">Admin Only</span>
+              <span className="text-[10px] font-bold text-[#ff007a] uppercase tracking-[0.3em]">Admin Only</span>
               <span className="h-px w-8 bg-[#ff007a]/30" />
             </div>
-            <h1 className="text-3xl sm:text-4xl font-black italic tracking-tighter text-white mb-3">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tighter text-white mb-3">
               NOT <span className="text-[#ff007a]">AUTHORISED</span>
             </h1>
             <p className="text-[#64748b] text-sm font-medium leading-relaxed max-w-[280px] mx-auto">
@@ -58,7 +58,7 @@ export default function AdminUnauthorizedPage() {
           <div className="space-y-3">
             <Link
               href="/"
-              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-white font-black text-xs uppercase tracking-widest transition-all"
+              className="flex items-center justify-center gap-2 w-full py-4 rounded-2xl bg-white/5 border border-white/10 hover:border-white/20 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-widest transition-all"
             >
               <Home className="w-4 h-4" />
               Return to Terminal

@@ -133,7 +133,7 @@ export function TelegramLoginWidget({
   if (widgetError) {
     return (
       <div className={`flex items-center justify-center min-h-[48px] ${className}`}>
-        <p className="text-[10px] text-muted/40 font-medium italic">
+        <p className="text-[10px] text-muted/40 font-medium">
           Telegram login is not configured
         </p>
       </div>

@@ -13,6 +13,12 @@ export interface TradeEntry {
   status: "success" | "failed";
   /** USD price of the token at time of the trade */
   priceUsd?: number;
+  /** USD value of the output at execution time */
+  outAmountUsd?: number;
+  /** Referral/platform fee paid, in SOL (when the fee mint is SOL) */
+  feesSOL?: number;
+  /** Actual fee bps Jupiter charged (0 = fee not collected) */
+  feesBps?: number;
   /** The SPL mint this trade was for */
   tokenMint?: string;
 }
@@ -105,6 +111,9 @@ export function useTradeHistory({
         signature: t.signature || undefined,
         status: t.status as "success" | "failed",
         priceUsd: t.priceUsd !== null ? t.priceUsd : undefined,
+        outAmountUsd: t.outAmountUsd !== null ? t.outAmountUsd : undefined,
+        feesSOL: t.feesSOL !== null ? t.feesSOL : undefined,
+        feesBps: t.feesBps !== null ? t.feesBps : undefined,
         tokenMint: t.tokenMint,
       }));
 

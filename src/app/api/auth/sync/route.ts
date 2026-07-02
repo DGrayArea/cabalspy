@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { syncUserWallets } from "@/lib/walletSync";
 import { logger } from "@/lib/logger";
+import { isSuperAdmin } from "@/lib/adminAuth";
 import { randomBytes } from "crypto";
 
 /**
@@ -54,6 +55,15 @@ export async function POST(request: NextRequest) {
         data: { googleId: tkUserId }
       });
       logger.info("Linked Google ID to existing user", { userId: user.id });
+    }
+
+    // The super admin is always an admin — enforce on every sign-in
+    if (isSuperAdmin(user) && user.accessLevel !== "admin") {
+      user = await db.user.update({
+        where: { id: user.id },
+        data: { accessLevel: "admin" },
+      });
+      logger.info("Auto-promoted super admin", { userId: user.id });
     }
 
     // 2. Sync wallets (Non-blocking for the session)
