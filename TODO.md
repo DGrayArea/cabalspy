@@ -6,6 +6,15 @@
 - [ ] Test login + profile "Connect Telegram" linking end-to-end in production
 - [ ] Consider the reverse link direction (add Google/Turnkey to a Telegram-first account)
 
+## Admin & Access Control (2026-07-02)
+- [x] **Super admin**: `alexodey79@gmail.com` (env `SUPER_ADMIN_EMAIL`) auto-promotes to admin on sign-in, can never be demoted; only the super admin can change roles — other admins are view-only (`src/lib/adminAuth.ts`).
+- [x] **Discord role gating**: guild membership + Holder/Pre-Sale role IDs centralized in `src/lib/accessRoles.ts`, overridable via `NEXT_PUBLIC_DISCORD_ALLOWED_ROLE_IDS`.
+- [x] **Discord connect/re-verify from profile settings** (overrides own linked Discord); callback no longer demotes admins to holder.
+- [x] **Admin metrics**: fee card shows real collected referral fees (`feesSOL`) with 1% estimate fallback.
+- [ ] **After the Discord gate test**: remove `SUPER_ADMIN_AUTO_PROMOTE=false` from `.env.local` and sign in once to restore admin.
+- [ ] Developer-bypass whitelist in the Discord callback is empty — add Discord IDs if wanted.
+- [ ] Consider a "Disconnect Discord" option (currently only re-link/switch is possible).
+
 ## Authentication & Session Management
 - [x] **Fix Google Session Persistence**: Investigate and fix the issue where signing out of one Google account and into another causes the first account to be incorrectly restored. Ensure Google OAuth state and cookies are fully cleared on logout.
 - [x] **Adjust Session Duration**: Change the session expiration time from 7 days down to 3 days.
@@ -46,7 +55,7 @@
 
 - [ ] **Realized PnL aggregation missing from portfolio page** (`src/app/portfolio/page.tsx`): Currently only shows `totalPnL24hUsd` (24h mark-to-market from Helius). `PnLCalendar` and `TradeHistoryList` are wired up but no aggregated realized profit/loss across full trade history is computed or displayed.
 
-- [ ] **Ensure all `addTrade` callers include `tokenMint`** (`src/hooks/useTradeHistory.ts:141-146`): Server route at `src/app/api/trades/route.ts:50-56` expects `tokenMint` and saves `null` if missing. The detail page includes it; verify all other call sites do too.
+- [x] **Ensure all `addTrade` callers include `tokenMint`**: Verified — both call sites (token detail page and TradingPanel) always set `tokenMint` (TradingPanel derives it from the non-SOL side of the swap).
 
 ### Auth / Session Safety
 
@@ -82,9 +91,7 @@
 
 - [ ] **Mobula fallback key logic sends unauthenticated requests** (`src/services/mobula.ts:311-338`): When the primary key 401s, the fallback path checks `NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY` but makes the request with no Authorization header — so it also 401s. Fix the fallback to actually set the Bearer header using the fallback key.
 
-- [ ] **API keys hardcoded in source** — two keys committed in plaintext:
-  - `src/services/axiom.ts:5`: Axiom API key as a string constant — move to env var `NEXT_PUBLIC_AXIOM_API_KEY`
-  - `src/app/api/mobula/route.ts:22`: Mobula API key hardcoded as a fallback string — remove and rely solely on env var
+- [x] **API keys hardcoded in source** — won't fix, intentional per decision (2026-07-01): the keys in `src/services/axiom.ts` and `src/app/api/mobula/route.ts` stay hardcoded.
 
 ### Broken / Dead Services
 
