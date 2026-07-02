@@ -24,7 +24,7 @@ import {
   ExternalLink,
   Zap,
   Lock,
-  Twitter,
+  MessageSquare,
   Send,
   Link as LinkIcon,
 } from "lucide-react";
@@ -55,7 +55,23 @@ export default function ProfilePage() {
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [linkTelegramError, setLinkTelegramError] = useState<string | null>(null);
   const [isUnlinkingTelegram, setIsUnlinkingTelegram] = useState(false);
+  const [isConnectingDiscord, setIsConnectingDiscord] = useState(false);
   const isAuthenticated = user || turnkeyUser || turnkeySession;
+
+  const handleConnectDiscord = async () => {
+    try {
+      setIsConnectingDiscord(true);
+      const res = await fetch("/api/auth/discord/init");
+      const data = await res.json();
+      if (data.success && data.authUrl) {
+        window.location.href = data.authUrl;
+        return; // navigating away — keep the button disabled
+      }
+      setIsConnectingDiscord(false);
+    } catch {
+      setIsConnectingDiscord(false);
+    }
+  };
 
   const handleUnlinkTelegram = async () => {
     try {
@@ -336,21 +352,35 @@ export default function ProfilePage() {
                     )}
                     {/* Verified Social Links */}
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-xl group hover:border-primary/30 transition-all">
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
-                            <Twitter className="w-5 h-5 text-white" />
+                      {/* Discord — connect or re-verify (overrides the previously linked Discord) */}
+                      <div className="p-5 bg-white/5 border border-white/10 rounded-xl group hover:border-primary/30 transition-all space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center border border-white/5">
+                              <MessageSquare className="w-5 h-5 text-[#7289DA]" />
+                            </div>
+                            <div>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-widest">DISCORD</p>
+                              <p className="text-xs font-bold text-white uppercase">{user?.discordId ? "CONNECTED" : "NOT CONNECTED"}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-[10px] font-bold text-muted uppercase tracking-widest">X (TWITTER)</p>
-                            <p className="text-xs font-bold text-white uppercase">{user?.discordId ? `@${user.name}` : "NOT CONNECTED"}</p>
+                          <div className={`px-3 py-1 rounded-full text-[8px] font-bold ${
+                            user?.discordId ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
+                          }`}>
+                            {user?.discordId ? "VERIFIED" : "UNLINKED"}
                           </div>
                         </div>
-                        <div className={`px-3 py-1 rounded-full text-[8px] font-bold ${
-                          user?.discordId ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/10 text-muted border border-white/10"
-                        }`}>
-                          {user?.discordId ? "VERIFIED" : "UNLINKED"}
-                        </div>
+                        <button
+                          onClick={handleConnectDiscord}
+                          disabled={isConnectingDiscord}
+                          className="w-full text-[10px] font-bold uppercase tracking-widest text-white bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/30 rounded-xl py-2.5 transition-all disabled:opacity-50"
+                        >
+                          {isConnectingDiscord
+                            ? "REDIRECTING..."
+                            : user?.discordId
+                              ? "RE-VERIFY / SWITCH DISCORD"
+                              : "CONNECT DISCORD"}
+                        </button>
                       </div>
 
                       {/* Telegram — link/unlink so either method signs into this account */}

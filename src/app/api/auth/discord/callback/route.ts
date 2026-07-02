@@ -178,7 +178,12 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // Update current user with Discord info
+      // Update current user with Discord info (re-linking overrides any
+      // previously connected Discord on this account). Only ever upgrade
+      // the access level — never demote an admin to holder.
+      const currentUser = await db.user.findUnique({
+        where: { id: currentUserId },
+      });
       user = await db.user.update({
         where: { id: currentUserId },
         data: {
@@ -187,14 +192,15 @@ export async function GET(request: NextRequest) {
           avatar: userData.avatar
             ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
             : undefined,
-          accessLevel: "holder", // Grant access since roles are verified
+          accessLevel:
+            currentUser?.accessLevel === "admin" ? "admin" : "holder",
         },
       });
       logger.info("Discord linked to existing session", { userId: user.id });
     } else {
       // LOGIN FLOW: Standard Discord login or first-time signup
       if (userWithDiscord) {
-        // Update existing user's profile
+        // Update existing user's profile (upgrade only — keep admins admin)
         user = await db.user.update({
           where: { id: userWithDiscord.id },
           data: {
@@ -202,7 +208,8 @@ export async function GET(request: NextRequest) {
             avatar: userData.avatar
               ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
               : userWithDiscord.avatar,
-            accessLevel: "holder",
+            accessLevel:
+              userWithDiscord.accessLevel === "admin" ? "admin" : "holder",
           },
         });
       } else {

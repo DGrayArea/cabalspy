@@ -57,8 +57,14 @@ export async function POST(request: NextRequest) {
       logger.info("Linked Google ID to existing user", { userId: user.id });
     }
 
-    // The super admin is always an admin — enforce on every sign-in
-    if (isSuperAdmin(user) && user.accessLevel !== "admin") {
+    // The super admin is always an admin — enforce on every sign-in.
+    // Set SUPER_ADMIN_AUTO_PROMOTE=false to pause this (e.g. to test the
+    // Discord role-gating flow with the super admin account).
+    if (
+      process.env.SUPER_ADMIN_AUTO_PROMOTE !== "false" &&
+      isSuperAdmin(user) &&
+      user.accessLevel !== "admin"
+    ) {
       user = await db.user.update({
         where: { id: user.id },
         data: { accessLevel: "admin" },
