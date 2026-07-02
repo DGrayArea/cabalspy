@@ -1,5 +1,11 @@
 # CabalSpy TODOs
 
+## Deferred — Telegram production setup (do before launch)
+- [ ] Set `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` in Vercel env (widget reads the public var, not `TELEGRAM_BOT_USERNAME`)
+- [ ] Run BotFather `/setdomain` for the production domain so the login widget renders
+- [ ] Test login + profile "Connect Telegram" linking end-to-end in production
+- [ ] Consider the reverse link direction (add Google/Turnkey to a Telegram-first account)
+
 ## Authentication & Session Management
 - [x] **Fix Google Session Persistence**: Investigate and fix the issue where signing out of one Google account and into another causes the first account to be incorrectly restored. Ensure Google OAuth state and cookies are fully cleared on logout.
 - [x] **Adjust Session Duration**: Change the session expiration time from 7 days down to 3 days.
@@ -36,7 +42,7 @@
 
 ### Per-User Stats & Recording
 
-- [ ] **Add missing fields to `TradeHistory` Prisma schema** (`prisma/schema.prisma:50-67`): Schema is missing `feesSOL`/`feesBps` (needed for true net PnL) and `outAmountUsd` (USD value of output at execution time). Win/loss logic in `src/hooks/useTradeHistory.ts:172-179` is per-mint only with no realized PnL in USD.
+- [x] **Add missing fields to `TradeHistory` Prisma schema**: Added `feesSOL`, `feesBps`, `outAmountUsd` (db pushed 2026-07-01). Wired through `/api/trades`, `useTradeHistory`, both trade call sites (via `src/lib/tradeMetrics.ts`), and `portfolio-analytics` now prefers recorded USD values for cost basis and proceeds.
 
 - [ ] **Realized PnL aggregation missing from portfolio page** (`src/app/portfolio/page.tsx`): Currently only shows `totalPnL24hUsd` (24h mark-to-market from Helius). `PnLCalendar` and `TradeHistoryList` are wired up but no aggregated realized profit/loss across full trade history is computed or displayed.
 

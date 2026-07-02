@@ -102,15 +102,15 @@ function AuthContent() {
               unoptimized
             />
           </div>
-          <h1 className="text-2xl sm:text-4xl font-black bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tighter mb-1 uppercase">
+          <h1 className="text-2xl sm:text-4xl font-bold bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tighter mb-1 uppercase">
             CABALSPY
           </h1>
-          <p className="text-[9px] sm:text-xs font-bold uppercase tracking-[0.2em] text-muted text-center italic">Real-time Token Pulse</p>
+          <p className="text-[9px] sm:text-xs font-bold uppercase tracking-[0.2em] text-muted text-center">Real-time Token Pulse</p>
         </div>
 
         <Card id="login-section" className="glass border-white/10 rounded-4xl sm:rounded-4xl shadow-2xl overflow-hidden">
           <CardHeader className="pt-8 sm:pt-10 pb-4 sm:pb-6 text-center">
-            <CardTitle className="text-xl sm:text-2xl font-black text-white italic">WELCOME BACK</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold text-white">WELCOME BACK</CardTitle>
             <CardDescription className="text-muted text-xs sm:text-sm font-medium">Choose your preferred login method</CardDescription>
           </CardHeader>
           <CardContent className="px-5 sm:px-8 pb-8 sm:pb-10 flex flex-col gap-3 sm:gap-4">

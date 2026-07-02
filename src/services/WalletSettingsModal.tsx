@@ -628,7 +628,7 @@ export function WalletSettingsModal({
                 handleExportWalletClick();
               }}
               disabled={!embeddedSolanaWallet?.walletId}
-              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-gray-300 hover:text-white text-[10px] font-black italic rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-tight"
+              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-gray-300 hover:text-white text-[10px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-tight"
             >
               <Download className="w-3.5 h-3.5" />
               Private Key
@@ -639,7 +639,7 @@ export function WalletSettingsModal({
                 handleExportWalletClick();
               }}
               disabled={!(embeddedSolanaWallet as any)?.walletSetId}
-              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-gray-300 hover:text-white text-[10px] font-black italic rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-tight"
+              className="px-4 py-2.5 bg-panel-elev border border-gray-700 hover:border-white/50 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-gray-300 hover:text-white text-[10px] font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 uppercase tracking-tight"
             >
               <Download className="w-3.5 h-3.5" />
               Recovery Phrase

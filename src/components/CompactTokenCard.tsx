@@ -315,7 +315,7 @@ export function CompactTokenCard({
                     unoptimized
                   />
                 ) : (
-                  <div className="w-full h-full bg-panel-elev flex items-center justify-center text-lg sm:text-xl font-black italic text-gradient">
+                  <div className="w-full h-full bg-panel-elev flex items-center justify-center text-lg sm:text-xl font-bold text-gradient">
                     {token.symbol?.charAt(0)}
                   </div>
                 )}
@@ -331,13 +331,13 @@ export function CompactTokenCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-              <h3 className="font-black text-base sm:text-lg tracking-tighter text-white truncate italic uppercase leading-none">
+              <h3 className="font-bold text-base sm:text-lg tracking-tighter text-white truncate uppercase leading-none">
                 {token.symbol}
               </h3>
               <div className="h-2.5 w-px bg-white/10" />
               <div className="flex items-center gap-1 bg-white/5 px-1.5 sm:px-2 py-0.5 rounded-lg">
                 <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-primary" />
-                <span className="text-[8px] sm:text-[9px] text-muted font-black uppercase tracking-widest">
+                <span className="text-[8px] sm:text-[9px] text-muted font-bold uppercase tracking-widest">
                   {typeof currentTime === "object" ? currentTime.display : currentTime}
                 </span>
               </div>
@@ -345,15 +345,15 @@ export function CompactTokenCard({
 
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex flex-col">
-                <span className="text-[7px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">MCap</span>
-                <span className="text-[9px] sm:text-xs font-black text-primary font-mono italic">
+                <span className="text-[7px] font-bold text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">MCap</span>
+                <span className="text-[9px] sm:text-xs font-bold text-primary font-mono">
                   {formatCurrency(token.marketCap)}
                 </span>
               </div>
               <div className="w-px h-5 sm:h-6 bg-white/5" />
               <div className="flex flex-col">
-                <span className="text-[7px] font-black text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">Vol</span>
-                <span className="text-[9px] sm:text-xs font-black text-secondary font-mono italic">
+                <span className="text-[7px] font-bold text-muted uppercase tracking-[0.2em] mb-0.5 whitespace-nowrap">Vol</span>
+                <span className="text-[9px] sm:text-xs font-bold text-secondary font-mono">
                   {formatCurrency(token.volume)}
                 </span>
               </div>
@@ -361,8 +361,8 @@ export function CompactTokenCard({
                 <>
                   <div className="w-px h-5 sm:h-6 bg-white/5" />
                   <div className="flex flex-col">
-                    <span className="text-[7px] sm:text-[8px] font-black text-muted uppercase tracking-[0.2em] mb-0.5">Liq</span>
-                    <span className="text-[9px] sm:text-xs font-black text-accent font-mono italic">
+                    <span className="text-[7px] sm:text-[8px] font-bold text-muted uppercase tracking-[0.2em] mb-0.5">Liq</span>
+                    <span className="text-[9px] sm:text-xs font-bold text-accent font-mono">
                       {formatCurrency(liquidity)}
                     </span>
                   </div>
@@ -372,26 +372,31 @@ export function CompactTokenCard({
           </div>
 
           <div className="flex flex-col items-end gap-1.5 sm:gap-2 text-right">
-            <div className={`text-[10px] sm:text-[11px] font-black px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl italic tracking-tighter ${isPositive ? "bg-primary/10 text-primary shadow-neon" : "bg-accent/10 text-accent shadow-accent-neon"}`}>
+            <div className={`text-[10px] sm:text-[11px] font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-lg sm:rounded-xl tracking-tight ${isPositive ? "bg-primary/10 text-primary shadow-neon" : "bg-accent/10 text-accent shadow-accent-neon"}`}>
               {formatPercent(priceChange24h)}
             </div>
             
             {/* Social Icons */}
             {socialLinks.length > 0 && (
               <div className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 sm:py-1 bg-white/5 rounded-lg border border-white/5">
+                {/* buttons, not <a> — the whole card is already a link and
+                    nested anchors are invalid HTML (hydration errors) */}
                 {socialLinks.slice(0, 3).map((link, idx) => (
-                  <Link 
-                    key={idx} 
-                    href={link.url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-muted hover:text-white transition-colors"
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(link.url, "_blank", "noopener,noreferrer");
+                    }}
+                    className="text-muted hover:text-white transition-colors cursor-pointer"
+                    aria-label={`Open ${link.type}`}
                   >
                     {link.type === 'twitter' && <Twitter className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                     {link.type === 'telegram' && <Send className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
                     {link.type === 'website' && <Globe className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
-                  </Link>
+                  </button>
                 ))}
               </div>
             )}
@@ -401,13 +406,13 @@ export function CompactTokenCard({
         <div className="mt-4 sm:mt-8 grid grid-cols-2 gap-3 sm:gap-4">
           <div className="flex items-center gap-3 sm:gap-4 bg-white/3 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl border border-white/5 min-w-0">
             <div className="flex flex-col min-w-0">
-              <span className="text-[6px] sm:text-[7px] font-black text-muted uppercase tracking-widest truncate">Holders</span>
-              <span className="text-[9px] sm:text-[10px] font-black italic text-white truncate">{holders.toLocaleString()}</span>
+              <span className="text-[6px] sm:text-[7px] font-bold text-muted uppercase tracking-widest truncate">Holders</span>
+              <span className="text-[9px] sm:text-[10px] font-bold text-white truncate">{holders.toLocaleString()}</span>
             </div>
             <div className="w-px h-3 sm:h-4 bg-white/10" />
             <div className="flex flex-col min-w-0">
-              <span className="text-[6px] sm:text-[7px] font-black text-muted uppercase tracking-widest truncate">Trades</span>
-              <span className="text-[9px] sm:text-[10px] font-black italic text-white truncate">{trades.toLocaleString()}</span>
+              <span className="text-[6px] sm:text-[7px] font-bold text-muted uppercase tracking-widest truncate">Trades</span>
+              <span className="text-[9px] sm:text-[10px] font-bold text-white truncate">{trades.toLocaleString()}</span>
             </div>
           </div>
           
@@ -418,7 +423,7 @@ export function CompactTokenCard({
                 e.stopPropagation();
                 setShowTradingPanel(true);
               }}
-              className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white text-black text-[9px] sm:text-[10px] font-black uppercase tracking-widest hover:bg-primary transition-all active:scale-95 italic shadow-lg shadow-white/5"
+              className="px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white text-black text-[9px] sm:text-[10px] font-bold uppercase tracking-widest hover:bg-primary transition-all active:scale-95 shadow-lg shadow-white/5"
             >
               TRADE
             </button>
@@ -438,7 +443,7 @@ export function CompactTokenCard({
               {mobulaData?.security?.noMintAuthority && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-[7px] sm:text-[8px] font-black text-green-400 uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-green-500/10 border border-green-500/20 text-[7px] sm:text-[8px] font-bold text-green-400 uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
                       <Shield className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> MINT REVOKED
                     </div>
                   </TooltipTrigger>
@@ -451,7 +456,7 @@ export function CompactTokenCard({
               {mobulaData?.smartTradersCount > 0 && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[7px] sm:text-[8px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[7px] sm:text-[8px] font-bold text-blue-400 uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
                       <Brain className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> {mobulaData.smartTradersCount} SMART
                     </div>
                   </TooltipTrigger>
@@ -464,7 +469,7 @@ export function CompactTokenCard({
               {isTokenMigrated ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-primary/10 border border-primary/20 text-[7px] sm:text-[8px] font-black text-primary uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-primary/10 border border-primary/20 text-[7px] sm:text-[8px] font-bold text-primary uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
                       <Zap className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> GRADUATED
                     </div>
                   </TooltipTrigger>
@@ -475,7 +480,7 @@ export function CompactTokenCard({
               ) : (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-secondary/10 border border-secondary/20 text-[7px] sm:text-[8px] font-black text-secondary uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
+                    <div className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg bg-secondary/10 border border-secondary/20 text-[7px] sm:text-[8px] font-bold text-secondary uppercase tracking-widest flex items-center gap-0.5 sm:gap-1 cursor-help">
                       <Activity className="w-2 h-2 sm:w-2.5 sm:h-2.5" /> BONDING
                     </div>
                   </TooltipTrigger>
@@ -513,7 +518,7 @@ export function CompactTokenCard({
       <Dialog open={showLoginModal} onOpenChange={setShowLoginModal}>
         <DialogContent className="sm:max-w-md bg-panel border border-white/10 rounded-[2rem]">
           <DialogHeader>
-            <DialogTitle className="text-xl font-black italic text-white flex items-center gap-2">
+            <DialogTitle className="text-xl font-bold text-white flex items-center gap-2">
               <Lock className="w-5 h-5 text-primary" /> AUTHENTICATION REQUIRED
             </DialogTitle>
           </DialogHeader>

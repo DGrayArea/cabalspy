@@ -144,15 +144,15 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-black italic tracking-tighter uppercase">{title}</h3>
+              <h3 className="text-sm font-bold tracking-tighter uppercase">{title}</h3>
               {isLoading && <Loader2 className="w-3 h-3 animate-spin text-muted" />}
               {!propData && !walletAddress && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
+                <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-400">
                   Connect wallet
                 </span>
               )}
               {error && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/20 text-accent">
+                <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-lg bg-accent/10 border border-accent/20 text-accent">
                   Error
                 </span>
               )}
@@ -186,7 +186,7 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
           <button onClick={prevMonth} className="p-2 rounded-xl bg-white/5 border border-white/5 hover:border-white/20 transition-all">
             <ChevronLeft className="w-4 h-4 text-muted" />
           </button>
-          <span className="text-[10px] font-black text-muted uppercase tracking-widest px-1 hidden sm:block whitespace-nowrap">{monthLabel}</span>
+          <span className="text-[10px] font-bold text-muted uppercase tracking-widest px-1 hidden sm:block whitespace-nowrap">{monthLabel}</span>
           <button onClick={nextMonth} disabled={isCurrentMonth} className="p-2 rounded-xl bg-white/5 border border-white/5 hover:border-white/20 transition-all disabled:opacity-30">
             <ChevronRight className="w-4 h-4 text-muted" />
           </button>
@@ -194,7 +194,7 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
       </div>
 
       {/* Month label on mobile */}
-      <p className="text-[10px] font-black text-muted uppercase tracking-widest mb-4 sm:hidden">{monthLabel}</p>
+      <p className="text-[10px] font-bold text-muted uppercase tracking-widest mb-4 sm:hidden">{monthLabel}</p>
 
       {/* ── Error state ─────────────────────────────────────────────────── */}
       {error && !isLoading && (
@@ -206,7 +206,7 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
       {/* ── Weekday headers ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-7 gap-1.5 mb-1.5">
         {weekdays.map((d, i) => (
-          <div key={i} className="text-center text-[10px] font-black text-muted py-1">{d}</div>
+          <div key={i} className="text-center text-[10px] font-bold text-muted py-1">{d}</div>
         ))}
       </div>
 
@@ -235,24 +235,24 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
                 ${isToday ? "ring-1 ring-primary ring-offset-0" : ""}
               `}
             >
-              <span className="text-[8px] font-black text-muted/60 leading-none absolute top-1 left-1.5">
+              <span className="text-[8px] font-bold text-muted/60 leading-none absolute top-1 left-1.5">
                 {dayNum}
               </span>
 
               {hasData ? (
-                <div className={`text-[8px] sm:text-[9px] font-black italic text-center leading-tight mt-2 ${isPositive ? "text-primary" : isNegative ? "text-accent" : "text-muted"}`}>
+                <div className={`text-[8px] sm:text-[9px] font-bold text-center leading-tight mt-2 ${isPositive ? "text-primary" : isNegative ? "text-accent" : "text-muted"}`}>
                   {isPositive ? "+" : ""}
                   {Math.abs(data.pnl) >= 1000
                     ? `${(data.pnl / 1000).toFixed(1)}K`
                     : data.pnl.toFixed(0)}
                 </div>
               ) : (
-                <div className="text-[8px] font-black italic text-muted/20 mt-2">—</div>
+                <div className="text-[8px] font-bold text-muted/20 mt-2">—</div>
               )}
 
               {/* Tooltip */}
               {hasData && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-black/95 backdrop-blur-md rounded-xl border border-white/10 text-[9px] font-black opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-none whitespace-nowrap shadow-xl">
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-black/95 backdrop-blur-md rounded-xl border border-white/10 text-[9px] font-bold opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-none whitespace-nowrap shadow-xl">
                   <div className="text-muted mb-1">
                     {new Date(dateKey + "T12:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
                   </div>
@@ -276,14 +276,14 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-primary shadow-neon" />
-            <span className="text-[9px] font-black text-muted uppercase tracking-widest">Profit</span>
+            <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Profit</span>
           </div>
           <div className="flex items-center gap-1.5">
             <div className="w-2 h-2 rounded-full bg-accent shadow-accent-neon" />
-            <span className="text-[9px] font-black text-muted uppercase tracking-widest">Loss</span>
+            <span className="text-[9px] font-bold text-muted uppercase tracking-widest">Loss</span>
           </div>
         </div>
-        <div className="text-[9px] font-black text-muted uppercase tracking-widest">
+        <div className="text-[9px] font-bold text-muted uppercase tracking-widest">
           {propData ? "30 DAY SUMMARY" : walletAddress ? "LIVE · MOBULA" : "NO WALLET"}
         </div>
       </div>

@@ -180,12 +180,12 @@ export default function PortfolioPage() {
               <div className="h-12 w-44 bg-gray-800 rounded-xl animate-pulse mb-4" />
             ) : (
               <div className="flex flex-col sm:flex-row sm:items-baseline sm:gap-4 mb-4">
-                <div className="text-4xl sm:text-6xl font-black italic tracking-tighter text-white drop-shadow-neon">
+                <div className="text-4xl sm:text-6xl font-bold tracking-tighter text-white drop-shadow-neon">
                   {formatCurrency(totalValueUsd)}
                 </div>
                 {!isLoading && (
                   <div
-                    className={`text-lg sm:text-xl font-black italic mt-1 sm:mt-0 ${
+                    className={`text-lg sm:text-xl font-bold mt-1 sm:mt-0 ${
                       totalPnL24hUsd >= 0
                         ? "text-primary shadow-neon-sm"
                         : "text-red-500"
@@ -237,14 +237,14 @@ export default function PortfolioPage() {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <button
             onClick={() => setShowDepositModal(true)}
-            className="flex items-center justify-center gap-2 py-4 px-4 rounded-2xl font-black italic text-sm sm:text-lg bg-primary/10 border-2 border-primary text-primary hover:bg-primary/20 hover:shadow-neon transition-all cursor-pointer active:scale-95"
+            className="flex items-center justify-center gap-2 py-4 px-4 rounded-2xl font-bold text-sm sm:text-lg bg-primary/10 border-2 border-primary text-primary hover:bg-primary/20 hover:shadow-neon transition-all cursor-pointer active:scale-95"
           >
             <ArrowDownToLine className="w-5 h-5 sm:w-6 sm:h-6" />
             DEPOSIT
           </button>
           <button
             onClick={() => setShowWithdrawModal(true)}
-            className="flex items-center justify-center gap-2 py-4 px-4 rounded-2xl font-black italic text-sm sm:text-lg bg-accent/10 border-2 border-accent text-accent hover:bg-accent/20 hover:shadow-accent-neon transition-all cursor-pointer active:scale-95"
+            className="flex items-center justify-center gap-2 py-4 px-4 rounded-2xl font-bold text-sm sm:text-lg bg-accent/10 border-2 border-accent text-accent hover:bg-accent/20 hover:shadow-accent-neon transition-all cursor-pointer active:scale-95"
           >
             <ArrowUpFromLine className="w-5 h-5 sm:w-6 sm:h-6" />
             WITHDRAW
@@ -257,7 +257,7 @@ export default function PortfolioPage() {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 sm:flex-none px-10 py-4 text-[11px] sm:text-xs font-black tracking-[0.2em] transition-all cursor-pointer uppercase relative ${
+              className={`flex-1 sm:flex-none px-10 py-4 text-[11px] sm:text-xs font-bold tracking-[0.2em] transition-all cursor-pointer uppercase relative ${
                 activeTab === tab
                   ? "text-primary bg-white/5"
                   : "text-muted hover:text-white hover:bg-white/5"
@@ -380,9 +380,9 @@ export default function PortfolioPage() {
               {env.NEXT_PUBLIC_ENABLE_BSC && bscTokens.length > 0 && (
                 <div className="mt-6">
                   <div className="flex items-center gap-2 mb-3 px-1">
-                    <div className="w-4 h-4 rounded-full bg-yellow-400/20 flex items-center justify-center text-[8px] font-black text-yellow-400">B</div>
-                    <h3 className="text-xs font-black uppercase tracking-widest text-gray-400">BSC Tokens</h3>
-                    <span className="px-1.5 py-0.5 rounded bg-yellow-400/10 text-yellow-400 text-[9px] font-black">{bscTokens.length}</span>
+                    <div className="w-4 h-4 rounded-full bg-yellow-400/20 flex items-center justify-center text-[8px] font-bold text-yellow-400">B</div>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400">BSC Tokens</h3>
+                    <span className="px-1.5 py-0.5 rounded bg-yellow-400/10 text-yellow-400 text-[9px] font-bold">{bscTokens.length}</span>
                   </div>
                   <TokenTable tokens={bscTokens} chain="bsc" isLoading={false} />
                 </div>
@@ -401,25 +401,25 @@ export default function PortfolioPage() {
               <div className="flex items-center gap-2 mb-3">
                 <h2 className="text-sm font-semibold">Performance History</h2>
                 {allTrades.length === 0 && (
-                  <span className="px-2 py-0.5 rounded text-[9px] font-black tracking-widest bg-muted/10 text-muted border border-muted/20 uppercase">No trades yet</span>
+                  <span className="px-2 py-0.5 rounded text-[9px] font-bold tracking-widest bg-muted/10 text-muted border border-muted/20 uppercase">No trades yet</span>
                 )}
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Total Wins</span>
-                  <span className="text-xl font-black text-primary italic">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Total Wins</span>
+                  <span className="text-xl font-bold text-primary">
                     {stats.wins} {stats.wins === 1 ? "TRADE" : "TRADES"}
                   </span>
                 </div>
                 <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Total Losses</span>
-                  <span className="text-xl font-black text-accent italic">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Total Losses</span>
+                  <span className="text-xl font-bold text-accent">
                     {stats.losses} {stats.losses === 1 ? "TRADE" : "TRADES"}
                   </span>
                 </div>
                 <div className="bg-panel border border-white/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <span className="text-[10px] font-black text-muted uppercase tracking-[0.2em]">Win Rate</span>
-                  <span className="text-xl font-black text-white italic">
+                  <span className="text-[10px] font-bold text-muted uppercase tracking-[0.2em]">Win Rate</span>
+                  <span className="text-xl font-bold text-white">
                     {stats.winRate !== null ? `${stats.winRate.toFixed(1)}%` : "—"}
                   </span>
                 </div>
@@ -566,7 +566,7 @@ function TokenTable({
                       {token.symbol?.slice(0, 3).toUpperCase() || "TOK"}
                     </div>
                     {isBsc && (
-                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-yellow-400 flex items-center justify-center text-[6px] font-black text-black">B</div>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-yellow-400 flex items-center justify-center text-[6px] font-bold text-black">B</div>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">

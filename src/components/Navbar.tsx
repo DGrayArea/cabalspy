@@ -75,7 +75,7 @@ export default function Navbar({
                 />
                 <div className="absolute inset-0 rounded-full bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-xl font-black tracking-tight whitespace-nowrap">
+              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-xl font-bold tracking-tight whitespace-nowrap">
                 CABALSPY
               </span>
             </Link>
@@ -169,7 +169,7 @@ export default function Navbar({
                   {/* Header */}
                   <div className="px-8 pt-10 pb-6">
                     <DialogHeader className="text-left">
-                      <DialogTitle className="text-white text-3xl font-black italic tracking-tighter flex items-center gap-3">
+                      <DialogTitle className="text-white text-3xl font-bold tracking-tighter flex items-center gap-3">
                         <div className="w-2 h-10 bg-primary shadow-neon" />
                         TERMINAL MENU
                       </DialogTitle>

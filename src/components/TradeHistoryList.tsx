@@ -53,7 +53,7 @@ export function TradeHistoryList({ filterMint, currentPrice }: TradeHistoryListP
           const isUp = pct >= 0;
           entryBadge = (
             <span
-              className={`inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-lg ${
+              className={`inline-flex items-center gap-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-lg ${
                 isUp ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"
               }`}
             >
@@ -94,7 +94,7 @@ export function TradeHistoryList({ filterMint, currentPrice }: TradeHistoryListP
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
-                      className={`text-sm font-black uppercase ${
+                      className={`text-sm font-bold uppercase ${
                         isBuy ? "text-primary" : "text-accent"
                       }`}
                     >
@@ -116,7 +116,7 @@ export function TradeHistoryList({ filterMint, currentPrice }: TradeHistoryListP
 
               {/* Right: amount + price at time + TX link */}
               <div className="text-right">
-                <div className="text-sm font-black text-white">
+                <div className="text-sm font-bold text-white">
                   {trade.amount} {isBuy ? "SOL" : trade.symbol}
                 </div>
                 {trade.priceUsd && (

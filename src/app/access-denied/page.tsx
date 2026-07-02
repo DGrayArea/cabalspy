@@ -77,10 +77,10 @@ function AccessDeniedContent() {
           <div>
             <div className="flex items-center justify-center gap-2 mb-2">
               <span className="h-px w-8 bg-accent/30" />
-              <span className="text-[10px] sm:text-xs font-black text-accent uppercase tracking-[0.3em]">Restricted Access</span>
+              <span className="text-[10px] sm:text-xs font-bold text-accent uppercase tracking-[0.3em]">Restricted Access</span>
               <span className="h-px w-8 bg-accent/30" />
             </div>
-            <h1 className="text-2xl sm:text-4xl font-black italic tracking-tighter text-white mb-2">
+            <h1 className="text-2xl sm:text-4xl font-bold tracking-tighter text-white mb-2">
               ACCESS <span className="text-accent">DENIED</span>
             </h1>
             <p className="text-muted text-[11px] sm:text-sm font-medium leading-relaxed max-w-[320px] mx-auto">
@@ -102,7 +102,7 @@ function AccessDeniedContent() {
               <div className="text-left space-y-4">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-neon-sm" />
-                  <p className="text-[10px] sm:text-xs font-black text-white uppercase tracking-widest">Logged in as {user?.name || 'Turnkey User'}</p>
+                  <p className="text-[10px] sm:text-xs font-bold text-white uppercase tracking-widest">Logged in as {user?.name || 'Turnkey User'}</p>
                 </div>
                 <p className="text-muted text-[11px] sm:text-xs leading-relaxed">
                   To access the terminal, you need to link your Discord account and verify you have the <span className="text-white font-bold">Holder</span> or <span className="text-white font-bold">Pre-Sale</span> role.
@@ -112,7 +112,7 @@ function AccessDeniedContent() {
               <div className="space-y-3">
                 <Button
                   onClick={onLinkDiscord}
-                  className="w-full py-6 sm:py-7 rounded-2xl bg-primary text-black font-black text-xs sm:text-sm tracking-widest hover:bg-primary/90 shadow-neon active:scale-95 transition-all group"
+                  className="w-full py-6 sm:py-7 rounded-2xl bg-primary text-black font-bold text-xs sm:text-sm tracking-widest hover:bg-primary/90 shadow-neon active:scale-95 transition-all group"
                 >
                   <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 mr-2 group-hover:rotate-12 transition-transform" />
                   LINK DISCORD ACCOUNT
@@ -121,7 +121,7 @@ function AccessDeniedContent() {
                 <Button
                   onClick={onSwitchAccount}
                   variant="glass"
-                  className="w-full py-4 rounded-2xl border-white/10 hover:border-white/30 text-[10px] sm:text-xs font-black tracking-widest"
+                  className="w-full py-4 rounded-2xl border-white/10 hover:border-white/30 text-[10px] sm:text-xs font-bold tracking-widest"
                 >
                   Sign in with a different account
                 </Button>
@@ -139,7 +139,7 @@ function AccessDeniedContent() {
           ) : (
             <div className="space-y-6">
               <div className="space-y-3 sm:space-y-4 text-left bg-white/5 p-5 rounded-[2rem] border border-white/5">
-                <p className="text-[9px] sm:text-[10px] font-black text-muted uppercase tracking-[0.2em] text-center mb-2">Instructions</p>
+                <p className="text-[9px] sm:text-[10px] font-bold text-muted uppercase tracking-[0.2em] text-center mb-2">Instructions</p>
                 {[
                   { icon: ShieldOff, text: "Join the CabalSpy Discord" },
                   { icon: Sparkles, text: "Acquire Holder or Pre-Sale role" },
@@ -157,7 +157,7 @@ function AccessDeniedContent() {
               <div className="space-y-3">
                 <Link
                   href="/auth"
-                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-white text-black font-black text-xs sm:text-sm tracking-widest hover:bg-primary transition-all active:scale-95 shadow-xl"
+                  className="flex items-center justify-center gap-3 w-full py-4 rounded-2xl bg-white text-black font-bold text-xs sm:text-sm tracking-widest hover:bg-primary transition-all active:scale-95 shadow-xl"
                 >
                   <Lock className="w-4 h-4" />
                   PROCEED TO LOGIN
@@ -166,7 +166,7 @@ function AccessDeniedContent() {
                   href="https://discord.gg/8ckMqGnnAP"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#7289DA] rounded-2xl text-[10px] font-black tracking-widest hover:bg-[#5865F2]/20 transition-all"
+                  className="flex items-center justify-center gap-2 w-full py-3 bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#7289DA] rounded-2xl text-[10px] font-bold tracking-widest hover:bg-[#5865F2]/20 transition-all"
                 >
                   DISCORD COMMUNITY <ExternalLink className="w-3 h-3" />
                 </a>

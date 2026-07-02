@@ -182,10 +182,10 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
   // Show loading state if wallet is still initializing
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="glass bg-panel border border-white/10 rounded-4xl p-8 w-full max-w-sm text-center relative overflow-hidden">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 modal-overlay">
+        <div className="glass bg-panel border border-white/10 rounded-2xl p-8 w-full max-w-sm text-center relative overflow-hidden modal-panel">
           <Loader2 className="w-12 h-12 mx-auto text-primary mb-4 animate-spin" />
-          <h3 className="text-xl font-black italic tracking-tighter uppercase text-white mb-2">Loading Wallet</h3>
+          <h3 className="text-xl font-bold tracking-tighter uppercase text-white mb-2">Loading Wallet</h3>
           <p className="text-muted text-sm font-bold">
             Please wait while we initialize your wallet
           </p>
@@ -196,10 +196,10 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
 
   if (!address || !connection || !signSolanaTransaction) {
     return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-        <div className="glass bg-panel border border-white/10 rounded-4xl p-8 w-full max-w-sm text-center relative overflow-hidden">
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 modal-overlay">
+        <div className="glass bg-panel border border-white/10 rounded-2xl p-8 w-full max-w-sm text-center relative overflow-hidden modal-panel">
           <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4 drop-shadow-[0_0_15px_rgba(234,179,8,0.5)]" />
-          <h3 className="text-xl font-black italic tracking-tighter uppercase text-white mb-2">Wallet Not Ready</h3>
+          <h3 className="text-xl font-bold tracking-tighter uppercase text-white mb-2">Wallet Not Ready</h3>
           <p className="text-sm font-bold text-muted mb-2">
             {missingItems.length > 0
               ? `Missing: ${missingItems.join(", ")}`
@@ -210,7 +210,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
           </p>
           <button
             onClick={onClose}
-            className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors font-black italic uppercase tracking-wider text-sm border border-white/10"
+            className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors font-bold uppercase tracking-wider text-sm border border-white/10"
           >
             Close
           </button>
@@ -220,14 +220,14 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="glass bg-panel border border-white/10 shadow-2xl rounded-4xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto relative overflow-hidden">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 modal-overlay">
+      <div className="glass bg-panel border border-white/10 shadow-2xl rounded-2xl p-6 sm:p-8 w-full max-w-md max-h-[90vh] overflow-y-auto relative overflow-hidden modal-panel">
         {/* Glow Effects */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-accent/10 rounded-full blur-3xl pointer-events-none -mt-20 -mr-20" />
 
         <div className="relative">
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-2xl font-black italic tracking-tighter uppercase text-white drop-shadow-accent-neon">
+            <h3 className="text-2xl font-bold tracking-tighter uppercase text-white drop-shadow-accent-neon">
               Withdraw SOL
             </h3>
             <button
@@ -242,8 +242,8 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
             {/* Balance Info */}
             <div className="bg-black/40 border border-white/5 rounded-3xl p-5 relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-accent to-purple-500" />
-              <div className="text-[10px] font-black text-muted mb-1 uppercase tracking-widest">Available Balance</div>
-              <div className="text-3xl font-black italic text-white tracking-tighter drop-shadow-neon">
+              <div className="text-[10px] font-bold text-muted mb-1 uppercase tracking-widest">Available Balance</div>
+              <div className="text-3xl font-bold text-white tracking-tighter drop-shadow-neon">
                 {formatNumber(solBalance)} <span className="text-lg text-muted">SOL</span>
               </div>
               <div className="text-[10px] font-bold text-accent mt-2 uppercase tracking-widest bg-accent/10 px-2 py-1 rounded inline-block">
@@ -265,7 +265,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
 
             {/* Recipient Address */}
             <div className="space-y-2">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-muted ml-1">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-muted ml-1">
                 Recipient Address
               </label>
               <input
@@ -279,7 +279,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
 
             {/* Amount */}
             <div className="space-y-2">
-              <label className="block text-[10px] font-black uppercase tracking-widest text-muted ml-1">
+              <label className="block text-[10px] font-bold uppercase tracking-widest text-muted ml-1">
                 Amount (SOL)
               </label>
               <div className="relative">
@@ -289,11 +289,11 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.0"
-                  className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-2xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent text-white font-black italic text-lg transition-colors pr-20"
+                  className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-2xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent text-white font-bold text-lg transition-colors pr-20"
                 />
                 <button
                   onClick={handleMax}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
                 >
                   MAX
                 </button>
@@ -303,7 +303,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
             {/* Transaction Summary */}
             {amount && parseFloat(amount) > 0 && (
               <div className="bg-white/5 border border-white/10 rounded-3xl p-5">
-                <h4 className="text-[10px] font-black text-white mb-3 uppercase tracking-widest">Transaction Details</h4>
+                <h4 className="text-[10px] font-bold text-white mb-3 uppercase tracking-widest">Transaction Details</h4>
                 <div className="space-y-2 text-xs font-bold">
                   <div className="flex justify-between items-center">
                     <span className="text-muted">Amount</span>
@@ -315,7 +315,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
                   </div>
                   <div className="flex justify-between items-center pt-2 border-t border-white/5">
                     <span className="text-muted">Total Deducted</span>
-                    <span className="text-accent italic font-black text-sm">
+                    <span className="text-accent font-bold text-sm">
                       {formatNumber(parseFloat(amount) + 0.000005)} SOL
                     </span>
                   </div>
@@ -348,7 +348,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onClose}
-                className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all font-black italic uppercase tracking-widest text-xs border border-white/5 active:scale-95"
+                className="px-6 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl transition-all font-bold uppercase tracking-widest text-xs border border-white/5 active:scale-95"
               >
                 Cancel
               </button>
@@ -362,7 +362,7 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
                   parseFloat(amount) > solBalance - 0.01 ||
                   solBalance <= 0.01
                 }
-                className="flex-1 py-4 px-4 bg-accent/20 hover:bg-accent/30 disabled:bg-white/5 disabled:text-muted disabled:border-white/5 border border-accent/50 text-accent rounded-2xl transition-all font-black italic uppercase tracking-widest text-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed hover:shadow-accent-neon active:scale-95"
+                className="flex-1 py-4 px-4 bg-accent/20 hover:bg-accent/30 disabled:bg-white/5 disabled:text-muted disabled:border-white/5 border border-accent/50 text-accent rounded-2xl transition-all font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-2 disabled:cursor-not-allowed hover:shadow-accent-neon active:scale-95"
               >
                 {isSubmitting ? (
                   <>

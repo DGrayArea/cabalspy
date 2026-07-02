@@ -26,11 +26,11 @@ export default function Footer() {
         <div className="flex items-center gap-4">
           <div className="hidden sm:flex items-center gap-2 group cursor-pointer">
             <div className="w-2 h-2 rounded-full bg-primary animate-pulse shadow-neon" />
-            <span className="text-[10px] font-black tracking-tighter text-muted group-hover:text-white transition-colors uppercase">Network: Mainnet</span>
+            <span className="text-[10px] font-bold tracking-tighter text-muted group-hover:text-white transition-colors uppercase">Network: Mainnet</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/5">
-            <span className="text-[10px] font-black text-primary italic">SOL</span>
-            <span className="text-[10px] font-black text-white">${solPrice ? solPrice.toFixed(2) : "132.01"}</span>
+            <span className="text-[10px] font-bold text-primary">SOL</span>
+            <span className="text-[10px] font-bold text-white">${solPrice ? solPrice.toFixed(2) : "132.01"}</span>
           </div>
         </div>
 
@@ -41,7 +41,7 @@ export default function Footer() {
             className="text-muted hover:text-primary transition-all cursor-pointer flex items-center gap-2 group"
           >
             <Wallet className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-black tracking-widest hidden sm:inline">WALLET</span>
+            <span className="text-[10px] font-bold tracking-widest hidden sm:inline">WALLET</span>
           </Link>
           <a
             href="https://x.com"
@@ -49,14 +49,14 @@ export default function Footer() {
             className="text-muted hover:text-primary transition-all cursor-pointer flex items-center gap-2 group"
           >
             <Twitter className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-black tracking-widest hidden sm:inline">TWITTER</span>
+            <span className="text-[10px] font-bold tracking-widest hidden sm:inline">TWITTER</span>
           </a>
           <Link
             href="/"
             className="text-muted hover:text-primary transition-all cursor-pointer flex items-center gap-2 group"
           >
             <Search className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-            <span className="text-[10px] font-black tracking-widest hidden sm:inline">DISCOVER</span>
+            <span className="text-[10px] font-bold tracking-widest hidden sm:inline">DISCOVER</span>
           </Link>
         </div>
 
@@ -65,7 +65,7 @@ export default function Footer() {
           <div className="hidden md:flex items-center gap-4 px-4 border-l border-white/5">
             <div className="flex items-center gap-1.5 opacity-40 hover:opacity-100 transition-opacity cursor-help">
               <Settings className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-black italic">v1.0.4</span>
+              <span className="text-[10px] font-bold">v1.0.4</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export default function Footer() {
             <div className="h-4 w-px bg-white/5 mx-1 hidden sm:block" />
             <button className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-lg bg-primary/10 border border-primary/20 text-primary hover:bg-primary hover:text-black transition-all group scale-90 sm:scale-100">
               <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-              <span className="text-[9px] font-black">STABLE</span>
+              <span className="text-[9px] font-bold">STABLE</span>
             </button>
           </div>
         </div>
