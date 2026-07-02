@@ -41,6 +41,8 @@ export interface JupiterSwapResult {
   error?: string;
   outAmount?: string; // Human-readable output amount
   outAmountRaw?: string; // Raw output amount from Jupiter
+  feeMint?: string; // Token Ultra collected the referral fee in
+  feeBps?: number; // Actual fee bps charged (0/undefined when not collected)
 }
 
 interface UltraOrderResponse {
@@ -277,6 +279,8 @@ export async function executeJupiterSwap({
         signature: `dry-run-${Date.now()}`,
         outAmount: outAmountHuman.toString(),
         outAmountRaw: order.outAmount,
+        feeMint: order.feeMint,
+        feeBps: order.feeBps,
       };
     }
 
@@ -319,6 +323,8 @@ export async function executeJupiterSwap({
       signature: result.signature,
       outAmount: outAmountHuman.toString(),
       outAmountRaw: order.outAmount,
+      feeMint: order.feeMint,
+      feeBps: order.feeBps,
     };
   } catch (error: any) {
     console.error("Jupiter Ultra swap failed:", error);

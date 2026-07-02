@@ -15,6 +15,7 @@ import {
 import { executeJupiterSwap } from "@/services/jupiter-swap-turnkey";
 import { jupiterSwapService } from "@/services/jupiter-swap";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
+import { computeTradeExtras } from "@/lib/tradeMetrics";
 import { useToast } from "@/components/ui/use-toast";
 import { ToastAction } from "@/components/ui/toast";
 import { TokenSelectorModal, TokenInfo } from "./TokenSelectorModal";
@@ -200,6 +201,10 @@ export default function TradingPanel({
       const direction: "buy" | "sell" =
         inputToken.address === SOL_MINT ? "buy" : "sell";
       const tradedToken = direction === "buy" ? outputToken : inputToken;
+      const tradePriceUsd =
+        tradedToken.address === token.id && token.price > 0
+          ? token.price
+          : undefined;
       addTrade({
         id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
         timestamp: Date.now(),
@@ -209,10 +214,15 @@ export default function TradingPanel({
         symbol: outputToken.symbol,
         signature: result.signature,
         status: result.success ? "success" : "failed",
-        priceUsd:
-          tradedToken.address === token.id && token.price > 0
-            ? token.price
-            : undefined,
+        priceUsd: tradePriceUsd,
+        ...computeTradeExtras({
+          direction,
+          amountIn: parseFloat(amount) || 0,
+          outAmount: parseFloat(result.outAmount ?? "0") || 0,
+          tokenPriceUsd: tradePriceUsd,
+          feeMint: result.feeMint,
+          feeBps: result.feeBps,
+        }),
         tokenMint: tradedToken.address,
       });
 
@@ -274,8 +284,8 @@ export default function TradingPanel({
 
   if (!turnkeyUser || !address) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-        <div className="bg-panel border border-gray-800 rounded-2xl p-6 w-full max-w-sm">
+      <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm modal-overlay">
+        <div className="bg-panel border border-white/10 rounded-2xl p-6 w-full max-w-sm modal-panel">
           <div className="text-center">
             <AlertCircle className="w-12 h-12 mx-auto text-yellow-400 mb-4" />
             <h3 className="text-lg font-bold mb-2 text-white">
@@ -299,11 +309,11 @@ export default function TradingPanel({
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm modal-overlay"
         onClick={onClose}
       >
         <div
-          className="bg-panel border border-gray-800 rounded-3xl p-5 w-full max-w-md shadow-2xl relative overflow-hidden"
+          className="bg-panel border border-white/10 rounded-2xl p-5 w-full max-w-md shadow-2xl relative overflow-hidden modal-panel"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between mb-6">
@@ -376,7 +386,7 @@ export default function TradingPanel({
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     placeholder="0"
-                    className="flex-1 bg-transparent text-right text-2xl sm:text-3xl font-black text-white focus:outline-none placeholder-gray-600 truncate"
+                    className="flex-1 bg-transparent text-right text-2xl sm:text-3xl font-bold text-white focus:outline-none placeholder-gray-600 truncate"
                   />
                 </div>
                 <div className="mt-3 flex justify-end">
@@ -439,7 +449,7 @@ export default function TradingPanel({
                     </span>
                     <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                   </button>
-                  <div className="flex-1 text-right text-2xl sm:text-3xl font-black text-gray-300 truncate">
+                  <div className="flex-1 text-right text-2xl sm:text-3xl font-bold text-gray-300 truncate">
                     {isFetchingQuote ? (
                       <span className="animate-pulse">...</span>
                     ) : quote ? (
@@ -497,7 +507,7 @@ export default function TradingPanel({
                   !!quoteError ||
                   parseFloat(amount) > inputBalance
                 }
-                className="w-full mt-4 bg-primary hover:bg-primary/90 text-black py-4 rounded-2xl font-black text-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:bg-white/5 disabled:text-gray-500 disabled:active:scale-100 disabled:cursor-not-allowed"
+                className="w-full mt-4 bg-primary hover:bg-primary/90 text-black py-4 rounded-2xl font-bold text-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:bg-white/5 disabled:text-gray-500 disabled:active:scale-100 disabled:cursor-not-allowed"
               >
                 {!amount
                   ? "Enter an amount"
@@ -515,7 +525,7 @@ export default function TradingPanel({
                 <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">
                   You Pay
                 </div>
-                <div className="text-2xl font-black text-white flex items-center gap-2">
+                <div className="text-2xl font-bold text-white flex items-center gap-2">
                   {amount} {inputToken.symbol}
                 </div>
               </div>
@@ -530,7 +540,7 @@ export default function TradingPanel({
                 <div className="text-xs text-gray-500 uppercase tracking-widest font-bold mb-2">
                   You Receive
                 </div>
-                <div className="text-3xl font-black text-primary flex items-center gap-2">
+                <div className="text-3xl font-bold text-primary flex items-center gap-2">
                   {(
                     parseFloat(quote.outAmount) /
                     Math.pow(10, outputToken.decimals)
@@ -584,7 +594,7 @@ export default function TradingPanel({
               <button
                 onClick={handleExecute}
                 disabled={isSubmitting}
-                className="w-full mt-4 bg-primary hover:bg-primary/90 text-black py-4 rounded-2xl font-black text-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full mt-4 bg-primary hover:bg-primary/90 text-black py-4 rounded-2xl font-bold text-lg transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>

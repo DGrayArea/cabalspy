@@ -79,6 +79,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useToast } from "@/components/ui/use-toast";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
+import { computeTradeExtras } from "@/lib/tradeMetrics";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
@@ -352,6 +353,15 @@ function TokenDetailContent() {
         signature: result.signature,
         status: (result.success ? "success" : "failed") as "success" | "failed",
         priceUsd: price > 0 ? price : undefined,
+        ...computeTradeExtras({
+          direction: tradeType as "buy" | "sell",
+          amountIn: parseFloat(tradeAmount) || 0,
+          outAmount: parseFloat(result.outAmount ?? "0") || 0,
+          tokenPriceUsd: price > 0 ? price : undefined,
+          solPriceUsd: solPrice > 0 ? solPrice : undefined,
+          feeMint: result.feeMint,
+          feeBps: result.feeBps,
+        }),
         tokenMint: tokenAddress,
       };
 
@@ -550,7 +560,7 @@ function TokenDetailContent() {
                     onError={() => setImageError(true)}
                   />
                 ) : (
-                  <div className="w-full h-full bg-panel-elev flex items-center justify-center font-black italic text-gradient uppercase text-sm">
+                  <div className="w-full h-full bg-panel-elev flex items-center justify-center font-bold text-gradient uppercase text-sm">
                     {tokenSymbol[0]}
                   </div>
                 )}
@@ -569,11 +579,11 @@ function TokenDetailContent() {
             {/* Name + symbol — takes up remaining space */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <h1 className="text-sm sm:text-xl font-black italic tracking-tighter leading-none truncate">
+                <h1 className="text-sm sm:text-xl font-bold tracking-tighter leading-none truncate">
                   {tokenName}
                 </h1>
                 {isMigrated && (
-                  <div className="bg-secondary/20 text-secondary border border-secondary/30 px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-black uppercase shrink-0">
+                  <div className="bg-secondary/20 text-secondary border border-secondary/30 px-1 py-0.5 rounded text-[7px] sm:text-[8px] font-bold uppercase shrink-0">
                     GRAD
                   </div>
                 )}
@@ -588,7 +598,7 @@ function TokenDetailContent() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
                     </span>
-                    <span className="text-[8px] font-black uppercase text-muted">
+                    <span className="text-[8px] font-bold uppercase text-muted">
                       {timeDisplay}
                     </span>
                   </span>
@@ -598,7 +608,7 @@ function TokenDetailContent() {
 
             {/* Price — always visible, bigger on sm+ */}
             <div className="shrink-0 text-right">
-              <div className="text-lg sm:text-2xl font-black italic tracking-tighter leading-none">
+              <div className="text-lg sm:text-2xl font-bold tracking-tighter leading-none">
                 {formatCurrency(price)}
               </div>
               <div className="flex items-center gap-1 mt-0.5 justify-end flex-wrap">
@@ -610,7 +620,7 @@ function TokenDetailContent() {
                     val !== 0 && (
                       <span
                         key={label}
-                        className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-black ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}
+                        className={`px-1 py-0.5 rounded text-[8px] sm:text-[9px] font-bold ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}
                       >
                         {label} {val >= 0 ? "+" : ""}
                         {val?.toFixed(1)}%
@@ -644,7 +654,7 @@ function TokenDetailContent() {
                 )}
               </div>
               <div
-                className={`px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider ${isMigrated ? "bg-primary/10 text-primary border border-primary/30" : "bg-secondary/10 text-secondary border border-secondary/30"}`}
+                className={`px-2 py-1 rounded-lg text-[8px] font-bold uppercase tracking-wider ${isMigrated ? "bg-primary/10 text-primary border border-primary/30" : "bg-secondary/10 text-secondary border border-secondary/30"}`}
               >
                 {isMigrated ? dexData?.dexId?.toUpperCase() || "DEX" : "BOND"}
               </div>
@@ -663,7 +673,7 @@ function TokenDetailContent() {
                   val !== 0 && (
                     <span
                       key={label}
-                      className={`px-1.5 py-0.5 rounded text-[9px] font-black ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}
+                      className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${val >= 0 ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}
                     >
                       {label} {val >= 0 ? "+" : ""}
                       {val?.toFixed(1)}%
@@ -691,11 +701,11 @@ function TokenDetailContent() {
               },
             ].map(({ label, value, color }) => (
               <div key={label} className="flex flex-col">
-                <span className="text-[7px] sm:text-[9px] font-black text-muted uppercase tracking-widest">
+                <span className="text-[7px] sm:text-[9px] font-bold text-muted uppercase tracking-widest">
                   {label}
                 </span>
                 <span
-                  className={`text-xs sm:text-sm font-black italic ${color}`}
+                  className={`text-xs sm:text-sm font-bold ${color}`}
                 >
                   {value}
                 </span>
@@ -705,7 +715,7 @@ function TokenDetailContent() {
             {/* Buy/sell bar */}
             {txBuyPct !== null && (
               <div className="flex flex-col gap-1 min-w-[64px] sm:min-w-[80px]">
-                <div className="flex justify-between text-[8px] font-black uppercase">
+                <div className="flex justify-between text-[8px] font-bold uppercase">
                   <span className="text-primary">{txBuyPct}%B</span>
                   <span className="text-accent">{100 - txBuyPct}%S</span>
                 </div>
@@ -751,7 +761,7 @@ function TokenDetailContent() {
                       setChartTab(tab.id as any);
                       if (tab.id === "cabalspy") setWidgetLoaded(false);
                     }}
-                    className={`cursor-pointer px-5 py-3.5 text-[10px] font-black tracking-[0.2em] transition-all relative ${chartTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}
+                    className={`cursor-pointer px-5 py-3.5 text-[10px] font-bold tracking-[0.2em] transition-all relative ${chartTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}
                   >
                     {tab.label}
                     {chartTab === tab.id && (
@@ -769,7 +779,7 @@ function TokenDetailContent() {
                   !widgetError && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted z-0">
                       <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-                      <span className="text-[10px] font-black uppercase tracking-widest">
+                      <span className="text-[10px] font-bold uppercase tracking-widest">
                         Loading intel...
                       </span>
                     </div>
@@ -780,7 +790,7 @@ function TokenDetailContent() {
                       <Settings className="w-6 h-6 animate-pulse" />
                     </div>
                     <div>
-                      <p className="text-sm font-black italic text-white mb-1">
+                      <p className="text-sm font-bold text-white mb-1">
                         Widget Offline
                       </p>
                       <p className="text-[10px] text-muted uppercase tracking-widest">
@@ -805,7 +815,7 @@ function TokenDetailContent() {
                       <span className="text-xl">🔍</span>
                     </div>
                     <div>
-                      <p className="text-sm font-black italic text-white mb-1">
+                      <p className="text-sm font-bold text-white mb-1">
                         {tokenSymbol} Not Available
                       </p>
                       <p className="text-[10px] text-muted uppercase tracking-widest">
@@ -844,7 +854,7 @@ function TokenDetailContent() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    className={`cursor-pointer flex-1 py-3.5 flex items-center justify-center gap-2 text-[9px] font-black tracking-[0.15em] transition-all relative ${activeTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}
+                    className={`cursor-pointer flex-1 py-3.5 flex items-center justify-center gap-2 text-[9px] font-bold tracking-[0.15em] transition-all relative ${activeTab === tab.id ? "text-primary bg-white/5" : "text-muted hover:text-white"}`}
                   >
                     <tab.icon className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">{tab.label}</span>
@@ -862,7 +872,7 @@ function TokenDetailContent() {
                     {!isAuthenticated ? (
                       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-panel/60 backdrop-blur-md rounded-2xl text-center p-6">
                         <Lock className="w-8 h-8 text-primary mb-3" />
-                        <h4 className="text-sm font-black italic mb-2">
+                        <h4 className="text-sm font-bold mb-2">
                           TERMINAL LOCKED
                         </h4>
                         <p className="text-[10px] text-muted mb-4">
@@ -897,11 +907,11 @@ function TokenDetailContent() {
                                 className="p-3 rounded-xl bg-white/5 border border-white/5 text-center"
                               >
                                 <div
-                                  className={`text-lg font-black italic ${s.color}`}
+                                  className={`text-lg font-bold ${s.color}`}
                                 >
                                   {formatNumber(s.val)}
                                 </div>
-                                <div className="text-[8px] font-black text-muted uppercase tracking-widest mt-0.5">
+                                <div className="text-[8px] font-bold text-muted uppercase tracking-widest mt-0.5">
                                   {s.label}
                                 </div>
                               </div>
@@ -910,7 +920,7 @@ function TokenDetailContent() {
                         )}
 
                         {/* Multi-timeframe breakdown — real from DexScreener */}
-                        <div className="text-[9px] font-black text-muted uppercase tracking-widest mb-2">
+                        <div className="text-[9px] font-bold text-muted uppercase tracking-widest mb-2">
                           ACTIVITY BREAKDOWN
                         </div>
                         <div className="space-y-2 mb-5">
@@ -954,10 +964,10 @@ function TokenDetailContent() {
                                   className="p-3 rounded-xl bg-white/5 border border-white/5"
                                 >
                                   <div className="flex items-center justify-between mb-1.5">
-                                    <span className="text-[9px] font-black text-muted uppercase tracking-widest">
+                                    <span className="text-[9px] font-bold text-muted uppercase tracking-widest">
                                       {label}
                                     </span>
-                                    <div className="flex items-center gap-3 text-[9px] font-black">
+                                    <div className="flex items-center gap-3 text-[9px] font-bold">
                                       <span className="text-primary">
                                         {txns?.buys ?? 0}B
                                       </span>
@@ -997,7 +1007,7 @@ function TokenDetailContent() {
                           }
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[9px] font-black text-muted hover:text-white hover:border-white/20 transition-all uppercase tracking-wider"
+                          className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-white/5 border border-white/10 text-[9px] font-bold text-muted hover:text-white hover:border-white/20 transition-all uppercase tracking-wider"
                         >
                           <BarChart3 className="w-3.5 h-3.5" />
                           View Live Trades on DexScreener
@@ -1033,7 +1043,7 @@ function TokenDetailContent() {
                   <div className="space-y-3">
                     {/* Holder count + Bubblemaps quick links */}
                     <div className="flex items-center justify-between">
-                      <div className="text-[9px] font-black text-muted uppercase tracking-widest">
+                      <div className="text-[9px] font-bold text-muted uppercase tracking-widest">
                         {(baseToken as any)?._mobulaData?.holdersCount
                           ? `${formatNumber((baseToken as any)._mobulaData.holdersCount)} HOLDERS`
                           : "TOP HOLDERS"}
@@ -1043,7 +1053,7 @@ function TokenDetailContent() {
                           href={`https://app.bubblemaps.io/sol/token/${tokenAddress}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-black text-primary hover:bg-primary/20 transition-all uppercase tracking-wider"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/20 text-[8px] font-bold text-primary hover:bg-primary/20 transition-all uppercase tracking-wider"
                         >
                           <svg
                             className="w-3 h-3"
@@ -1094,7 +1104,7 @@ function TokenDetailContent() {
                           href={`https://solscan.io/token/${tokenAddress}#holders`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[8px] font-black text-muted hover:text-white transition-all uppercase tracking-wider"
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[8px] font-bold text-muted hover:text-white transition-all uppercase tracking-wider"
                         >
                           SOLSCAN <ArrowUpRight className="w-2.5 h-2.5" />
                         </a>
@@ -1104,7 +1114,7 @@ function TokenDetailContent() {
                     {holdersLoading ? (
                       <div className="flex items-center justify-center py-10 gap-2 text-muted">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-[10px] font-black uppercase">
+                        <span className="text-[10px] font-bold uppercase">
                           Loading holder data...
                         </span>
                       </div>
@@ -1116,7 +1126,7 @@ function TokenDetailContent() {
                             className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5"
                           >
                             <div className="flex items-center gap-3">
-                              <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-black italic text-primary">
+                              <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-[9px] font-bold text-primary">
                                 #{i + 1}
                               </div>
                               <div>
@@ -1131,7 +1141,7 @@ function TokenDetailContent() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-xs font-black italic text-primary">
+                              <div className="text-xs font-bold text-primary">
                                 {h.percentage?.toFixed(2) || "—"}%
                               </div>
                               <a
@@ -1148,7 +1158,7 @@ function TokenDetailContent() {
                       </>
                     ) : (
                       <div className="py-8 text-center space-y-3">
-                        <div className="text-[10px] font-black text-muted uppercase tracking-widest">
+                        <div className="text-[10px] font-bold text-muted uppercase tracking-widest">
                           Holder data unavailable
                         </div>
                         <p className="text-[9px] text-muted/60">
@@ -1159,7 +1169,7 @@ function TokenDetailContent() {
                             href={`https://app.bubblemaps.io/sol/token/${tokenAddress}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-[9px] font-black text-primary uppercase tracking-wider hover:bg-primary/20 transition-all"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 border border-primary/20 text-[9px] font-bold text-primary uppercase tracking-wider hover:bg-primary/20 transition-all"
                           >
                             View Bubble Map
                           </a>
@@ -1167,7 +1177,7 @@ function TokenDetailContent() {
                             href={`https://solscan.io/token/${tokenAddress}#holders`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-[9px] font-black text-muted uppercase tracking-wider hover:text-white transition-colors"
+                            className="inline-flex items-center gap-1.5 text-[9px] font-bold text-muted uppercase tracking-wider hover:text-white transition-colors"
                           >
                             Solscan <ArrowUpRight className="w-3 h-3" />
                           </a>
@@ -1181,7 +1191,7 @@ function TokenDetailContent() {
                 {activeTab === "info" && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="text-sm font-black italic tracking-tighter mb-4">
+                      <h3 className="text-sm font-bold tracking-tighter mb-4">
                         TOKENOMICS
                       </h3>
                       <div className="space-y-0">
@@ -1220,10 +1230,10 @@ function TokenDetailContent() {
                             key={label}
                             className="flex justify-between items-center py-2.5 border-b border-white/5"
                           >
-                            <span className="text-[10px] font-black text-muted uppercase tracking-widest">
+                            <span className="text-[10px] font-bold text-muted uppercase tracking-widest">
                               {label}
                             </span>
-                            <span className="text-xs font-black italic">
+                            <span className="text-xs font-bold">
                               {value}
                             </span>
                           </div>
@@ -1233,7 +1243,7 @@ function TokenDetailContent() {
                       {/* Description */}
                       {pumpfunData?.description && (
                         <div className="mt-4 p-3 rounded-xl bg-white/5 border border-white/5">
-                          <div className="text-[9px] font-black text-muted uppercase tracking-widest mb-1.5">
+                          <div className="text-[9px] font-bold text-muted uppercase tracking-widest mb-1.5">
                             DESCRIPTION
                           </div>
                           <p className="text-[10px] text-white/80 leading-relaxed">
@@ -1244,7 +1254,7 @@ function TokenDetailContent() {
                     </div>
 
                     <div>
-                      <h3 className="text-sm font-black italic tracking-tighter mb-4">
+                      <h3 className="text-sm font-bold tracking-tighter mb-4">
                         RESOURCES
                       </h3>
                       <div className="grid grid-cols-1 gap-2">
@@ -1292,7 +1302,7 @@ function TokenDetailContent() {
                             >
                               <div className="flex items-center gap-2">
                                 <Icon className="w-4 h-4 text-muted group-hover:text-inherit transition-colors" />
-                                <span className="text-[9px] font-black uppercase tracking-wider">
+                                <span className="text-[9px] font-bold uppercase tracking-wider">
                                   {label}
                                 </span>
                               </div>
@@ -1304,10 +1314,10 @@ function TokenDetailContent() {
                               className="flex items-center gap-2 p-3 rounded-xl bg-white/5 border border-white/5 opacity-40 cursor-not-allowed"
                             >
                               <Icon className="w-4 h-4 text-muted" />
-                              <span className="text-[9px] font-black uppercase tracking-wider">
+                              <span className="text-[9px] font-bold uppercase tracking-wider">
                                 {label}
                               </span>
-                              <span className="ml-auto text-[8px] text-muted italic">
+                              <span className="ml-auto text-[8px] text-muted">
                                 not listed
                               </span>
                             </div>
@@ -1326,7 +1336,7 @@ function TokenDetailContent() {
             <section className="glass rounded-2xl sm:rounded-3xl p-5 sm:p-6 border border-white/10 relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-[50px] rounded-full -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors" />
 
-              <h2 className="text-xl font-black italic tracking-tighter mb-6 flex items-center gap-2">
+              <h2 className="text-xl font-bold tracking-tighter mb-6 flex items-center gap-2">
                 <Zap className="w-5 h-5 text-primary" />
                 EXECUTE TRADE
               </h2>
@@ -1339,7 +1349,7 @@ function TokenDetailContent() {
                       <button
                         key={t}
                         onClick={() => setTradeType(t)}
-                        className={`flex-1 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${tradeType === t ? (t === "buy" ? "bg-primary text-black shadow-neon scale-105" : "bg-accent text-white shadow-accent-neon scale-105") : "text-muted hover:text-white"}`}
+                        className={`flex-1 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${tradeType === t ? (t === "buy" ? "bg-primary text-black shadow-neon scale-105" : "bg-accent text-white shadow-accent-neon scale-105") : "text-muted hover:text-white"}`}
                       >
                         {t.toUpperCase()} {tokenSymbol}
                       </button>
@@ -1349,10 +1359,10 @@ function TokenDetailContent() {
                   {/* Amount Presets */}
                   <div className="space-y-3">
                     <div className="flex justify-between px-1">
-                      <span className="text-[9px] font-black text-muted uppercase tracking-[0.2em]">
+                      <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">
                         Amount
                       </span>
-                      <span className="text-[9px] font-black text-muted/60 uppercase">
+                      <span className="text-[9px] font-bold text-muted/60 uppercase">
                         Bal:{" "}
                         {formatNumber(
                           tradeType === "buy"
@@ -1379,7 +1389,7 @@ function TokenDetailContent() {
                               );
                             else setTradeAmount(amt);
                           }}
-                          className="py-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black italic hover:border-white/30 hover:bg-white/10 transition-all active:scale-95"
+                          className="py-2.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-bold hover:border-white/30 hover:bg-white/10 transition-all active:scale-95"
                         >
                           {amt}
                         </button>
@@ -1391,9 +1401,9 @@ function TokenDetailContent() {
                         value={tradeAmount}
                         onChange={(e) => setTradeAmount(e.target.value)}
                         placeholder={`Enter ${tradeType === "buy" ? "SOL" : tokenSymbol} amount...`}
-                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-black italic focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all pr-16"
+                        className="w-full bg-black/40 border border-white/10 rounded-2xl px-5 py-4 text-sm font-bold focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary transition-all pr-16"
                       />
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-black text-muted">
+                      <div className="absolute right-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted">
                         {tradeType === "buy" ? "SOL" : tokenSymbol}
                       </div>
                     </div>
@@ -1402,10 +1412,10 @@ function TokenDetailContent() {
                   {/* Slippage */}
                   <div className="space-y-2.5">
                     <div className="flex justify-between px-1">
-                      <span className="text-[9px] font-black text-muted uppercase tracking-[0.2em]">
+                      <span className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">
                         Slippage
                       </span>
-                      <span className="text-[9px] font-black text-primary">
+                      <span className="text-[9px] font-bold text-primary">
                         {tradeSlippage}%
                       </span>
                     </div>
@@ -1414,7 +1424,7 @@ function TokenDetailContent() {
                         <button
                           key={s}
                           onClick={() => setTradeSlippage(s)}
-                          className={`py-2 rounded-xl text-[9px] font-black transition-all ${tradeSlippage === s ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/5 border border-white/10 text-muted hover:text-white hover:border-white/20"}`}
+                          className={`py-2 rounded-xl text-[9px] font-bold transition-all ${tradeSlippage === s ? "bg-primary/20 text-primary border border-primary/50" : "bg-white/5 border border-white/10 text-muted hover:text-white hover:border-white/20"}`}
                         >
                           {s}%
                         </button>
@@ -1424,34 +1434,34 @@ function TokenDetailContent() {
 
                   {/* Quote preview */}
                   <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm space-y-2">
-                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] font-black text-muted">
+                    <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] font-bold text-muted">
                       <span>Quote preview</span>
                       {isFetchingQuote && <span>Updating…</span>}
                     </div>
                     {tradeQuote ? (
                       <div className="space-y-2">
-                        <div className="text-sm font-black text-white">
+                        <div className="text-sm font-bold text-white">
                           {tradeType === "buy"
                             ? "Estimated receive"
                             : "Estimated output"}
                         </div>
-                        <div className="text-base font-black text-primary">
+                        <div className="text-base font-bold text-primary">
                           {tradeType === "buy"
                             ? `${(parseFloat(tradeQuote.outAmount) / Math.pow(10, tokenDecimals || 6)).toFixed(6)} ${tokenSymbol}`
                             : `${(parseFloat(tradeQuote.outAmount) / 1e9).toFixed(6)} SOL`}
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-muted uppercase tracking-[0.2em] font-black">
+                        <div className="flex items-center justify-between text-[10px] text-muted uppercase tracking-[0.2em] font-bold">
                           <span>Price impact</span>
                           <span>
                             {parseFloat(tradeQuote.priceImpactPct).toFixed(2)}%
                           </span>
                         </div>
-                        <div className="flex items-center justify-between text-[10px] text-muted uppercase tracking-[0.2em] font-black">
+                        <div className="flex items-center justify-between text-[10px] text-muted uppercase tracking-[0.2em] font-bold">
                           <span>Route hops</span>
                           <span>{tradeQuote.routePlan?.length ?? 0}</span>
                         </div>
                         {tradeQuote.otherAmountThreshold && (
-                          <div className="flex items-center justify-between text-[10px] text-muted uppercase tracking-[0.2em] font-black">
+                          <div className="flex items-center justify-between text-[10px] text-muted uppercase tracking-[0.2em] font-bold">
                             <span>Minimum received</span>
                             <span>
                               {tradeType === "buy"
@@ -1478,7 +1488,7 @@ function TokenDetailContent() {
                   <button
                     onClick={handleTokenTrade}
                     disabled={isTrading || !tradeAmount}
-                    className={`w-full py-5 rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all relative overflow-hidden group/btn ${isTrading ? "opacity-70 cursor-wait" : ""} ${tradeType === "buy" ? "bg-primary text-black shadow-neon hover:scale-[1.02]" : "bg-accent text-white shadow-accent-neon hover:scale-[1.02]"}`}
+                    className={`w-full py-5 rounded-2xl text-xs font-bold uppercase tracking-[0.2em] transition-all relative overflow-hidden group/btn ${isTrading ? "opacity-70 cursor-wait" : ""} ${tradeType === "buy" ? "bg-primary text-black shadow-neon hover:scale-[1.02]" : "bg-accent text-white shadow-accent-neon hover:scale-[1.02]"}`}
                   >
                     <div className="absolute inset-0 bg-white/20 -translate-x-full group-hover/btn:translate-x-full transition-transform duration-1000" />
                     <span className="relative z-10 flex items-center justify-center gap-2">
@@ -1502,7 +1512,7 @@ function TokenDetailContent() {
 
                   {tradeHistory.length > 0 && (
                     <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm space-y-3">
-                      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] font-black text-muted">
+                      <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.22em] font-bold text-muted">
                         <span>Recent trades</span>
                         <span>{tradeHistory.length} saved</span>
                       </div>
@@ -1557,7 +1567,7 @@ function TokenDetailContent() {
                     <Lock className="w-8 h-8 text-primary" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black italic uppercase mb-2">
+                    <h3 className="text-lg font-bold uppercase mb-2">
                       Terminal Locked
                     </h3>
                     <p className="text-[10px] font-bold text-muted uppercase tracking-widest">
@@ -1576,7 +1586,7 @@ function TokenDetailContent() {
             {/* Token volume breakdown */}
             {(dexData?.txns1h || dexData?.txns5m) && (
               <section className="glass rounded-2xl p-4 border border-white/10">
-                <div className="text-[9px] font-black text-muted uppercase tracking-widest mb-3">
+                <div className="text-[9px] font-bold text-muted uppercase tracking-widest mb-3">
                   VOLUME BREAKDOWN
                 </div>
                 <div className="space-y-2">
@@ -1608,11 +1618,11 @@ function TokenDetailContent() {
                         key={label}
                         className="flex items-center justify-between p-2.5 rounded-xl bg-white/5"
                       >
-                        <span className="text-[9px] font-black text-muted uppercase tracking-widest">
+                        <span className="text-[9px] font-bold text-muted uppercase tracking-widest">
                           {label}
                         </span>
                         <div className="text-right">
-                          <div className="text-[10px] font-black italic">
+                          <div className="text-[10px] font-bold">
                             {formatCurrency(vol || 0)}
                           </div>
                           {txns && (

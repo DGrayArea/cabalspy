@@ -48,17 +48,20 @@ model Watchlist {
 }
 
 model TradeHistory {
-  id        String   @id @default(uuid())
-  userId    String
-  tokenMint String
-  symbol    String
-  direction String   // "buy" | "sell"
-  amount    String   // SOL in (buy) or token amount (sell)
-  output    String   // token out (buy) or SOL out (sell)
-  priceUsd  Float?   // token USD price at time of trade
-  signature String?  // Solana transaction signature
-  status    String   // "success" | "failed"
-  timestamp DateTime @default(now())
+  id           String   @id @default(uuid())
+  userId       String
+  tokenMint    String
+  symbol       String
+  direction    String   // "buy" | "sell"
+  amount       String   // SOL in (buy) or token amount (sell)
+  output       String   // token out (buy) or SOL out (sell)
+  priceUsd     Float?   // token USD price at time of trade
+  outAmountUsd Float?   // USD value of the output at execution time
+  feesSOL      Float?   // referral/platform fee paid, in SOL (when fee mint is SOL)
+  feesBps      Int?     // actual fee bps Jupiter charged (0 = fee not collected)
+  signature    String?  // Solana transaction signature
+  status       String   // "success" | "failed"
+  timestamp    DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
