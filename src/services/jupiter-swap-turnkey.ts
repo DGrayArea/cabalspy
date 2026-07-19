@@ -76,6 +76,27 @@ function ultraHeaders(): HeadersInit {
  * Get token decimals from mint address.
  * Tries blockchain → Jupiter token list → defaults to 6.
  */
+let jupiterTokenListPromise: Promise<any[] | null> | null = null;
+
+/** Fetch the full Jupiter token list once per session, with a 10s timeout. */
+function getJupiterTokenList(): Promise<any[] | null> {
+  if (!jupiterTokenListPromise) {
+    jupiterTokenListPromise = (async () => {
+      try {
+        const response = await fetch("https://token.jup.ag/all", {
+          signal: AbortSignal.timeout(10000),
+        });
+        if (!response.ok) return null;
+        return await response.json();
+      } catch {
+        jupiterTokenListPromise = null; // allow a retry on the next swap
+        return null;
+      }
+    })();
+  }
+  return jupiterTokenListPromise;
+}
+
 async function getTokenDecimals(
   connection: Connection,
   mintAddress: string,
@@ -100,14 +121,12 @@ async function getTokenDecimals(
     // fall through
   }
 
-  // Method 2: Jupiter token list
+  // Method 2: Jupiter token list (cached for the session — the full list is
+  // ~50k tokens, so fetch it at most once, with a hard timeout)
   try {
-    const response = await fetch("https://token.jup.ag/all");
-    if (response.ok) {
-      const tokenList = await response.json();
-      const token = tokenList.find((t: any) => t.address === mintAddress);
-      if (token?.decimals !== undefined) return token.decimals;
-    }
+    const tokenList = await getJupiterTokenList();
+    const token = tokenList?.find((t: any) => t.address === mintAddress);
+    if (token?.decimals !== undefined) return token.decimals;
   } catch {
     // fall through
   }

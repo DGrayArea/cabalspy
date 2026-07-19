@@ -20,6 +20,29 @@ const API_KEY =
   process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
   process.env.MOBULA_API_KEY ||
   "7b7ba456-f454-4a42-a80e-897319cb0ac1";
+const FALLBACK_API_KEY =
+  process.env.MOBULA_FALLBACK_API_KEY ||
+  process.env.NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY ||
+  "";
+
+/**
+ * Run the request with the primary key; if Mobula rejects it with 401/403
+ * and a fallback key is configured, retry once with the fallback key.
+ */
+async function withKeyFallback<T extends { status: number }>(
+  doRequest: (apiKey: string) => Promise<T>
+): Promise<T> {
+  const response = await doRequest(API_KEY);
+  if (
+    (response.status === 401 || response.status === 403) &&
+    FALLBACK_API_KEY &&
+    FALLBACK_API_KEY !== API_KEY
+  ) {
+    console.log("[Mobula Proxy] Primary key rejected — retrying with fallback key");
+    return doRequest(FALLBACK_API_KEY);
+  }
+  return response;
+}
 
 // Retry helper function
 async function retryRequest<T>(
@@ -79,17 +102,19 @@ export async function GET(request: NextRequest) {
     const url = `${MOBULA_GET_API}?${params.toString()}`;
     console.log(`[Mobula API] GET ${url}`);
 
-    const response = await retryRequest(
-      () => axios.get(url, {
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-        validateStatus: (status) => status < 500,
-      }),
-      2,
-      1000
+    const response = await withKeyFallback((apiKey) =>
+      retryRequest(
+        () => axios.get(url, {
+          headers: {
+            Authorization: apiKey,
+            "Content-Type": "application/json",
+          },
+          timeout: 20000,
+          validateStatus: (status) => status < 500,
+        }),
+        2,
+        1000
+      )
     );
 
     if (response.status >= 400) {
@@ -149,17 +174,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const response = await retryRequest(
-      () => axios.post(MOBULA_POST_API, body, {
-        headers: {
-          Authorization: API_KEY,
-          "Content-Type": "application/json",
-        },
-        timeout: 20000,
-        validateStatus: (status) => status < 500,
-      }),
-      2,
-      1000
+    const response = await withKeyFallback((apiKey) =>
+      retryRequest(
+        () => axios.post(MOBULA_POST_API, body, {
+          headers: {
+            Authorization: apiKey,
+            "Content-Type": "application/json",
+          },
+          timeout: 20000,
+          validateStatus: (status) => status < 500,
+        }),
+        2,
+        1000
+      )
     );
 
     if (response.status >= 400) {

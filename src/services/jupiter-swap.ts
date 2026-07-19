@@ -61,7 +61,9 @@ export interface SwapInstructions {
 export class JupiterSwapService {
   private readonly quoteApiUrl = "https://quote-api.jup.ag/v6";
   private readonly swapApiUrl = "https://quote-api.jup.ag/v6";
-  private readonly solanaRpcUrl = "https://api.mainnet-beta.solana.com";
+  private readonly solanaRpcUrl =
+    process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
+    "https://api.mainnet-beta.solana.com";
   private connection: Connection;
 
   constructor(rpcUrl?: string) {

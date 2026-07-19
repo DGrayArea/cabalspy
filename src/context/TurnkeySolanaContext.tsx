@@ -333,6 +333,7 @@ export function TurnkeySolanaContextProvider(props: {
       const solanaRpcUrl =
         rpcUrl ||
         connection?.rpcEndpoint ||
+        process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
         "https://api.mainnet-beta.solana.com";
 
       // console.log("🔏 Signing and sending transaction with Turnkey...", {

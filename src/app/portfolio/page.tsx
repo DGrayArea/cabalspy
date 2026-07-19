@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Wallet,
@@ -61,8 +61,25 @@ export default function PortfolioPage() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
+  const [realized, setRealized] = useState<{
+    totalPnLUsd: number;
+    totalPnLPercent: number;
+    winRate: number;
+    totalTrades: number;
+  } | null>(null);
 
   const { stats, allTrades } = useTradeHistory({ walletAddress: walletAddress ?? undefined });
+
+  // Aggregated realized PnL across the full trade history (server-computed)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetch("/api/analytics/performance")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && !data.error) setRealized(data);
+      })
+      .catch(() => {});
+  }, [isAuthenticated, allTrades.length]);
 
   const copyAddress = async () => {
     if (!walletAddress) return;
@@ -229,6 +246,38 @@ export default function PortfolioPage() {
                   </div>
                 )}
               </div>
+              {realized && realized.totalTrades > 0 && (
+                <>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-0.5">
+                      Realized PnL
+                    </div>
+                    <div
+                      className={`text-sm font-semibold ${
+                        realized.totalPnLUsd >= 0 ? "text-primary" : "text-accent"
+                      }`}
+                    >
+                      {realized.totalPnLUsd >= 0 ? "+" : ""}
+                      {formatCurrency(realized.totalPnLUsd)}
+                      <span className="ml-1.5 text-xs opacity-70">
+                        ({realized.totalPnLPercent >= 0 ? "+" : ""}
+                        {realized.totalPnLPercent.toFixed(1)}%)
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-gray-500 mb-0.5">
+                      Win Rate
+                    </div>
+                    <div className="text-sm font-semibold">
+                      {realized.winRate.toFixed(0)}%
+                      <span className="ml-1.5 text-xs text-gray-500">
+                        {realized.totalTrades} trades
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -53,7 +53,7 @@
 
 - [x] **Add missing fields to `TradeHistory` Prisma schema**: Added `feesSOL`, `feesBps`, `outAmountUsd` (db pushed 2026-07-01). Wired through `/api/trades`, `useTradeHistory`, both trade call sites (via `src/lib/tradeMetrics.ts`), and `portfolio-analytics` now prefers recorded USD values for cost basis and proceeds.
 
-- [ ] **Realized PnL aggregation missing from portfolio page** (`src/app/portfolio/page.tsx`): Currently only shows `totalPnL24hUsd` (24h mark-to-market from Helius). `PnLCalendar` and `TradeHistoryList` are wired up but no aggregated realized profit/loss across full trade history is computed or displayed.
+- [x] **Realized PnL aggregation missing from portfolio page**: Summary card now shows aggregated realized PnL, PnL %, and win rate from `/api/analytics/performance` alongside the 24h mark-to-market figures.
 
 - [x] **Ensure all `addTrade` callers include `tokenMint`**: Verified — both call sites (token detail page and TradingPanel) always set `tokenMint` (TradingPanel derives it from the non-SOL side of the swap).
 
@@ -61,17 +61,17 @@
 
 - [ ] **Session inactivity enforcement is client-side only** (`src/context/AuthContext.tsx:401-431`): 4-hour inactivity timer is pure browser-side. Sessions in DB expire after 3 days regardless of inactivity — direct API calls with the cookie bypass the timer. Consider adding server-side last-active tracking if stricter enforcement is needed.
 
-- [ ] **Add rate limiting to trade, watchlist, and Turnkey endpoints**: `/api/trades`, `/api/watchlist`, `/api/turnkey/*` have no rate limiting. Mobula/PumpFun routes have it — apply the same to sensitive endpoints.
+- [x] **Add rate limiting to trade, watchlist, and Turnkey endpoints**: All handlers guarded via `createRouteLimiter` in `src/lib/rateLimit.ts` (reads 60/min, writes 30/min, signing 20/min per IP). Verified live: request 61 returns 429.
 
 ### Page-Level Gaps
 
 - [ ] **`/[chain]/[tokenAddress]` doesn't validate the `chain` param**: Page always executes SOL/SPL swaps regardless of the chain in the URL. Fine for now (SOL-only), but add a chain guard before BSC/ETH go live or swaps will silently misbehave for non-SOL tokens.
 
-- [ ] **Hardcoded public RPC in `jupiter-swap.ts`** (`src/services/jupiter-swap.ts:64`): `https://api.mainnet-beta.solana.com` is hardcoded and ignores `NEXT_PUBLIC_SOLANA_RPC_URL`. Used for quote fetching — will hit rate limits in production. The actual swap execution already uses the env var; align quote fetching to match.
+- [x] **Hardcoded public RPC in `jupiter-swap.ts`**: Quote path now prefers `NEXT_PUBLIC_SOLANA_RPC_URL` with public mainnet as last resort.
 
 ### Minor / Polish
 
-- [ ] **`TurnkeySolanaContext` fallback RPC is hardcoded** (`src/context/TurnkeySolanaContext.tsx:336`): Falls back to public mainnet RPC instead of `NEXT_PUBLIC_SOLANA_RPC_URL`.
+- [x] **`TurnkeySolanaContext` fallback RPC is hardcoded**: Fallback chain now includes `NEXT_PUBLIC_SOLANA_RPC_URL` before public mainnet.
 
 - [ ] **Network fee display is static** (`src/components/TradingPanel.tsx:527`): Shows hardcoded `~0.000005 SOL`. Should pull actual priority fee from Jupiter Ultra response.
 
@@ -89,7 +89,7 @@
 
 - [x] **`helius-token-data.getRecentTransactions` returns fake transaction data**: Removed — the method (and `TokenTransaction`/`formatAge` support code) had no callers anywhere. If a recent-transactions display is wanted later, implement it with real tx parsing (e.g. Helius enhanced API).
 
-- [ ] **Mobula fallback key logic sends unauthenticated requests** (`src/services/mobula.ts:311-338`): When the primary key 401s, the fallback path checks `NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY` but makes the request with no Authorization header — so it also 401s. Fix the fallback to actually set the Bearer header using the fallback key.
+- [x] **Mobula fallback key logic sends unauthenticated requests**: Key fallback moved to where the key actually lives — the `/api/mobula` proxy now retries 401/403 with `MOBULA_FALLBACK_API_KEY`. (Client-side retry in `mobula.ts` remains as a transient-failure retry against the proxy.)
 
 - [x] **API keys hardcoded in source** — won't fix, intentional per decision (2026-07-01): the keys in `src/services/axiom.ts` and `src/app/api/mobula/route.ts` stay hardcoded.
 
@@ -109,7 +109,7 @@
 
 - [ ] **`fetchTokenByAddress` in `mobula-pulse.ts` fetches 2000 tokens to find one** (`src/services/mobula-pulse.ts:838-920`): Scans up to 1000 trending tokens then another 1000 from basic views because Mobula Pulse has no address-filter param. Extremely wasteful in production — cache the full list or use Mobula's direct asset endpoint instead.
 
-- [ ] **Jupiter token list fetch has no timeout** (`src/services/jupiter-swap-turnkey.ts:103`): Calls `https://token.jup.ag/all` (~50k tokens) with no timeout or size guard. Runs before every swap in the decimal-resolution path. Add a timeout and cache the result across swaps.
+- [x] **Jupiter token list fetch has no timeout**: Now fetched at most once per session with a 10s abort timeout, cached across swaps (failed fetches retry next swap).
 
 - [ ] **GeckoTerminal calls go direct from browser** (`src/services/geckoterminal.ts:119-135`): No server proxy route — requests go browser → `api.geckoterminal.com` directly. Works today but has no rate-limit protection and will break if GeckoTerminal adds auth or restricts CORS. Proxy through `/api/` like Mobula and PumpFun.
 

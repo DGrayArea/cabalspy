@@ -1,3 +1,5 @@
+import { NextRequest, NextResponse } from "next/server";
+
 export interface RateLimitOptions {
   uniqueTokenPerInterval?: number;
   interval?: number;
@@ -46,5 +48,29 @@ export function rateLimit(options?: RateLimitOptions) {
         tokenCache.set(token, timestamps);
         return resolve();
       }),
+  };
+}
+
+/**
+ * Per-IP route limiter with the same semantics the Mobula/PumpFun routes use.
+ * Returns a guard: call it at the top of a handler; a non-null return is the
+ * 429 response to send back.
+ *
+ *   const guard = createRouteLimiter(30);
+ *   export async function POST(req: NextRequest) {
+ *     const limited = await guard(req);
+ *     if (limited) return limited;
+ *     ...
+ */
+export function createRouteLimiter(requestsPerMinute: number) {
+  const limiter = rateLimit({ uniqueTokenPerInterval: 500, interval: 60000 });
+  return async (req: NextRequest): Promise<NextResponse | null> => {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    try {
+      await limiter.check(requestsPerMinute, ip);
+      return null;
+    } catch {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
   };
 }

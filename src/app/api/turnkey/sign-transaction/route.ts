@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { getSession } from "@/lib/auth";
+import { createRouteLimiter } from "@/lib/rateLimit";
 import { turnkeyService } from "@/services/turnkey";
+
+const signGuard = createRouteLimiter(20);
 
 /**
  * Sign a transaction using Turnkey (backend signing)
@@ -17,6 +20,9 @@ import { turnkeyService } from "@/services/turnkey";
  * Alternative approach: Generate OIDC tokens from Telegram auth that Turnkey can verify
  */
 export async function POST(request: NextRequest) {
+  const limited = await signGuard(request);
+  if (limited) return limited;
+
   try {
     const session = await getSession(request);
     if (!session) {

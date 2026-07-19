@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { logger } from "@/lib/logger";
+import { createRouteLimiter } from "@/lib/rateLimit";
+
+const readGuard = createRouteLimiter(60);
+const writeGuard = createRouteLimiter(30);
 
 export async function GET(req: NextRequest) {
+  const limited = await readGuard(req);
+  if (limited) return limited;
+
   try {
     const session = await getSession(req);
     if (!session) {
@@ -26,6 +33,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const limited = await writeGuard(req);
+  if (limited) return limited;
+
   try {
     const session = await getSession(req);
     if (!session) {
@@ -77,6 +87,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
+  const limited = await writeGuard(req);
+  if (limited) return limited;
+
   try {
     const session = await getSession(req);
     if (!session) {
