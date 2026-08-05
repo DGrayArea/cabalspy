@@ -177,18 +177,29 @@ export default function Home() {
   const [quickBuyAmount, setQuickBuyAmount] = useState("0.1");
 
   const mobulaEnabled = !!env.NEXT_PUBLIC_USE_MOBULA;
-  const { 
-    tokens: mobulaTokensByFilter, 
-    isLoading: isLoading, 
-    refresh: refreshMobula 
+  const {
+    tokens: mobulaTokensByFilter,
+    isLoading: isLoading,
+    refresh: refreshMobula,
+    loadMore: loadMoreMobula,
   } = useMobulaPulse(mobulaEnabled);
-
-  const isLoadingMore = false; // Placeholder if not implemented in current useMobulaPulse
-  const observerTarget = { current: null }; // Placeholder
 
   const refresh = useCallback(() => {
     refreshMobula();
   }, [refreshMobula]);
+
+  // Infinite scroll — pulls the next page for the active filter when the
+  // sentinel below the feed comes into view. The watchlist is local-only,
+  // so there is nothing to paginate there.
+  const handleLoadMore = useCallback(async () => {
+    if (filter === "watchlist") return;
+    await loadMoreMobula(filter);
+  }, [filter, loadMoreMobula]);
+
+  const { observerTarget, isLoading: isLoadingMore } = useInfiniteScroll(
+    handleLoadMore,
+    { enabled: mobulaEnabled && filter !== "watchlist" },
+  );
 
   const tokensToDisplay = useMemo(() => {
     if (!mobulaTokensByFilter) return [];
