@@ -24,8 +24,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const endpoint = searchParams.get("endpoint") || "";
   const api = searchParams.get("api") || "v3";
-  console.log(`[Pump.fun API] GET ${endpoint} (API: ${api})`);
-  
+
   try {
     const ip = request.headers.get("x-forwarded-for") || "unknown";
     try {
@@ -37,10 +36,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const endpoint = searchParams.get("endpoint") || "";
-    const api = searchParams.get("api") || "v3";
-    
     // Build the target URL
     let baseUrl = PUMPFUN_APIS.v3;
     if (api === "base") baseUrl = PUMPFUN_APIS.base;
@@ -68,18 +63,33 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      // Known-dead endpoints — return empty array silently instead of 502
-      const knownDeadEndpoints = ["/coins/latest", "/coins/featured"];
-      if (knownDeadEndpoints.some(dead => endpoint.startsWith(dead))) {
+      // Endpoints pump.fun has retired — the host answers, the path doesn't.
+      const knownDeadEndpoints = [
+        "/coins/latest",
+        "/coins/featured",
+        "/api/runners", // frontend-api.pump.fun is down (Cloudflare 530)
+      ];
+      const isKnownDead = knownDeadEndpoints.some((dead) =>
+        endpoint.startsWith(dead)
+      );
+
+      // Treat an upstream outage the same way: degrade to an empty result so
+      // the feed renders instead of throwing a 502 into the browser console.
+      // The status is surfaced in a header and logged for diagnosis.
+      if (isKnownDead || response.status >= 500) {
+        console.warn(
+          `[Pump.fun API] ${endpoint} unavailable (${response.status}) — returning empty result`
+        );
         return NextResponse.json([], {
           status: 200,
-          headers: { "Access-Control-Allow-Origin": "*" },
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "X-Upstream-Status": String(response.status),
+          },
         });
       }
       throw new Error(`Pump.fun API returned ${response.status}`);
     }
-
-    console.log(`[Pump.fun API] SUCCESS ${endpoint}`);
 
     // Read body as text first to guard against empty responses
     const text = await response.text();
