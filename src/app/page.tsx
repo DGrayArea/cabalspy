@@ -287,14 +287,14 @@ export default function Home() {
         return;
       }
 
-      // If authenticated, check roles, NFT, or admin level
+      // Access level is the source of truth — it is re-derived from the
+      // user's live Discord roles server-side on session check.
       if (user?.accessLevel === 'admin' || user?.accessLevel === 'holder') {
         setIsAuthorizing(false);
         return; // Access granted
       }
 
-      const discordUser = user as any;
-      const hasDiscordRole = discordUser?.roles?.some((r: string) =>
+      const hasDiscordRole = user?.roles?.some((r: string) =>
         ALLOWED_DISCORD_ROLE_IDS.includes(r)
       );
 

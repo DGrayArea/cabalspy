@@ -51,6 +51,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Only verified users may record trades
+    const actor = await db.user.findUnique({ where: { id: session.userId } });
+    if (!actor || (actor.accessLevel !== "holder" && actor.accessLevel !== "admin")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await req.json();
     const {
       id,

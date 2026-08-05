@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import {
+  ROLE_RECHECK_INTERVAL_MS,
+  fetchGuildRoles,
+  resolveAccessLevel,
+} from '@/lib/discordRoles';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +33,7 @@ export async function GET(request: NextRequest) {
       return response;
     }
 
-    const user = await db.user.findUnique({
+    let user = await db.user.findUnique({
       where: { id: session.userId },
     });
 
@@ -36,6 +41,35 @@ export async function GET(request: NextRequest) {
       const response = NextResponse.json({ user: null }, { status: 200 });
       response.cookies.delete('session');
       return response;
+    }
+
+    // Re-verify Discord roles periodically so access is revoked when a user
+    // loses their role or leaves the server (cached for an hour; never
+    // downgrades on a Discord outage — see lib/discordRoles).
+    if (
+      user.discordId &&
+      (!user.rolesCheckedAt ||
+        Date.now() - user.rolesCheckedAt.getTime() > ROLE_RECHECK_INTERVAL_MS)
+    ) {
+      const result = await fetchGuildRoles(user.discordId);
+      const nextLevel = resolveAccessLevel(user.accessLevel, result);
+      if (result.status !== 'unavailable') {
+        if (nextLevel !== user.accessLevel) {
+          logger.info('Discord role re-check changed access level', {
+            userId: user.id,
+            from: user.accessLevel,
+            to: nextLevel,
+          });
+        }
+        user = await db.user.update({
+          where: { id: user.id },
+          data: {
+            accessLevel: nextLevel,
+            discordRoles: result.status === 'ok' ? result.roles : [],
+            rolesCheckedAt: new Date(),
+          },
+        });
+      }
     }
 
     const wallet = await db.wallet.findFirst({
@@ -56,6 +90,7 @@ export async function GET(request: NextRequest) {
         googleId: user.googleId,
         discordId: user.discordId,
         accessLevel: user.accessLevel,
+        roles: user.discordRoles,
       },
       wallet: wallet ? {
         address: wallet.address,

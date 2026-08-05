@@ -29,6 +29,7 @@ import { PnLCalendar } from "@/components/PnLCalendar";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { TradeHistoryList } from "@/components/TradeHistoryList";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
+import { useRequireAccess } from "@/hooks/useRequireAccess";
 import { lazy, Suspense } from "react";
 import { env } from "@/lib/env";
 
@@ -41,6 +42,7 @@ const WalletSettingsModal = lazy(() =>
 export default function PortfolioPage() {
   const { user, turnkeyUser } = useAuth();
   const isAuthenticated = user || turnkeyUser;
+  useRequireAccess();
   const { address: walletAddress } = useTurnkeySolana();
   const {
     solBalance,

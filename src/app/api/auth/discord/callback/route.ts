@@ -194,6 +194,8 @@ export async function GET(request: NextRequest) {
             : undefined,
           accessLevel:
             currentUser?.accessLevel === "admin" ? "admin" : "holder",
+          discordRoles: roles,
+          rolesCheckedAt: new Date(),
         },
       });
       logger.info("Discord linked to existing session", { userId: user.id });
@@ -210,6 +212,8 @@ export async function GET(request: NextRequest) {
               : userWithDiscord.avatar,
             accessLevel:
               userWithDiscord.accessLevel === "admin" ? "admin" : "holder",
+            discordRoles: roles,
+            rolesCheckedAt: new Date(),
           },
         });
       } else {
@@ -222,6 +226,8 @@ export async function GET(request: NextRequest) {
               ? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.png`
               : null,
             accessLevel: "holder",
+            discordRoles: roles,
+            rolesCheckedAt: new Date(),
           },
         });
       }

@@ -33,6 +33,7 @@ import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { TradeHistoryList } from "@/components/TradeHistoryList";
 import { WatchlistPanel } from "@/components/WatchlistPanel";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
+import { useRequireAccess } from "@/hooks/useRequireAccess";
 import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
 
 interface PerformanceMetrics {
@@ -57,6 +58,7 @@ export default function ProfilePage() {
   const [isUnlinkingTelegram, setIsUnlinkingTelegram] = useState(false);
   const [isConnectingDiscord, setIsConnectingDiscord] = useState(false);
   const isAuthenticated = user || turnkeyUser || turnkeySession;
+  useRequireAccess();
 
   const handleConnectDiscord = async () => {
     try {

@@ -20,6 +20,8 @@ export interface User {
   googleId?: string;
   avatar?: string;
   accessLevel?: string;
+  /** Discord role IDs, refreshed server-side on session check */
+  roles?: string[];
   walletAddress?: string;    // Solana address
   bnbWalletAddress?: string;  // BNB/BSC EVM address
   wallets?: {
@@ -171,6 +173,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             googleId: data.user.googleId,
             avatar: data.user.avatar,
             accessLevel: data.user.accessLevel,
+            roles: data.user.roles,
             walletAddress: data.wallet?.address,
             bnbWalletAddress: data.bnbWallet?.address,
             createdAt: new Date(),
@@ -222,6 +225,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             googleId: data.user.googleId,
             avatar: data.user.avatar,
             accessLevel: data.user.accessLevel,
+            roles: data.user.roles,
             createdAt: new Date(),
           });
         }

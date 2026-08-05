@@ -21,6 +21,10 @@ model User {
   name        String
   avatar      String?
   accessLevel String   @default("user") // 'user', 'holder', 'admin'
+  // Discord role gating: cached so access can be re-verified without
+  // hitting Discord on every request (see src/lib/discordRoles.ts)
+  discordRoles   String[] @default([])
+  rolesCheckedAt DateTime?
   settings    Json?    @default("{}")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

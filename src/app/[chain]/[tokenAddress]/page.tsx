@@ -79,6 +79,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useToast } from "@/components/ui/use-toast";
 import { useTradeHistory } from "@/hooks/useTradeHistory";
+import { useRequireAccess } from "@/hooks/useRequireAccess";
 import { computeTradeExtras } from "@/lib/tradeMetrics";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
@@ -110,6 +111,7 @@ function TokenDetailContent() {
   const tokenAddress = params.tokenAddress as string;
   const { user, turnkeyUser, turnkeySession } = useAuth();
   const isAuthenticated = user || turnkeyUser || turnkeySession;
+  useRequireAccess();
   const { solBalance, getTokenBalance } = usePortfolio();
   const {
     address: walletAddress,
