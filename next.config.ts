@@ -8,6 +8,17 @@ const nextConfig: NextConfig = {
   // Production optimizations
   compress: true,
   poweredByHeader: false,
+
+  compiler: {
+    // Strip console.log/info/debug from production builds. Several call sites
+    // print wallet objects, balances and trade payloads, which should not land
+    // in browser consoles or server logs. error/warn are kept so real failures
+    // still surface (and still reach Sentry). Dev builds are untouched.
+    removeConsole:
+      process.env.NODE_ENV === "production"
+        ? { exclude: ["error", "warn"] }
+        : false,
+  },
   
   // Performance optimizations
   reactStrictMode: true,
@@ -17,14 +28,15 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ["lucide-react", "@heroicons/react"],
   },
   
-  // ESLint configuration (treat lint errors as warnings during build)
+  // Builds fail on real problems. The codebase is currently clean: 0 type
+  // errors and 0 ESLint errors (warnings do not fail a build), so leaving
+  // these suppressed only risked shipping breakage nobody saw.
   eslint: {
-    ignoreDuringBuilds: true, // Temporarily ignore ESLint errors during build
+    ignoreDuringBuilds: false,
   },
-  
-  // TypeScript configuration
+
   typescript: {
-    ignoreBuildErrors: true, // Temporarily ignore TypeScript errors during build
+    ignoreBuildErrors: false,
   },
   
   // Image optimization
