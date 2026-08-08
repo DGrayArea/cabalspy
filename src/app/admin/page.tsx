@@ -32,6 +32,22 @@ interface AdminMetrics {
     buySellBreakdown: { buys: number; sells: number };
     topTokens: { symbol: string; count: number }[];
   };
+  recentTrades: {
+    id: string;
+    symbol: string;
+    tokenMint: string;
+    direction: string;
+    amount: string;
+    output: string;
+    priceUsd: number | null;
+    outAmountUsd: number | null;
+    feesSOL: number | null;
+    signature: string | null;
+    status: string;
+    timestamp: string;
+    userName: string;
+    userEmail: string | null;
+  }[];
 }
 
 interface ManagedUser {
@@ -624,6 +640,71 @@ export default function AdminDashboard() {
                         })}
                       </div>
                     </ChartCard>
+                  </div>
+                </div>
+
+                {/* Recent Transactions */}
+                <div className="mb-12">
+                  <SectionHeading icon={Activity} title="Recent Transactions" color={C.primary} />
+                  <div className="glass rounded-2xl border border-white/5 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[820px]">
+                        <thead>
+                          <tr className="border-b border-white/5 bg-white/[0.02]">
+                            {["User", "Token", "Side", "Amount", "Value", "Fee", "Status", "When", "Tx"].map(h => (
+                              <th key={h} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[#64748b]">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(metrics?.recentTrades ?? []).length === 0 ? (
+                            <tr>
+                              <td colSpan={9} className="px-4 py-10 text-center text-[11px] font-bold text-[#64748b]">
+                                No trades recorded yet
+                              </td>
+                            </tr>
+                          ) : (metrics?.recentTrades ?? []).map(t => {
+                            const isBuy = t.direction === "buy";
+                            const ok = t.status === "success";
+                            return (
+                              <tr key={t.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
+                                <td className="px-4 py-3">
+                                  <span className="text-[11px] font-bold text-white">{t.userName}</span>
+                                  {t.userEmail && <span className="block text-[10px] text-[#64748b] truncate max-w-[150px]">{t.userEmail}</span>}
+                                </td>
+                                <td className="px-4 py-3 text-[11px] font-bold text-white">{t.symbol}</td>
+                                <td className="px-4 py-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${isBuy ? "bg-[#00d492]/10 text-[#00d492]" : "bg-[#ff4d5e]/10 text-[#ff4d5e]"}`}>
+                                    {isBuy ? "BUY" : "SELL"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-[11px] font-mono text-[#94a3b8]">{t.amount}</td>
+                                <td className="px-4 py-3 text-[11px] font-mono text-[#94a3b8]">
+                                  {t.outAmountUsd != null ? `$${t.outAmountUsd.toFixed(2)}` : "—"}
+                                </td>
+                                <td className="px-4 py-3 text-[11px] font-mono text-[#94a3b8]">
+                                  {t.feesSOL != null ? `${t.feesSOL.toFixed(5)} SOL` : "—"}
+                                </td>
+                                <td className="px-4 py-3">
+                                  <span className={`text-[10px] font-bold ${ok ? "text-[#00d492]" : "text-[#ff4d5e]"}`}>
+                                    {ok ? "SUCCESS" : "FAILED"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-[10px] text-[#64748b] whitespace-nowrap">
+                                  {new Date(t.timestamp).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                                </td>
+                                <td className="px-4 py-3">
+                                  {t.signature ? (
+                                    <a href={`https://solscan.io/tx/${t.signature}`} target="_blank" rel="noopener noreferrer"
+                                       className="text-[10px] font-bold text-[#00d492] hover:underline">View</a>
+                                  ) : <span className="text-[10px] text-[#64748b]">—</span>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </div>
 

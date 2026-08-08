@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
       totalTrades,
       allTrades,
       totalSessions,
+      recentTrades,
     ] = await Promise.all([
       // Total users
       db.user.count(),
@@ -76,6 +77,27 @@ export async function GET(req: NextRequest) {
 
       // Total sessions
       db.session.count(),
+
+      // Most recent trades, for the transactions table
+      db.tradeHistory.findMany({
+        select: {
+          id: true,
+          symbol: true,
+          tokenMint: true,
+          direction: true,
+          amount: true,
+          output: true,
+          priceUsd: true,
+          outAmountUsd: true,
+          feesSOL: true,
+          signature: true,
+          status: true,
+          timestamp: true,
+          user: { select: { name: true, email: true } },
+        },
+        orderBy: { timestamp: "desc" },
+        take: 50,
+      }),
     ]);
 
     // 4. User signups by day (last 30 days)
@@ -158,6 +180,22 @@ export async function GET(req: NextRequest) {
         collectedFeesSol: +collectedFeesSol.toFixed(6),
         estimatedFeeSol: +estimatedFeeSol.toFixed(4),
       },
+      recentTrades: recentTrades.map((t) => ({
+        id: t.id,
+        symbol: t.symbol,
+        tokenMint: t.tokenMint,
+        direction: t.direction,
+        amount: t.amount,
+        output: t.output,
+        priceUsd: t.priceUsd,
+        outAmountUsd: t.outAmountUsd,
+        feesSOL: t.feesSOL,
+        signature: t.signature,
+        status: t.status,
+        timestamp: t.timestamp,
+        userName: t.user?.name ?? "—",
+        userEmail: t.user?.email ?? null,
+      })),
       charts: {
         signupsByDay,
         tradesByDay,
