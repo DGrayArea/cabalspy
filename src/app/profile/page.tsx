@@ -58,7 +58,7 @@ export default function ProfilePage() {
   const [isUnlinkingTelegram, setIsUnlinkingTelegram] = useState(false);
   const [isConnectingDiscord, setIsConnectingDiscord] = useState(false);
   const isAuthenticated = user || turnkeyUser || turnkeySession;
-  useRequireAccess();
+  const { isAuthorizing } = useRequireAccess();
 
   const handleConnectDiscord = async () => {
     try {
@@ -112,6 +112,15 @@ export default function ProfilePage() {
           <div className="absolute inset-0 bg-primary/20 blur-3xl animate-pulse" />
           <div className="relative animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
         </div>
+      </div>
+    );
+  }
+
+  // Hold until the holder/admin check resolves so gated content never flashes.
+  if (isAuthorizing) {
+    return (
+      <div className="min-h-screen bg-app text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
       </div>
     );
   }

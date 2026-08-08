@@ -1,61 +1,82 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { ALLOWED_DISCORD_ROLE_IDS } from "@/lib/accessRoles";
-
-export interface RequireAccessState {
-  /** True while we still don't know whether the user may be here. */
-  isChecking: boolean;
-  /** True once the user is confirmed to have terminal access. */
-  hasAccess: boolean;
-}
+import { verifyNftOwnership } from "@/services/verify-nft";
 
 /**
- * Single source of truth for "may this signed-in user use the terminal?".
+ * Single gate for every holders-only page.
  *
- * Unauthenticated users go to /auth; authenticated users without a
- * Holder/Pre-Sale role (or admin) go to /access-denied. Use this on every
- * gated page so access rules can't drift page to page.
+ * Previously this check lived inline on the home page only, so /portfolio,
+ * /profile and the token pages were reachable by typing the URL. Keeping it
+ * in one hook means access is enforced the same way everywhere, and adding a
+ * new gated page is one line rather than a copied block.
  *
- * Note: this is a client-side gate for UX. Server-side enforcement lives in
- * the API routes — swaps themselves are non-custodial and signed client-side,
- * so the gate is about the product surface, not custody.
+ * Order of checks mirrors the original home-page logic:
+ *   1. accessLevel (source of truth — re-derived from live Discord roles
+ *      server-side on each session check)
+ *   2. Discord roles carried on the session
+ *   3. NFT ownership as a fallback
+ *
+ * Returns `isAuthorizing`: true while the decision is still pending, so the
+ * caller can hold a loading state instead of flashing gated content.
  */
-export function useRequireAccess(): RequireAccessState {
-  const { user, turnkeyUser, isLoading, isLoggingIn } = useAuth();
+export function useRequireAccess() {
+  const { isAuthenticated, user, isLoggingIn, isLoading: authLoading } = useAuth();
   const router = useRouter();
-
-  const isAuthenticated = !!(user || turnkeyUser);
-  const settling = isLoading || isLoggingIn;
-
-  // While the session is still resolving we don't know the access level yet —
-  // treating that as "no access" is what caused spurious /access-denied
-  // bounces right after an OAuth redirect.
-  const hasAccess =
-    !!user &&
-    (user.accessLevel === "admin" ||
-      user.accessLevel === "holder" ||
-      (Array.isArray((user as { roles?: string[] }).roles) &&
-        (user as { roles?: string[] }).roles!.some((r) =>
-          ALLOWED_DISCORD_ROLE_IDS.includes(r)
-        )));
-
-  const isChecking = settling || (isAuthenticated && !user);
+  const [isAuthorizing, setIsAuthorizing] = useState(true);
 
   useEffect(() => {
-    if (isChecking) return;
+    // Wait for the session check to settle. Redirecting while it is still in
+    // flight is what made the login flow flash the /auth page.
+    if (authLoading || isLoggingIn) return;
 
     if (!isAuthenticated) {
-      router.push("/auth");
+      router.replace("/auth");
       return;
     }
 
-    if (!hasAccess) {
-      router.push("/access-denied");
-    }
-  }, [isChecking, isAuthenticated, hasAccess, router]);
+    // Session exists but the user profile is still syncing (e.g. Turnkey auth
+    // before /api/auth/sync resolves) — wait rather than deny.
+    if (!user) return;
 
-  return { isChecking, hasAccess };
+    let cancelled = false;
+    const grant = () => {
+      if (!cancelled) setIsAuthorizing(false);
+    };
+
+    const checkAccess = async () => {
+      if (user.accessLevel === "admin" || user.accessLevel === "holder") {
+        grant();
+        return;
+      }
+
+      const hasDiscordRole = user.roles?.some((r: string) =>
+        ALLOWED_DISCORD_ROLE_IDS.includes(r),
+      );
+      if (hasDiscordRole) {
+        grant();
+        return;
+      }
+
+      if (user.walletAddress) {
+        const hasNft = await verifyNftOwnership(user.walletAddress);
+        if (hasNft) {
+          grant();
+          return;
+        }
+      }
+
+      if (!cancelled) router.replace("/access-denied");
+    };
+
+    checkAccess();
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user, authLoading, isLoggingIn, router]);
+
+  return { isAuthorizing };
 }

@@ -42,7 +42,7 @@ const WalletSettingsModal = lazy(() =>
 export default function PortfolioPage() {
   const { user, turnkeyUser } = useAuth();
   const isAuthenticated = user || turnkeyUser;
-  useRequireAccess();
+  const { isAuthorizing } = useRequireAccess();
   const { address: walletAddress } = useTurnkeySolana();
   const {
     solBalance,
@@ -89,6 +89,17 @@ export default function PortfolioPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  // ── Access gate ──────────────────────────────────────────────────────────────
+  // Hold the page until the holder/admin check resolves, so gated content is
+  // never briefly visible to someone who will be redirected out.
+  if (isAuthorizing) {
+    return (
+      <div className="min-h-screen bg-app text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   // ── Not authenticated ────────────────────────────────────────────────────────
   if (!isAuthenticated) {

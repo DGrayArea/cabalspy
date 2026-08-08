@@ -111,7 +111,7 @@ function TokenDetailContent() {
   const tokenAddress = params.tokenAddress as string;
   const { user, turnkeyUser, turnkeySession } = useAuth();
   const isAuthenticated = user || turnkeyUser || turnkeySession;
-  useRequireAccess();
+  const { isAuthorizing } = useRequireAccess();
   const { solBalance, getTokenBalance } = usePortfolio();
   const {
     address: walletAddress,
@@ -506,6 +506,9 @@ function TokenDetailContent() {
       toast({ title: `${tokenSymbol} added to watchlist ★` });
     }
   };
+
+  // Hold the page — including the trade panel — until access is confirmed.
+  if (isAuthorizing) return <TokenDetailPageSkeleton />;
 
   if (loading) return <TokenDetailPageSkeleton />;
 

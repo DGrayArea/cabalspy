@@ -24,8 +24,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useWatchlist } from "@/context/WatchlistContext";
 import { useViewport } from "@/context/ViewportContext";
 import { useRouter } from "next/navigation";
-import { verifyNftOwnership } from "@/services/verify-nft";
-import { ALLOWED_DISCORD_ROLE_IDS } from "@/lib/accessRoles";
+import { useRequireAccess } from "@/hooks/useRequireAccess";
 import { CompactTokenCard } from "@/components/CompactTokenCard";
 import { TokenListCard } from "@/components/TokenListCard";
 import { TokenMarquee } from "@/components/TokenMarquee";
@@ -148,12 +147,8 @@ export default function Home() {
   const { displaySettings, setDisplaySettings } = useSettings();
   const router = useRouter();
 
-  // Redirect unauthenticated users to auth page
-  useEffect(() => {
-    if (!isAuthenticated && !isLoggingIn) {
-      router.push("/auth");
-    }
-  }, [isAuthenticated, isLoggingIn, router]);
+  // Gate: redirects to /auth or /access-denied once the session check settles.
+  const { isAuthorizing } = useRequireAccess();
 
   const [chain, setChain] = useState<"sol" | "bsc" | "all">("all");
   const [filter, setFilter] = useFilterState("trending");
@@ -283,52 +278,6 @@ export default function Home() {
       watchlist: watchlist.length,
     };
   }, [mobulaTokensByFilter, watchlist]);
-
-  const [isAuthorizing, setIsAuthorizing] = useState(true);
-
-  // Access Control Guard
-  useEffect(() => {
-    // Don't run the check while session is still loading — avoids premature /access-denied
-    if (authLoading || isLoggingIn || !isAuthenticated) return;
-
-    const checkAccess = async () => {
-      // If we have no user yet (e.g. Turnkey auth but sync still in flight), wait
-      if (!user) {
-        // Give the sync a moment — if it resolves we'll re-run via the dependency change
-        return;
-      }
-
-      // Access level is the source of truth — it is re-derived from the
-      // user's live Discord roles server-side on session check.
-      if (user?.accessLevel === 'admin' || user?.accessLevel === 'holder') {
-        setIsAuthorizing(false);
-        return; // Access granted
-      }
-
-      const hasDiscordRole = user?.roles?.some((r: string) =>
-        ALLOWED_DISCORD_ROLE_IDS.includes(r)
-      );
-
-      if (hasDiscordRole) {
-        setIsAuthorizing(false);
-        return; // Access granted
-      }
-
-      // Check NFT as fallback
-      if (user?.walletAddress) {
-        const hasNft = await verifyNftOwnership(user.walletAddress);
-        if (hasNft) {
-          setIsAuthorizing(false);
-          return; // Access granted
-        }
-      }
-
-      // If we reach here, no access
-      router.push("/access-denied");
-    };
-
-    checkAccess();
-  }, [isAuthenticated, authLoading, isLoggingIn, user, router]);
 
   const getChainLogo = (c: "solana" | "bsc") => {
     // Current logos are missing in public, using null to trigger fallback icons
