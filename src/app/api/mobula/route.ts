@@ -44,31 +44,56 @@ async function withKeyFallback<T extends { status: number }>(
   return response;
 }
 
-// Retry helper function
+/**
+ * Timeout budget.
+ *
+ * The browser client (src/services/mobula.ts) aborts at 15s. Everything this
+ * route does — both API-key attempts and every retry — has to finish inside
+ * that window, otherwise the client gives up first: the work is wasted and it
+ * surfaces as net::ERR_ABORTED or an intermittent 502 even though the upstream
+ * would have answered. So we hold a single deadline for the whole handler and
+ * shrink each attempt to fit whatever time is left.
+ */
+const CLIENT_TIMEOUT_MS = 15000; // keep in sync with src/services/mobula.ts
+const SERVER_BUDGET_MS = CLIENT_TIMEOUT_MS - 3000; // headroom to send our response
+const PER_ATTEMPT_TIMEOUT_MS = 5000; // worst case: 5s + 0.5s backoff + 5s = 10.5s
+
+/**
+ * Retry with exponential backoff, bounded by a shared deadline. `requestFn`
+ * receives the timeout it must respect for that attempt.
+ */
 async function retryRequest<T>(
-  requestFn: () => Promise<T>,
-  maxRetries = 3,
-  baseDelay = 1000
+  requestFn: (timeoutMs: number) => Promise<T>,
+  deadline: number,
+  maxRetries = 2,
+  baseDelay = 500
 ): Promise<T> {
   let lastError: any;
   for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const remaining = deadline - Date.now();
+    // Out of budget — don't start an attempt that can't finish in time.
+    if (remaining <= 0 && attempt > 0) break;
+    const timeoutMs = Math.max(1000, Math.min(PER_ATTEMPT_TIMEOUT_MS, remaining));
+
     try {
-      return await requestFn();
+      return await requestFn(timeoutMs);
     } catch (error: any) {
       lastError = error;
       // Don't retry on 4xx errors (client errors)
       if (error?.response?.status >= 400 && error?.response?.status < 500) {
         throw error;
       }
-      // Retry on 5xx errors (server errors) or network errors
-      if (attempt < maxRetries - 1) {
-        const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
-        console.log(`Retrying Mobula API request (attempt ${attempt + 1}/${maxRetries}) after ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+      // Retry on 5xx errors (server errors) or network errors, but only if
+      // the backoff plus another attempt still fits inside the budget.
+      const delay = baseDelay * Math.pow(2, attempt);
+      if (attempt < maxRetries - 1 && Date.now() + delay < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      } else {
+        break;
       }
     }
   }
-  throw lastError;
+  throw lastError ?? new Error("Mobula request exceeded its time budget");
 }
 
 export async function GET(request: NextRequest) {
@@ -102,18 +127,19 @@ export async function GET(request: NextRequest) {
     const url = `${MOBULA_GET_API}?${params.toString()}`;
     console.log(`[Mobula API] GET ${url}`);
 
+    // One budget shared by the key fallback and every retry beneath it.
+    const deadline = Date.now() + SERVER_BUDGET_MS;
     const response = await withKeyFallback((apiKey) =>
       retryRequest(
-        () => axios.get(url, {
+        (timeoutMs) => axios.get(url, {
           headers: {
             Authorization: apiKey,
             "Content-Type": "application/json",
           },
-          timeout: 20000,
+          timeout: timeoutMs,
           validateStatus: (status) => status < 500,
         }),
-        2,
-        1000
+        deadline
       )
     );
 
@@ -174,18 +200,19 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // One budget shared by the key fallback and every retry beneath it.
+    const deadline = Date.now() + SERVER_BUDGET_MS;
     const response = await withKeyFallback((apiKey) =>
       retryRequest(
-        () => axios.post(MOBULA_POST_API, body, {
+        (timeoutMs) => axios.post(MOBULA_POST_API, body, {
           headers: {
             Authorization: apiKey,
             "Content-Type": "application/json",
           },
-          timeout: 20000,
+          timeout: timeoutMs,
           validateStatus: (status) => status < 500,
         }),
-        2,
-        1000
+        deadline
       )
     );
 
