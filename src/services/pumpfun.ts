@@ -113,6 +113,14 @@ export class PumpFunService {
   > = new Map();
   private cacheTTL = 30000; // 30 second cache (shorter for real-time data)
 
+  // Mints confirmed absent from pump.fun. Held far longer than the positive
+  // cache: a token that isn't on pump.fun won't appear later, and re-asking
+  // costs four proxy requests each time the feed updates it.
+  private negativeCache = new Map<string, number>();
+  private readonly negativeCacheTTL = 10 * 60 * 1000; // 10 minutes
+  // In-flight fetchTokenInfo calls, keyed by mint, for request collapsing.
+  private pendingTokenInfo = new Map<string, Promise<PumpFunTokenInfo | null>>();
+
   // Get endpoint URL through proxy
   private getEndpointUrl(endpointType: PumpFunEndpointType): string {
     const endpoints: Record<PumpFunEndpointType, { endpoint: string; api: "base" | "v3" | "advanced" | "swap"; params?: Record<string, string> }> = {
@@ -165,6 +173,42 @@ export class PumpFunService {
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
       return Array.isArray(cached.data) ? cached.data[0] : (cached.data as PumpFunTokenInfo);
     }
+
+    // Most Solana tokens in the feed simply aren't on pump.fun. Without this,
+    // every WebSocket update for such a token re-runs four proxy requests
+    // (two here, two more in searchToken) forever. Remember the miss.
+    const missedAt = this.negativeCache.get(mintAddress);
+    if (missedAt && Date.now() - missedAt < this.negativeCacheTTL) {
+      return null;
+    }
+
+    // Collapse concurrent lookups for the same mint into one request — the
+    // feed emits many updates for the same token in quick succession.
+    const inFlight = this.pendingTokenInfo.get(mintAddress);
+    if (inFlight) return inFlight;
+
+    const request = this.fetchTokenInfoUncached(mintAddress).then(
+      (result) => {
+        if (result === null) {
+          this.negativeCache.set(mintAddress, Date.now());
+        }
+        this.pendingTokenInfo.delete(mintAddress);
+        return result;
+      },
+      (error) => {
+        this.pendingTokenInfo.delete(mintAddress);
+        throw error;
+      },
+    );
+
+    this.pendingTokenInfo.set(mintAddress, request);
+    return request;
+  }
+
+  private async fetchTokenInfoUncached(
+    mintAddress: string,
+  ): Promise<PumpFunTokenInfo | null> {
+    const cacheKey = `pumpfun:${mintAddress}`;
 
     try {
       // Try multiple possible endpoints (using proxy)
