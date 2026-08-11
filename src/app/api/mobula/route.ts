@@ -16,6 +16,7 @@ const limiter = rateLimit({
 
 const MOBULA_GET_API = "https://api.mobula.io/api/2/pulse";
 const MOBULA_POST_API = "https://pulse-v2-api.mobula.io/api/2/pulse"; // Use v2 API for POST
+const MOBULA_MARKET_DATA_API = "https://api.mobula.io/api/1/market/data";
 const API_KEY =
   process.env.NEXT_PUBLIC_MOBULA_API_KEY ||
   process.env.MOBULA_API_KEY ||
@@ -109,7 +110,39 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    
+
+    // Single-asset lookup. Resolving one token by address used to mean pulling
+    // ~2000 rows from the Pulse views, which have no address filter; this REST
+    // endpoint answers it in one request.
+    if (searchParams.get("endpoint") === "market-data") {
+      const asset = searchParams.get("asset");
+      if (!asset) {
+        return NextResponse.json({ error: "Missing asset param" }, { status: 400 });
+      }
+      const blockchain = searchParams.get("blockchain") || "solana";
+      const assetUrl = `${MOBULA_MARKET_DATA_API}?asset=${encodeURIComponent(asset)}&blockchain=${encodeURIComponent(blockchain)}`;
+
+      const deadline = Date.now() + SERVER_BUDGET_MS;
+      const assetRes = await withKeyFallback((apiKey) =>
+        retryRequest(
+          (timeoutMs) => axios.get(assetUrl, {
+            headers: { Authorization: apiKey, "Content-Type": "application/json" },
+            timeout: timeoutMs,
+            validateStatus: (status) => status < 500,
+          }),
+          deadline,
+        ),
+      );
+
+      return NextResponse.json(assetRes.data, {
+        status: assetRes.status >= 400 ? assetRes.status : 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60",
+        },
+      });
+    }
+
     const assetMode = searchParams.get("assetMode") || "true";
     const chainId = searchParams.get("chainId") || "solana:solana";
     const poolTypes = searchParams.get("poolTypes") || "pumpfun,meteora,moonshot,jupiter,raydium,moonit,letsbonk";

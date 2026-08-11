@@ -835,10 +835,62 @@ export async function fetchSingleView(
  * Fetches detailed information for a specific token by its address
  * Uses trending view with high limit and filters results client-side
  */
+/**
+ * Resolve a single token via Mobula's REST asset endpoint (one request),
+ * instead of scanning paginated Pulse views. Returns null when the asset is
+ * unknown so the caller can fall back.
+ */
+async function fetchTokenDirect(
+  address: string,
+  chainId: string,
+): Promise<TokenData | null> {
+  const blockchain = chainId.includes("bsc") ? "bsc" : "solana";
+  const response = await axios.get(
+    `${GET_API_URL}?endpoint=market-data&asset=${encodeURIComponent(address)}&blockchain=${blockchain}`,
+    { timeout: 12000, validateStatus: (s) => s < 500 },
+  );
+
+  const d = response.status === 200 ? response.data?.data : null;
+  if (!d || (!d.price && !d.market_cap)) return null;
+
+  return {
+    id: address,
+    name: d.name ?? "Unknown",
+    symbol: d.symbol ?? "—",
+    icon: d.logo ?? "",
+    image: d.logo ?? undefined,
+    time: "",
+    marketCap: d.market_cap ?? 0,
+    volume: d.volume ?? 0,
+    fee: 0,
+    transactions: 0,
+    percentages: [],
+    price: d.price ?? 0,
+    priceChange24h: d.price_change_24h ?? undefined,
+    decimals: d.decimals ?? undefined,
+    liquidity: d.liquidity ?? undefined,
+    activity: { Q: 0, views: 0, holders: 0, trades: 0 },
+  } as TokenData;
+}
+
 export async function fetchTokenByAddress(
   address: string,
   chainId: string = "solana:solana"
 ): Promise<TokenData | null> {
+  // Mobula's REST asset endpoint resolves a single address directly. The Pulse
+  // views below have no address filter, so the original implementation pulled
+  // 1000 trending + 1000 basic tokens just to find one — ~2000 rows per lookup.
+  // Try the direct endpoint first and fall back to the scan only if it misses.
+  try {
+    const direct = await fetchTokenDirect(address, chainId);
+    if (direct) {
+      logger.info(`✅ Found token via Mobula asset endpoint: ${address}`);
+      return direct;
+    }
+  } catch {
+    // fall through to the scan
+  }
+
   try {
     // Mobula Pulse API doesn't support direct address filtering
     // So we fetch a trending view with a high limit and filter client-side

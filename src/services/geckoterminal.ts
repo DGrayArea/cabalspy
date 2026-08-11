@@ -8,7 +8,8 @@
 import { TokenData } from "@/types/token";
 import { logger } from "@/lib/logger";
 
-const GECKO_TERMINAL_API = "https://api.geckoterminal.com/api/v2";
+/** Server-side proxy — keeps the browser off GeckoTerminal's rate limit. */
+const GECKO_TERMINAL_PROXY = "/api/geckoterminal";
 
 export interface GeckoTerminalTokenInfo {
   logo?: string;
@@ -114,25 +115,19 @@ export class GeckoTerminalService {
       // Format: /networks/{network}/tokens/{address}
       // Note: GeckoTerminal may require searching for pairs instead of direct token lookup
       // Try direct token endpoint first, then fallback to pair search
-      let url = `${GECKO_TERMINAL_API}/networks/${network}/tokens/${address}`;
-      
-      let response = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-        },
-      });
+      // Routed through our proxy so the browser isn't rate-limited directly
+      // by GeckoTerminal (see src/app/api/geckoterminal/route.ts).
+      let response = await fetch(
+        `${GECKO_TERMINAL_PROXY}?path=${encodeURIComponent(`networks/${network}/tokens/${address}`)}`,
+        { method: "GET", headers: { Accept: "application/json" } },
+      );
 
       // If direct token lookup fails, try searching for pairs
       if (!response.ok && response.status === 404) {
-        // Try searching for pools/pairs containing this token
-        url = `${GECKO_TERMINAL_API}/networks/${network}/tokens/${address}/pools`;
-        response = await fetch(url, {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-          },
-        });
+        response = await fetch(
+          `${GECKO_TERMINAL_PROXY}?path=${encodeURIComponent(`networks/${network}/tokens/${address}/pools`)}`,
+          { method: "GET", headers: { Accept: "application/json" } },
+        );
       }
 
       if (!response.ok) {

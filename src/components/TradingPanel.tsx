@@ -23,6 +23,13 @@ import Image from "next/image";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";
 
+// Mirrors NEXT_PUBLIC_JUPITER_REFERRAL_FEE in jupiter-swap-turnkey.ts — the
+// fee actually deducted from the swap, shown so it isn't a hidden cost.
+const PLATFORM_FEE_BPS = parseInt(
+  process.env.NEXT_PUBLIC_JUPITER_REFERRAL_FEE || "125",
+  10,
+);
+
 const SOL_TOKEN_INFO: TokenInfo = {
   address: SOL_MINT,
   symbol: "SOL",
@@ -589,9 +596,25 @@ export default function TradingPanel({
                     {outputToken.symbol}
                   </span>
                 </div>
+                {/* The platform fee is a real cost to the user and was not
+                    shown anywhere before. The exact bps charged comes back on
+                    the swap result; at quote time we show the configured rate. */}
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-400">Platform Fee</span>
+                  <span className="font-mono text-white">
+                    {quote.platformFee?.feeBps != null
+                      ? `${(quote.platformFee.feeBps / 100).toFixed(2)}%`
+                      : `${(PLATFORM_FEE_BPS / 100).toFixed(2)}%`}
+                  </span>
+                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-400">Network Fee</span>
-                  <span className="font-mono text-white">~0.000005 SOL</span>
+                  <span
+                    className="font-mono text-white"
+                    title="Solana base fee. The priority fee is set by Jupiter at execution and varies with congestion."
+                  >
+                    ~0.000005 SOL + priority
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm border-t border-white/10 pt-3 mt-1">
                   <span className="text-gray-400">Route</span>

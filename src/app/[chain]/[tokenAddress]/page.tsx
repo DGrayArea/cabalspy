@@ -320,7 +320,21 @@ function TokenDetailContent() {
     }
   }, [chartTab, widgetLoaded]);
 
+  // Swaps here are Solana-only (Jupiter). The route accepts any :chain, so
+  // guard explicitly — otherwise a /bsc/<address> URL would build a Solana
+  // swap against a non-Solana mint and fail in a confusing way (or worse,
+  // once BSC ships, act on the wrong chain).
+  const isSolanaRoute = ["sol", "solana"].includes(chain?.toLowerCase() ?? "");
+
   const handleTokenTrade = async () => {
+    if (!isSolanaRoute) {
+      toast({
+        title: `Trading is not available on ${chain?.toUpperCase() || "this chain"}`,
+        description: "Only Solana swaps are supported right now.",
+      });
+      return;
+    }
+
     if (!walletAddress || !connection || !signSolanaTransaction) {
       toast({ title: "Connect wallet first" });
       return;
