@@ -27,7 +27,7 @@
 
 ## General
 - [ ] Verify the kill-switch (`NEXT_PUBLIC_ENABLE_BSC`) cleanly disables all BSC background calls and UI elements if turned off.
-- [ ] Add transaction confirmation waiting — show pending state until on-chain confirmation is received, not just until broadcast.
+- [x] Add transaction confirmation waiting — swaps now poll `getSignatureStatuses` and report confirmed / reverted / pending instead of assuming broadcast == success.
 - [ ] Add better loading states across token feed, portfolio, and trading panel for slow API responses.
 - [ ] Add account recovery / sign-in flow resilience (lost session, expired wallet, re-link flow).
 - [ ] Add rate-limit handling and fallback routing for embedded charts (GeckoTerminal/DexScreener iframes).
@@ -59,13 +59,13 @@
 
 ### Auth / Session Safety
 
-- [ ] **Session inactivity enforcement is client-side only** (`src/context/AuthContext.tsx:401-431`): 4-hour inactivity timer is pure browser-side. Sessions in DB expire after 3 days regardless of inactivity — direct API calls with the cookie bypass the timer. Consider adding server-side last-active tracking if stricter enforcement is needed.
+- [x] **Session inactivity enforcement is client-side only**: `Session.lastActiveAt` added; `getSession` now rejects and deletes sessions idle >4h and refreshes the stamp at most every 5 min. `/api/auth/session` runs the same guard. Verified: a 5h-idle session returns `user: null` and 401s on data routes.
 
 - [x] **Add rate limiting to trade, watchlist, and Turnkey endpoints**: All handlers guarded via `createRouteLimiter` in `src/lib/rateLimit.ts` (reads 60/min, writes 30/min, signing 20/min per IP). Verified live: request 61 returns 429.
 
 ### Page-Level Gaps
 
-- [ ] **`/[chain]/[tokenAddress]` doesn't validate the `chain` param**: Page always executes SOL/SPL swaps regardless of the chain in the URL. Fine for now (SOL-only), but add a chain guard before BSC/ETH go live or swaps will silently misbehave for non-SOL tokens.
+- [x] **`/[chain]/[tokenAddress]` doesn't validate the `chain` param**: trading is blocked with a clear message on non-Solana routes.
 
 - [x] **Hardcoded public RPC in `jupiter-swap.ts`**: Quote path now prefers `NEXT_PUBLIC_SOLANA_RPC_URL` with public mainnet as last resort.
 
@@ -73,7 +73,7 @@
 
 - [x] **`TurnkeySolanaContext` fallback RPC is hardcoded**: Fallback chain now includes `NEXT_PUBLIC_SOLANA_RPC_URL` before public mainnet.
 
-- [ ] **Network fee display is static** (`src/components/TradingPanel.tsx:527`): Shows hardcoded `~0.000005 SOL`. Should pull actual priority fee from Jupiter Ultra response.
+- [x] **Network fee display is static**: platform fee (125bps) now disclosed, network fee labelled base + priority.
 
 - [x] **Partial wallet creation fails silently**: The `/api/turnkey/create-wallets` route had no callers and was removed — all wallet creation goes through `src/lib/walletSync.ts` (`syncUserWallets`), which already creates each missing network wallet individually.
 
@@ -107,11 +107,11 @@
 
 - [x] **WebSocket reconnection gives up permanently after 5 attempts**: Moot — `src/services/websocket.ts` had no importers anywhere and was removed (live feeds use `mobula-pulse`/`multichain-tokens`).
 
-- [ ] **`fetchTokenByAddress` in `mobula-pulse.ts` fetches 2000 tokens to find one** (`src/services/mobula-pulse.ts:838-920`): Scans up to 1000 trending tokens then another 1000 from basic views because Mobula Pulse has no address-filter param. Extremely wasteful in production — cache the full list or use Mobula's direct asset endpoint instead.
+- [x] **`fetchTokenByAddress` fetched 2000 tokens to find one**: now uses Mobula's REST asset endpoint (one request), with the scan kept as fallback.
 
 - [x] **Jupiter token list fetch has no timeout**: Now fetched at most once per session with a 10s abort timeout, cached across swaps (failed fetches retry next swap).
 
-- [ ] **GeckoTerminal calls go direct from browser** (`src/services/geckoterminal.ts:119-135`): No server proxy route — requests go browser → `api.geckoterminal.com` directly. Works today but has no rate-limit protection and will break if GeckoTerminal adds auth or restricts CORS. Proxy through `/api/` like Mobula and PumpFun.
+- [x] **GeckoTerminal calls go direct from browser**: proxied via `/api/geckoterminal` with an allowlisted path pattern, rate limiting and edge caching.
 
 ### Missing Env Vars (silent failures if unset)
 
@@ -120,4 +120,4 @@
 - [ ] **`NEXT_PUBLIC_JUPITER_API_KEY`** — swap requests go unauthenticated (lower rate limits) if missing.
 - [ ] **`NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY`** — fallback logic currently broken regardless (see above).
 - [ ] **`NEXT_PUBLIC_SOLANA_WS_URL`** — falls back to converting the HTTP RPC URL to `wss://`, which may not be valid for all RPC providers.
-- [ ] **Add all required env vars to `.env.local` example in README** so they're not silently missing in new deployments.
+- [x] **Add all required env vars to `.env.local` example in README**: full grouped reference added, including previously undocumented `DATABASE_URL`, Discord guild/bot, super-admin and Sentry vars.

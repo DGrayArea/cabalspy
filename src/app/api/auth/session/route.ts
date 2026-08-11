@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getSession } from '@/lib/auth';
 import {
   ROLE_RECHECK_INTERVAL_MS,
   fetchGuildRoles,
@@ -13,6 +14,16 @@ export async function GET(request: NextRequest) {
 
     if (!sessionToken) {
       return NextResponse.json({ user: null }, { status: 200 });
+    }
+
+    // Run the shared guard first so the idle timeout is enforced here too —
+    // otherwise the UI would keep showing a logged-in user whose API calls
+    // have already started coming back 401.
+    const active = await getSession(request);
+    if (!active) {
+      const response = NextResponse.json({ user: null }, { status: 200 });
+      response.cookies.delete('session');
+      return response;
     }
 
     const session = await db.session.findUnique({

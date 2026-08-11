@@ -94,6 +94,10 @@ model Session {
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  // Server-side idle tracking. The 4h inactivity timeout used to be enforced
+  // only in the browser, so anyone holding the cookie could keep using the
+  // API indefinitely. getSession now checks and refreshes this.
+  lastActiveAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
