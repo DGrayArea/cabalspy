@@ -353,7 +353,13 @@ function TokenDetailContent() {
         output: result.outAmount ?? "",
         symbol: tradeType === "buy" ? tokenSymbol : "SOL",
         signature: result.signature,
-        status: (result.success ? "success" : "failed") as "success" | "failed",
+        // "unconfirmed" is pending, not success — kept out of realized PnL
+        // until the on-chain outcome is actually known.
+        status: (result.confirmation === "unconfirmed"
+          ? "pending"
+          : result.success
+            ? "success"
+            : "failed") as "success" | "failed" | "pending",
         priceUsd: price > 0 ? price : undefined,
         ...computeTradeExtras({
           direction: tradeType as "buy" | "sell",
@@ -369,8 +375,14 @@ function TokenDetailContent() {
 
       addTradeHistory(historyEntry);
 
-      if (result.success) {
-        toast({ title: "Trade Successful ✓", description: result.signature });
+      if (result.confirmation === "unconfirmed") {
+        toast({
+          title: "Trade submitted — confirmation pending",
+          description: "Check the transaction on Solscan for the final result.",
+        });
+        setTradeAmount("");
+      } else if (result.success) {
+        toast({ title: "Trade Confirmed ✓", description: result.signature });
         setTradeAmount("");
       } else {
         toast({

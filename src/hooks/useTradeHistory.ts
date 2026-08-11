@@ -10,7 +10,8 @@ export interface TradeEntry {
   output: string;    // token amount out on buy, SOL amount out on sell
   symbol: string;
   signature?: string;
-  status: "success" | "failed";
+  /** "pending" = broadcast but not yet confirmed on-chain */
+  status: "success" | "failed" | "pending";
   /** USD price of the token at time of the trade */
   priceUsd?: number;
   /** USD value of the output at execution time */
@@ -109,7 +110,7 @@ export function useTradeHistory({
         output: t.output,
         symbol: t.symbol,
         signature: t.signature || undefined,
-        status: t.status as "success" | "failed",
+        status: t.status as "success" | "failed" | "pending",
         priceUsd: t.priceUsd !== null ? t.priceUsd : undefined,
         outAmountUsd: t.outAmountUsd !== null ? t.outAmountUsd : undefined,
         feesSOL: t.feesSOL !== null ? t.feesSOL : undefined,

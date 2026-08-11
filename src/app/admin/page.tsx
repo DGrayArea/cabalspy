@@ -666,6 +666,7 @@ export default function AdminDashboard() {
                           ) : (metrics?.recentTrades ?? []).map(t => {
                             const isBuy = t.direction === "buy";
                             const ok = t.status === "success";
+                            const pending = t.status === "pending";
                             return (
                               <tr key={t.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.02] transition-colors">
                                 <td className="px-4 py-3">
@@ -686,8 +687,8 @@ export default function AdminDashboard() {
                                   {t.feesSOL != null ? `${t.feesSOL.toFixed(5)} SOL` : "—"}
                                 </td>
                                 <td className="px-4 py-3">
-                                  <span className={`text-[10px] font-bold ${ok ? "text-[#00d492]" : "text-[#ff4d5e]"}`}>
-                                    {ok ? "SUCCESS" : "FAILED"}
+                                  <span className={`text-[10px] font-bold ${pending ? "text-[#f59e0b]" : ok ? "text-[#00d492]" : "text-[#ff4d5e]"}`}>
+                                    {pending ? "PENDING" : ok ? "SUCCESS" : "FAILED"}
                                   </span>
                                 </td>
                                 <td className="px-4 py-3 text-[10px] text-[#64748b] whitespace-nowrap">

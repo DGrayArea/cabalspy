@@ -43,6 +43,7 @@ export function TradeHistoryList({ filterMint, currentPrice }: TradeHistoryListP
     <div className="space-y-2">
       {trades.map((trade) => {
         const isSuccess = trade.status === "success";
+        const isPending = trade.status === "pending";
         const date = new Date(trade.timestamp);
         const isBuy = trade.direction === "buy";
 
@@ -78,14 +79,19 @@ export function TradeHistoryList({ filterMint, currentPrice }: TradeHistoryListP
               <div className="flex items-center gap-3">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                    isSuccess
-                      ? isBuy
-                        ? "bg-primary/10 text-primary"
-                        : "bg-accent/10 text-accent"
-                      : "bg-red-500/10 text-red-400"
+                    isPending
+                      ? "bg-amber-500/10 text-amber-400"
+                      : isSuccess
+                        ? isBuy
+                          ? "bg-primary/10 text-primary"
+                          : "bg-accent/10 text-accent"
+                        : "bg-red-500/10 text-red-400"
                   }`}
+                  title={isPending ? "Awaiting on-chain confirmation" : undefined}
                 >
-                  {isSuccess ? (
+                  {isPending ? (
+                    <Clock className="w-5 h-5" />
+                  ) : isSuccess ? (
                     <CheckCircle2 className="w-5 h-5" />
                   ) : (
                     <XCircle className="w-5 h-5" />

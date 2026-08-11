@@ -180,7 +180,8 @@ export default function TradingPanel({
 
       const loadingToast = toast({
         variant: "info",
-        title: `Swapping ${inputToken.symbol} for ${outputToken.symbol}...`,
+        title: `Swapping ${inputToken.symbol} for ${outputToken.symbol}…`,
+        description: "Waiting for on-chain confirmation",
         className: "loading",
       });
 
@@ -213,7 +214,14 @@ export default function TradingPanel({
         output: result.outAmount ?? "",
         symbol: outputToken.symbol,
         signature: result.signature,
-        status: result.success ? "success" : "failed",
+        // "unconfirmed" is recorded as pending, not success — it is excluded
+        // from realized PnL until we actually know the outcome.
+        status:
+          result.confirmation === "unconfirmed"
+            ? "pending"
+            : result.success
+              ? "success"
+              : "failed",
         priceUsd: tradePriceUsd,
         ...computeTradeExtras({
           direction,
@@ -226,23 +234,32 @@ export default function TradingPanel({
         tokenMint: tradedToken.address,
       });
 
-      if (result.success && result.signature) {
+      const viewAction = result.signature ? (
+        <ToastAction
+          altText="View transaction"
+          onClick={() =>
+            window.open(`https://solscan.io/tx/${result.signature}`, "_blank")
+          }
+        >
+          View
+        </ToastAction>
+      ) : undefined;
+
+      if (result.confirmation === "unconfirmed" && result.signature) {
+        // Broadcast but not seen on-chain yet — don't claim it succeeded.
+        toast({
+          variant: "info",
+          title: "Swap submitted — confirmation pending",
+          description: "Check the transaction for the final result.",
+          action: viewAction,
+        });
+        refreshPortfolio();
+        onClose();
+      } else if (result.success && result.signature) {
         toast({
           variant: "success",
-          title: `Swap successful!`,
-          action: (
-            <ToastAction
-              altText="View transaction"
-              onClick={() =>
-                window.open(
-                  `https://solscan.io/tx/${result.signature}`,
-                  "_blank",
-                )
-              }
-            >
-              View
-            </ToastAction>
-          ),
+          title: `Swap confirmed!`,
+          action: viewAction,
         });
         refreshPortfolio();
         onClose();

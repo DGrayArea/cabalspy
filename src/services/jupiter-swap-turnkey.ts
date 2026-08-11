@@ -35,6 +35,15 @@ export interface JupiterSwapParams {
   dryRun?: boolean; // If true, signs transaction but skips broadcasting
 }
 
+/**
+ * On-chain outcome of a broadcast swap.
+ *  - confirmed:   landed and succeeded on-chain
+ *  - failed:      landed and reverted on-chain
+ *  - unconfirmed: accepted by Jupiter but not observed on-chain before the
+ *                 timeout. It may still land — never report this as success.
+ */
+export type SwapConfirmation = "confirmed" | "failed" | "unconfirmed";
+
 export interface JupiterSwapResult {
   success: boolean;
   signature?: string;
@@ -43,6 +52,55 @@ export interface JupiterSwapResult {
   outAmountRaw?: string; // Raw output amount from Jupiter
   feeMint?: string; // Token Ultra collected the referral fee in
   feeBps?: number; // Actual fee bps charged (0/undefined when not collected)
+  confirmation?: SwapConfirmation;
+}
+
+/**
+ * Poll until the transaction is observed on-chain.
+ *
+ * Jupiter accepting a transaction only means it was broadcast — it can still
+ * revert. Without this, a reverted swap was reported to the user as a success
+ * and written to trade history as such.
+ */
+async function confirmSignature(
+  connection: Connection,
+  signature: string,
+  timeoutMs = 30000,
+): Promise<{ status: SwapConfirmation; error?: string }> {
+  const start = Date.now();
+  let delay = 500;
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const { value } = await connection.getSignatureStatuses([signature]);
+      const status = value?.[0];
+
+      if (status) {
+        if (status.err) {
+          return {
+            status: "failed",
+            error:
+              typeof status.err === "string"
+                ? status.err
+                : JSON.stringify(status.err),
+          };
+        }
+        if (
+          status.confirmationStatus === "confirmed" ||
+          status.confirmationStatus === "finalized"
+        ) {
+          return { status: "confirmed" };
+        }
+      }
+    } catch {
+      // Transient RPC failure — keep polling until the deadline.
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    delay = Math.min(delay * 1.5, 2000);
+  }
+
+  return { status: "unconfirmed" };
 }
 
 interface UltraOrderResponse {
@@ -337,14 +395,29 @@ export async function executeJupiterSwap({
       );
     }
 
-    return {
-      success: true,
+    // Broadcast succeeded — now find out what actually happened on-chain.
+    const confirmation = await confirmSignature(connection, result.signature);
+
+    const base = {
       signature: result.signature,
       outAmount: outAmountHuman.toString(),
       outAmountRaw: order.outAmount,
       feeMint: order.feeMint,
       feeBps: order.feeBps,
+      confirmation: confirmation.status,
     };
+
+    if (confirmation.status === "failed") {
+      return {
+        ...base,
+        success: false,
+        error: `Transaction reverted on-chain${confirmation.error ? `: ${confirmation.error}` : ""}`,
+      };
+    }
+
+    // "unconfirmed" is reported as a non-success so the UI can tell the user
+    // it is still pending rather than claiming the swap went through.
+    return { ...base, success: confirmation.status === "confirmed" };
   } catch (error: any) {
     console.error("Jupiter Ultra swap failed:", error);
     return {
