@@ -81,7 +81,7 @@ export const useMobulaTokens = (options: UseMobulaTokensOptions = {}) => {
     } finally {
       setIsLoading(false);
     }
-  }, [enabled, view, chainId, limit, sortBy, filters, filterKey]);
+  }, [enabled, view, chainId, limit, sortBy, filterKey]);
 
   useEffect(() => {
     console.log("🔵 Mobula hook mounted", { enabled, view });
@@ -104,7 +104,7 @@ export const useMobulaTokens = (options: UseMobulaTokensOptions = {}) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [fetchTokens, enabled, refreshInterval]);
+  }, [fetchTokens, enabled, refreshInterval, view]);
 
   return {
     tokens,

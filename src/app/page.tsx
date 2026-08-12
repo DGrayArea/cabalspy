@@ -256,7 +256,7 @@ export default function Home() {
     }
 
     return list;
-  }, [filter, chain, mobulaTokensByFilter, selectedProtocols, sortBy, activeAdvancedFilters]);
+  }, [filter, chain, mobulaTokensByFilter, selectedProtocols, sortBy, activeAdvancedFilters, watchlist]);
 
   const featuredTokens = useMemo(() => {
     if (!mobulaTokensByFilter) return [];
