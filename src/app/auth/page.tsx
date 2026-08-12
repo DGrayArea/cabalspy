@@ -8,14 +8,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, ArrowLeft, ShieldCheck, Zap, Globe } from "lucide-react";
+import { Loader2, ArrowLeft, ShieldCheck, Zap, Globe, Mail } from "lucide-react";
 import { Hero } from "@/components/Hero";
-import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
+// Telegram login is disabled (email OTP replaces it) — re-enable by
+// uncommenting this and the widget block further down.
+// import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
 
 function AuthContent() {
   const router = useRouter();
   const { isAuthenticated, isLoggingIn, isLoading, user } = useAuth();
-  const { handleGoogleOauth } = useTurnkey();
+  const { handleGoogleOauth, handleLogin } = useTurnkey();
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
   const processingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -69,6 +71,16 @@ function AuthContent() {
       // On error (e.g. popup closed by user), clear immediately
       setIsProcessingOAuth(false);
       if (processingTimerRef.current) clearTimeout(processingTimerRef.current);
+    }
+  };
+
+  // Email OTP. Turnkey's own flow owns code entry, resend and error states —
+  // it stays in-page, so no redirect handling is needed here.
+  const onEmailLogin = async () => {
+    try {
+      await handleLogin();
+    } catch (error) {
+      console.error("Email login error:", error);
     }
   };
 
@@ -142,7 +154,10 @@ function AuthContent() {
                 <span className="font-bold text-sm sm:text-base">Continue with Google</span>
               </Button>
 
-              {/* Telegram Login Widget */}
+              {/* Telegram login — disabled in favour of email OTP below.
+                  Kept (with TelegramLoginWidget and /api/auth/telegram) so it
+                  can be restored by uncommenting this block:
+
               <div className="w-full flex flex-col items-center gap-2 mt-1">
                 <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
                   Or sign in with Telegram
@@ -153,6 +168,28 @@ function AuthContent() {
                   requestAccess={true}
                   className="w-full"
                 />
+              </div>
+              */}
+
+              {/* Email OTP — for users who don't want to use Google.
+                  Opens Turnkey's own flow, which handles code entry, resend
+                  and error states. */}
+              <div className="w-full flex flex-col items-center gap-2 mt-1">
+                <div className="flex items-center gap-3 w-full py-1">
+                  <span className="h-px flex-1 bg-white/10" />
+                  <span className="text-[10px] text-muted font-bold uppercase tracking-widest">or</span>
+                  <span className="h-px flex-1 bg-white/10" />
+                </div>
+                <Button
+                  onClick={onEmailLogin}
+                  variant="glass"
+                  className="w-full py-5 sm:py-6 rounded-2xl border-white/10 hover:border-primary/40 hover:bg-primary/5 group transition-all cursor-pointer"
+                >
+                  <div className="bg-white/10 p-1 sm:p-1.5 rounded-lg mr-2 sm:mr-3 group-hover:scale-110 transition-transform">
+                    <Mail className="w-4 h-4 text-primary" />
+                  </div>
+                  <span className="font-bold text-sm sm:text-base">Continue with Email</span>
+                </Button>
               </div>
 
               <div className="mt-4 flex flex-col gap-2.5 pt-4 border-t border-white/5">

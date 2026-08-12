@@ -33,6 +33,14 @@ export function useRequireAccess() {
     // flight is what made the login flow flash the /auth page.
     if (authLoading || isLoggingIn) return;
 
+    // An OAuth callback may land here with its response still in the URL and
+    // Turnkey mid-way through consuming it. Redirecting now would throw the
+    // response away and silently bounce the user back to sign-in, so hold.
+    if (typeof window !== "undefined") {
+      const raw = window.location.hash + window.location.search;
+      if (/id_token|access_token|[?&]code=|oauth/i.test(raw)) return;
+    }
+
     if (!isAuthenticated) {
       router.replace("/auth");
       return;

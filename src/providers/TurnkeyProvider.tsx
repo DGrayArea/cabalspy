@@ -8,18 +8,30 @@ import {
 } from "@turnkey/react-wallet-kit";
 import { TurnkeyErrorCodes } from "@turnkey/sdk-types";
 
-// Determine the redirect URI dynamically
+/**
+ * Where Google sends the user back to.
+ *
+ * This must be /auth, not the origin root. With openOauthInPage the browser
+ * returns with the OAuth response in the URL, and Turnkey reads it on mount.
+ * Landing on "/" meant the home page's access guard saw an unauthenticated
+ * user (Turnkey hadn't consumed the response yet), redirected to /auth, and
+ * destroyed the callback params mid-flight — so sign-in silently bounced back
+ * to the start. Being a race, it occasionally succeeded, which is why
+ * retrying appeared to "sometimes work".
+ *
+ * /auth has no access guard, so the SDK can finish undisturbed.
+ */
 const getRedirectUri = () => {
   if (process.env.NEXT_PUBLIC_REDIRECT_URI) {
     return process.env.NEXT_PUBLIC_REDIRECT_URI;
   }
   if (typeof window !== "undefined") {
-    return window.location.origin;
+    return `${window.location.origin}/auth`;
   }
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
+    return `${process.env.NEXT_PUBLIC_APP_URL}/auth`;
   }
-  return "https://cabalspy-pi.vercel.app";
+  return "https://cabalspy-pi.vercel.app/auth";
 };
 
 const turnkeyCallbacks: TurnkeyCallbacks = {
@@ -39,7 +51,8 @@ export const TurnKeyProvider: FC<{ children: React.ReactNode }> = ({
     auth: {
       methods: {
         googleOauthEnabled: true,
-        emailOtpAuthEnabled: false,
+        // Email OTP replaces the Telegram widget as the non-Google option.
+        emailOtpAuthEnabled: true,
         smsOtpAuthEnabled: false,
         passkeyAuthEnabled: false,
         walletAuthEnabled: false,
