@@ -73,14 +73,21 @@ export function TokenListSkeleton({ count = 12 }: { count?: number }) {
  */
 export function MarqueeSkeleton() {
   return (
-    <div className="flex items-center gap-3 overflow-hidden py-2 px-4">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <div
-          key={i}
-          className="animate-pulse flex-shrink-0 h-8 bg-gray-800 rounded-full"
-          style={{ width: `${70 + i * 10}px` }}
-        />
-      ))}
+    <div className="glass rounded-3xl p-3 border border-white/10 overflow-hidden">
+      <div className="flex items-center gap-3 overflow-hidden">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className="animate-pulse flex-shrink-0 h-12 bg-panel-elev/80 border border-white/5 rounded-2xl flex items-center gap-3 px-3 min-w-[160px]"
+          >
+            <div className="w-8 h-8 rounded-full bg-white/10 shrink-0" />
+            <div className="flex-1 space-y-1">
+              <div className="h-3 w-16 bg-white/10 rounded" />
+              <div className="h-2 w-10 bg-white/5 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

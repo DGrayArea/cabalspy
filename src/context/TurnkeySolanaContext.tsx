@@ -160,6 +160,12 @@ export function TurnkeySolanaContextProvider(props: {
         });
       }
     }
+
+    items.sort((a, b) => {
+      const nameA = a.walletName || "";
+      const nameB = b.walletName || "";
+      return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: "base" });
+    });
     return items;
   }, [wallets]);
 

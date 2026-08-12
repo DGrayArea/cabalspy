@@ -208,9 +208,9 @@ export default function AuthButton() {
           <PopoverContent
             align="end"
             side="bottom"
-            className="w-80 p-0 glass border-white/10 shadow-2xl animate-fade-in translate-y-2"
+            className="w-80 p-0 bg-[#0c0e14]/98 border border-gray-800 shadow-2xl animate-scale-in translate-y-2 rounded-3xl overflow-hidden backdrop-blur-3xl z-50"
           >
-            <Card className="border-0 bg-transparent">
+            <Card className="border-0 bg-[#0c0e14]/90 p-1">
               <CardHeader className="pb-4">
                 <CardTitle className="text-xl font-bold tracking-tight text-white uppercase">
                   Profile

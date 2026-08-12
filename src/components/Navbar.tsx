@@ -81,8 +81,8 @@ export default function Navbar({
               </span>
             </Link>
 
-            {/* Navigation Links - Pushed away from logo with ml */}
-            <nav className="flex items-center gap-6 sm:gap-8 md:gap-10 ml-6 sm:ml-10 md:ml-14">
+            {/* Navigation Links - Pushed away from logo with ml (Desktop) */}
+            <nav className="hidden md:flex items-center gap-6 sm:gap-8 md:gap-10 ml-6 sm:ml-10 md:ml-14">
               <Link
                 href="/"
                 className={`text-sm sm:text-base font-bold tracking-wide transition-all hover:text-primary cursor-pointer ${
@@ -113,8 +113,8 @@ export default function Navbar({
             </nav>
           </div>
 
-          {/* Action Buttons & Auth */}
-          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          {/* Desktop Action Buttons & Auth */}
+          <div className="hidden md:flex items-center gap-3 sm:gap-4 shrink-0">
             {showSearch && onSearchClick && (
               <button
                 onClick={onSearchClick}
@@ -149,16 +149,27 @@ export default function Navbar({
             <AuthButton />
           </div>
 
-          {/* Mobile: Hamburger Menu - Show ONLY on mobile screens (below md breakpoint) */}
-          <div className="hidden max-md:flex items-center gap-2">
+          {/* Mobile: Control Bar & Hamburger Menu (Below md breakpoint) */}
+          <div className="flex md:hidden items-center gap-2 shrink-0">
             {showSearch && onSearchClick && (
               <button
                 onClick={onSearchClick}
-                className="p-2 hover:bg-white/5 rounded-lg transition-colors cursor-pointer text-muted hover:text-primary"
+                className="p-2 hover:bg-white/5 rounded-xl transition-colors cursor-pointer text-muted hover:text-primary border border-white/5"
+                title="Search Token"
               >
-                <Search className="w-5 h-5" />
+                <Search className="w-4 h-4" />
               </button>
             )}
+            {showRefresh && onRefreshClick && (
+              <button
+                onClick={onRefreshClick}
+                className="p-2 hover:bg-white/5 rounded-xl transition-colors cursor-pointer text-muted hover:text-primary border border-white/5"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              </button>
+            )}
+            <AuthButton />
             <Dialog open={showMobileMenu} onOpenChange={setShowMobileMenu}>
               <DialogTrigger asChild>
                 <button

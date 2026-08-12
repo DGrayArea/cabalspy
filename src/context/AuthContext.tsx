@@ -446,7 +446,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // Note: clientState==="loading" is intentionally excluded — after logout Turnkey
   // briefly resets its clientState to "loading", which falsely shows "Finalizing your
   // session...". The OAuth processing gap is now handled by isProcessingOAuth in auth/page.tsx.
-  const isLoggingIn = !isLoggingOut && (isLoading || isSyncing);
+  const isLoggingIn = !isLoggingOut && (isLoading || isSyncing || (authState === "authenticated" && !user));
 
   const value = {
     user,

@@ -28,12 +28,12 @@ function AuthContent() {
     }
   }, [isLoggingIn, isAuthenticated]);
 
-  // If already authenticated, redirect to home
+  // If already authenticated and user profile synced, redirect to home
   useEffect(() => {
-    if (isAuthenticated && !isLoggingIn) {
+    if (isAuthenticated && user && !isLoggingIn) {
       router.replace("/");
     }
-  }, [isAuthenticated, isLoggingIn, router]);
+  }, [isAuthenticated, user, isLoggingIn, router]);
 
   // Show a plain spinner for initial page load
   if (isLoading && !isProcessingOAuth && !isAuthenticated) {
@@ -73,101 +73,112 @@ function AuthContent() {
   };
 
   return (
-    <div className="min-h-screen bg-app flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      <div className="w-full max-w-7xl mx-auto mb-6 sm:mb-12">
-        <Hero />
-      </div>
-
-      {/* Back Button */}
-      <Link 
-        href="/" 
-        className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-2 text-muted hover:text-primary transition-colors group z-20"
-      >
-        <div className="p-1.5 sm:p-2 rounded-full bg-white/5 border border-white/10 group-hover:border-primary/30 transition-all">
-          <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-        </div>
-        <span className="text-[10px] sm:text-sm font-bold uppercase tracking-widest">Back to Terminal</span>
-      </Link>
-
-      <div className="w-full max-w-[440px] z-10 animate-fade-in py-8">
-        <div className="flex flex-col items-center mb-6 sm:mb-8">
-          <div className="relative mb-3 sm:mb-4 group">
-            <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-            <Image
-              src="/logo.jpg"
-              alt="Cabalspy"
-              width={64}
-              height={64}
-              className="rounded-2xl sm:rounded-3xl object-cover ring-2 ring-white/10 relative z-10 sm:w-[80px] sm:h-[80px]"
-              unoptimized
-            />
+    <div className="min-h-screen bg-app flex flex-col items-center justify-between p-4 sm:p-8 relative overflow-x-hidden">
+      {/* Header */}
+      <header className="w-full max-w-6xl mx-auto flex items-center justify-between pb-4 sm:pb-6 border-b border-white/5 mb-4 sm:mb-8 z-20">
+        <Link href="/" className="flex items-center gap-3 group">
+          <Image
+            src="/logo.jpg"
+            alt="Cabalspy"
+            width={38}
+            height={38}
+            className="rounded-xl object-cover ring-1 ring-white/10 group-hover:scale-105 transition-transform"
+            unoptimized
+          />
+          <div>
+            <span className="text-base sm:text-lg font-bold bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent uppercase tracking-wider block leading-none">
+              CABALSPY
+            </span>
+            <span className="text-[9px] text-muted font-mono tracking-widest uppercase">Market Intel</span>
           </div>
-          <h1 className="text-2xl sm:text-4xl font-bold bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent tracking-tighter mb-1 uppercase">
-            CABALSPY
-          </h1>
-          <p className="text-[9px] sm:text-xs font-bold uppercase tracking-[0.2em] text-muted text-center">Real-time Token Pulse</p>
+        </Link>
+        <Link
+          href="/"
+          className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white bg-panel-elev hover:bg-panel border border-white/10 rounded-xl px-3.5 py-2 transition-all cursor-pointer shadow-sm active:scale-95"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-primary" />
+          <span>BACK TO TERMINAL</span>
+        </Link>
+      </header>
+
+      {/* Main Content Grid */}
+      <main className="w-full max-w-6xl mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center z-10 py-2 sm:py-4">
+        {/* Hero Section */}
+        <div className="lg:col-span-7 order-2 lg:order-1">
+          <Hero embedded={true} />
         </div>
 
-        <Card id="login-section" className="glass border-white/10 rounded-4xl sm:rounded-4xl shadow-2xl overflow-hidden">
-          <CardHeader className="pt-8 sm:pt-10 pb-4 sm:pb-6 text-center">
-            <CardTitle className="text-xl sm:text-2xl font-bold text-white">WELCOME BACK</CardTitle>
-            <CardDescription className="text-muted text-xs sm:text-sm font-medium">Choose your preferred login method</CardDescription>
-          </CardHeader>
-          <CardContent className="px-5 sm:px-8 pb-8 sm:pb-10 flex flex-col gap-3 sm:gap-4">
-            <Button 
-              onClick={onGoogleLogin}
-              variant="glass" 
-              className="w-full py-5 sm:py-7 rounded-2xl sm:rounded-2xl border-white/5 hover:border-primary/40 hover:bg-primary/5 group"
-            >
-              <div className="bg-white p-1 sm:p-1.5 rounded-lg mr-2 sm:mr-3 group-hover:scale-110 transition-transform">
-                <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
+        {/* Login Section */}
+        <div className="lg:col-span-5 order-1 lg:order-2 w-full max-w-md mx-auto animate-fade-in">
+          <Card id="login-section" className="glass border-white/10 rounded-3xl shadow-2xl overflow-hidden">
+            <CardHeader className="pt-6 sm:pt-8 pb-3 sm:pb-4 text-center">
+              <div className="mx-auto mb-3 w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Image
+                  src="/logo.jpg"
+                  alt="Cabalspy"
+                  width={32}
+                  height={32}
+                  className="rounded-xl object-cover"
+                  unoptimized
+                />
               </div>
-              <span className="font-bold text-sm sm:text-base">Continue with Google</span>
-            </Button>
+              <CardTitle className="text-xl sm:text-2xl font-bold text-white">WELCOME BACK</CardTitle>
+              <CardDescription className="text-muted text-xs sm:text-sm font-medium">Choose your preferred login method</CardDescription>
+            </CardHeader>
+            <CardContent className="px-5 sm:px-6 pb-6 sm:pb-8 flex flex-col gap-3">
+              <Button 
+                onClick={onGoogleLogin}
+                variant="glass" 
+                className="w-full py-5 sm:py-6 rounded-2xl border-white/10 hover:border-primary/40 hover:bg-primary/5 group transition-all cursor-pointer"
+              >
+                <div className="bg-white p-1 sm:p-1.5 rounded-lg mr-2 sm:mr-3 group-hover:scale-110 transition-transform">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                </div>
+                <span className="font-bold text-sm sm:text-base">Continue with Google</span>
+              </Button>
 
-            {/* Telegram Login Widget — official Telegram OAuth */}
-            <div className="w-full flex flex-col items-center gap-2">
-              <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
-                Or sign in with Telegram
-              </p>
-              <TelegramLoginWidget
-                buttonSize="large"
-                cornerRadius={8}
-                requestAccess={true}
-                className="w-full"
-              />
-            </div>
-
-
-
-            <div className="mt-4 sm:mt-6 flex flex-col gap-3 sm:gap-4">
-              <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4">
-                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                <span className="text-[10px] sm:text-xs text-muted font-medium">Safe & Secure with Turnkey Embedded Wallets</span>
+              {/* Telegram Login Widget */}
+              <div className="w-full flex flex-col items-center gap-2 mt-1">
+                <p className="text-[10px] text-muted font-bold uppercase tracking-widest">
+                  Or sign in with Telegram
+                </p>
+                <TelegramLoginWidget
+                  buttonSize="large"
+                  cornerRadius={8}
+                  requestAccess={true}
+                  className="w-full"
+                />
               </div>
-              <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4">
-                <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                <span className="text-[10px] sm:text-xs text-muted font-medium">Instant One-Click Trading Setup</span>
+
+              <div className="mt-4 flex flex-col gap-2.5 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-2.5 px-2">
+                  <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[11px] text-muted font-medium">Safe & Secure Turnkey Embedded Wallets</span>
+                </div>
+                <div className="flex items-center gap-2.5 px-2">
+                  <Zap className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[11px] text-muted font-medium">Instant One-Click Trading Setup</span>
+                </div>
+                <div className="flex items-center gap-2.5 px-2">
+                  <Globe className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[11px] text-muted font-medium">Degen-focused Real-Time Feeds</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4">
-                <Globe className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                <span className="text-[10px] sm:text-xs text-muted font-medium">Degen-focused Real-time Market Data</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <p className="mt-6 sm:mt-8 text-center text-[10px] sm:text-xs text-muted font-medium px-4">
-          By continuing, you agree to our{" "}
-          <Link href="/terms" className="text-primary hover:underline transition-all">Terms of Service</Link> and{" "}
-          <Link href="/privacy" className="text-primary hover:underline transition-all">Privacy Policy</Link>
-        </p>
-      </div>
+            </CardContent>
+          </Card>
+          
+          <p className="mt-4 text-center text-[10px] sm:text-xs text-muted font-medium px-4">
+            By continuing, you agree to our{" "}
+            <Link href="/terms" className="text-primary hover:underline transition-all">Terms of Service</Link> and{" "}
+            <Link href="/privacy" className="text-primary hover:underline transition-all">Privacy Policy</Link>
+          </p>
+        </div>
+      </main>
     </div>
   );
 }

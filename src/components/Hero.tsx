@@ -5,14 +5,14 @@ import Link from "next/link";
 import { ArrowUpRight, Zap, TrendingUp, ShieldCheck, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function Hero() {
+export function Hero({ embedded = false }: { embedded?: boolean }) {
   return (
-    <div className="relative w-full py-8 sm:py-20 px-4 mb-4 sm:mb-8 overflow-hidden rounded-3xl sm:rounded-2xl glass border border-white/10 shadow-2xl">
+    <div className={`relative w-full overflow-hidden ${embedded ? "py-4 sm:py-6" : "py-8 sm:py-16 px-4 mb-4 sm:mb-8 rounded-3xl glass border border-white/10 shadow-2xl"}`}>
       {/* Decorative Glows */}
       <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-primary/20 blur-[100px] rounded-full animate-pulse" />
       <div className="absolute bottom-[-20%] left-[-10%] w-64 h-64 bg-secondary/20 blur-[100px] rounded-full animate-pulse transition-delay-1000" />
       
-      <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8 sm:gap-12 max-w-6xl mx-auto">
+      <div className={`relative z-10 flex flex-col ${embedded ? "gap-6 sm:gap-8" : "md:flex-row items-center justify-between gap-8 sm:gap-12 max-w-6xl mx-auto"}`}>
         <div className="flex-1 text-center md:text-left animate-fade-in">
           <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full bg-white/5 border border-white/10 mb-4 sm:mb-6 group hover:border-primary/40 transition-all cursor-default">
             <span className="relative flex h-2 w-2">
