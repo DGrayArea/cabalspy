@@ -59,8 +59,17 @@ export interface SwapInstructions {
 }
 
 export class JupiterSwapService {
-  private readonly quoteApiUrl = "https://quote-api.jup.ag/v6";
-  private readonly swapApiUrl = "https://quote-api.jup.ag/v6";
+  // Use the current Swap API v1. The old quote-api.jup.ag/v6 domain is sunset.
+  // lite-api.jup.ag is the public (rate-limited) tier; swap to api.jup.ag when
+  // an API key is available via NEXT_PUBLIC_JUPITER_API_KEY.
+  private get quoteApiUrl(): string {
+    const key = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
+    return key ? "https://api.jup.ag/swap/v1" : "https://lite-api.jup.ag/swap/v1";
+  }
+  private get swapApiUrl(): string {
+    const key = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
+    return key ? "https://api.jup.ag/swap/v1" : "https://lite-api.jup.ag/swap/v1";
+  }
   private readonly solanaRpcUrl =
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL ||
     "https://api.mainnet-beta.solana.com";
@@ -108,10 +117,12 @@ export class JupiterSwapService {
 
       const url = `${this.quoteApiUrl}/quote?${queryParams.toString()}`;
 
+      const apiKey = process.env.NEXT_PUBLIC_JUPITER_API_KEY;
       const response = await fetch(url, {
         method: "GET",
         headers: {
           Accept: "application/json",
+          ...(apiKey ? { "x-api-key": apiKey } : {}),
         },
       });
 

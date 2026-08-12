@@ -331,16 +331,6 @@ export async function executeJupiterSwap({
       "base64",
     );
 
-    // Log fee info so you can verify collection is working
-    if (order.feeMint) {
-      const collecting = order.feeBps === REFERRAL_FEE_BPS;
-      console.log(
-        `[Ultra] feeMint=${order.feeMint} feeBps=${order.feeBps ?? 0}` +
-          (collecting
-            ? " ✅ fee collected"
-            : " ⚠️ no token account for this mint — fee skipped"),
-      );
-    }
 
     // Convert raw output → human-readable
     const outAmountRaw = parseInt(order.outAmount || "0");
@@ -348,9 +338,6 @@ export async function executeJupiterSwap({
 
     // ── Step 3: Execute via Jupiter (with retries) ─────────────────────────
     if (dryRun) {
-      console.log(
-        `[DRY RUN] Successfully signed transaction for ${amount} -> ${outAmountHuman}`,
-      );
       return {
         success: true,
         signature: `dry-run-${Date.now()}`,

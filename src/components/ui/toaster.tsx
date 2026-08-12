@@ -37,10 +37,10 @@ export function Toaster() {
                     <IconComponent
                       className={`h-4 w-4 shrink-0 ${
                         variant === "success"
-                          ? "text-green-400"
+                          ? "text-green-300"
                           : variant === "error"
-                            ? "text-red-400"
-                            : "text-blue-400"
+                            ? "text-red-300"
+                            : "text-blue-300"
                       } ${variant === "info" || props.className?.includes("loading") ? "animate-spin" : ""}`}
                     />
                   )}

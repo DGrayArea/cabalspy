@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
+import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { formatCurrency, formatNumber } from "@/utils/format";
 import {
@@ -67,6 +68,7 @@ export function WalletSettingsModal({
   onClose: () => void;
 }) {
   const { user } = useAuth();
+  const { allWallets, selectedWalletId, selectWallet } = useTurnkeySolana();
   const {
     user: turnkeyUser,
     wallets: turnkeyWallets,
@@ -124,7 +126,7 @@ export function WalletSettingsModal({
   }, [turnkeyWallets]);
 
   // Derived values
-  const solWallet = embeddedSolanaWallet?.address || null;
+  const solWallet = embeddedSolanaWallet?.address || user?.walletAddress || null;
   const walletId = embeddedSolanaWallet?.walletId || null;
   const isLoadingSolana = clientState === "loading";
 
@@ -188,9 +190,7 @@ export function WalletSettingsModal({
 
   const handleRefreshWallets = async () => {
     try {
-      console.log("🔄 Refreshing wallets...");
       await refreshWallets();
-      console.log("✅ Wallets refreshed");
     } catch (error) {
       console.error("❌ Failed to refresh wallets:", error);
     }
@@ -207,47 +207,22 @@ export function WalletSettingsModal({
       return;
     }
 
-    // Check if an embedded Solana wallet already exists
-    if (embeddedSolanaWallet) {
-      // console.log("✅ Existing embedded Solana wallet detected:", {
-      //   walletId: embeddedSolanaWallet.walletId,
-      //   walletName: embeddedSolanaWallet.walletName,
-      //   address: embeddedSolanaWallet.address,
-      // });
-
-      alert(
-        "You already have a Turnkey-managed Solana wallet!\n\n" +
-          `Wallet: ${embeddedSolanaWallet.walletName || "Unnamed"}\n` +
-          `Address: ${embeddedSolanaWallet.address}\n\n` +
-          "The wallet is already displayed."
-      );
-      return;
-    }
-
     setIsCreatingWallet(true);
     try {
-      console.log("🔄 Creating Turnkey-managed Solana wallet...");
-
       // Generate a unique wallet name to avoid conflicts
-      const baseName = `${turnkeyUser.userName || "My"}'s Solana Wallet`;
+      const count = (turnkeyWallets?.length || 0) + 1;
+      const baseName = `${turnkeyUser.userName || "My"}'s Wallet #${count}`;
       const timestamp = Date.now();
-      const uniqueWalletName = `${baseName} (${timestamp})`;
+      const uniqueWalletName = `${baseName} (${timestamp.toString().slice(-4)})`;
 
-      // Note: @turnkey/react-wallet-kit's createWallet accepts address format strings
-      // The underlying account structure will be:
-      // - curve: CURVE_ED25519
-      // - pathFormat: PATH_FORMAT_SLIP10
-      // - path: m/44'/501'/0'/0' (Solana standard HD path)
-      // - addressFormat: ADDRESS_FORMAT_SOLANA
+      // Create multi-chain wallet with Solana (ED25519) + EVM/Ethereum/BSC (SECP256K1)
       const wallet = await createWallet({
         walletName: uniqueWalletName,
-        accounts: ["ADDRESS_FORMAT_SOLANA"],
+        accounts: ["ADDRESS_FORMAT_SOLANA", "ADDRESS_FORMAT_ETHEREUM"],
       });
-      // console.log("✅ Turnkey Solana wallet created:", wallet);
 
       // Refresh wallets to pick up the new wallet
       await refreshWallets();
-      console.log("✅ Wallets refreshed after creation");
     } catch (error: unknown) {
       const errorMessage =
         (error as { message?: string; code?: number })?.message ||
@@ -325,10 +300,6 @@ export function WalletSettingsModal({
 
       for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          console.log(`🔄 Exporting wallet (attempt ${attempt}/${maxRetries})...`, {
-            walletId: embeddedSolanaWallet.walletId,
-          });
-
           // Handle both private key and recovery phrase exports
           if (exportType === "recoveryPhrase" && embeddedSolanaWallet.walletSetId && handleExportWalletSet) {
             await handleExportWalletSet({
@@ -340,10 +311,7 @@ export function WalletSettingsModal({
             });
           }
 
-          console.log("✅ Wallet export initiated");
-          // Note: The CORS/origin mismatch warnings are expected and can be ignored
-          // The export will complete in the new window that opens
-          return; // Success, exit retry loop
+          return;
         } catch (error: unknown) {
           lastError = error;
           const errorMessage =
@@ -352,7 +320,6 @@ export function WalletSettingsModal({
 
           // If it's a CORS/origin issue, don't retry
           if (errorMessage.includes("origin") || errorMessage.includes("CORS")) {
-            console.log("CORS error detected, not retrying");
             return;
           }
 
@@ -364,7 +331,6 @@ export function WalletSettingsModal({
           } else {
             // Wait before retrying (exponential backoff: 500ms, 1000ms)
             const delay = 500 * attempt;
-            console.log(`⏳ Retrying in ${delay}ms...`);
             await new Promise((resolve) => setTimeout(resolve, delay));
           }
         }
@@ -381,7 +347,7 @@ export function WalletSettingsModal({
       />
       {/* Modal - Fixed positioning, centered */}
       <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md bg-panel border border-gray-800/50 rounded-xl shadow-2xl z-[101] overflow-hidden">
-        <div className="p-4 max-h-[90vh] overflow-y-auto">
+        <div className="p-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Trading Wallets</h3>
@@ -497,107 +463,106 @@ export function WalletSettingsModal({
             </div>
           </div>
 
-          {/* Wallet List */}
+          {/* Wallet List & Switcher */}
           <div className="space-y-3">
-            {/* SOL Wallet */}
-            <div className="bg-panel-elev/50 rounded-lg p-3 border border-gray-800/30">
-              <div className="flex items-start gap-2 mb-2">
-                <div className="relative w-6 h-6 flex-shrink-0 mt-0.5">
-                  <img
-                    src="https://raw.githubusercontent.com/solana-labs/token-list/main/assets/mainnet/So11111111111111111111111111111111111111112/logo.png"
-                    alt="SOL"
-                    className="w-6 h-6 rounded-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none";
-                      const fallback = target.parentElement?.querySelector(".sol-fallback-modal") as HTMLElement;
-                      if (fallback) fallback.style.display = "flex";
-                    }}
-                  />
-                  <div className="sol-fallback-modal w-6 h-6 rounded-full bg-linear-to-br from-purple-500 to-blue-500 flex items-center justify-center text-xs font-bold absolute inset-0 hidden">
-                    S
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="text-sm font-medium">Solana Wallet</div>
-                    {solWallet && (
-                      <span className="text-xs px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded border border-green-500/30">
-                        Turnkey
-                      </span>
-                    )}
-                    {isAuthenticated && !isLoadingSolana && !solWallet && (
-                      <span className="text-xs px-1.5 py-0.5 bg-yellow-500/20 text-yellow-400 rounded border border-yellow-500/30">
-                        No Wallet
-                      </span>
-                    )}
-                  </div>
-                  {!isAuthenticated ? (
-                    <div className="text-xs text-gray-500">Sign in to view</div>
-                  ) : isLoadingSolana ? (
-                    <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      <span>Loading...</span>
-                    </div>
-                  ) : solWallet ? (
-                    <div className="text-xs text-gray-400 font-mono truncate">
-                      {solWallet}
-                    </div>
-                  ) : (
-                    <div className="text-xs text-yellow-400">
-                      No Turnkey wallet found. Click &quot;Create&quot; to
-                      create one.
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  {isAuthenticated && (
-                    <button
-                      onClick={() => {
-                        handleRefreshWallets();
-                        refreshPortfolio();
-                      }}
-                      className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0 cursor-pointer"
-                      title="Refresh portfolio"
-                    >
-                      <RefreshCw
-                        className={`w-4 h-4 text-gray-400 hover:text-primary cursor-pointer ${isLoadingPortfolio ? "animate-spin" : ""}`}
-                      />
-                    </button>
-                  )}
-                  {solWallet && (
-                    <button
-                      onClick={() => copyToClipboard(solWallet, "sol")}
-                      className="p-1 hover:bg-panel rounded transition-colors flex-shrink-0 cursor-pointer"
-                      title="Copy address"
-                    >
-                      {copied === "sol" ? (
-                        <CheckCircle2 className="w-4 h-4 text-green-400 cursor-pointer" />
-                      ) : (
-                        <Copy className="w-4 h-4 text-gray-400 cursor-pointer" />
-                      )}
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-400">SOL Balance:</span>
-                {isLoadingPortfolio ? (
-                  <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
-                ) : (
-                  <div className="text-right">
-                    <div className="font-medium">
-                      {formatNumber(solBalance)} SOL
-                    </div>
-                    {solBalanceUsd > 0 && (
-                      <div className="text-gray-400 text-xs">
-                        {formatCurrency(solBalanceUsd)}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                Trading Wallets {allWallets?.length ? `(${allWallets.length})` : ""}
+              </span>
+              <button
+                onClick={() => {
+                  handleRefreshWallets();
+                  refreshPortfolio();
+                }}
+                className="text-xs text-primary hover:text-primary-dark flex items-center gap-1 cursor-pointer transition-colors"
+                title="Refresh wallets & balances"
+              >
+                <RefreshCw className={`w-3 h-3 ${isLoadingPortfolio ? "animate-spin" : ""}`} />
+                <span>Sync</span>
+              </button>
             </div>
+
+            {!isAuthenticated ? (
+              <div className="p-4 bg-panel-elev/40 rounded-xl border border-gray-800 text-center text-xs text-gray-400">
+                Sign in to view and manage your Turnkey trading wallets
+              </div>
+            ) : isLoadingSolana ? (
+              <div className="p-4 bg-panel-elev/40 rounded-xl border border-gray-800 flex items-center justify-center gap-2 text-xs text-gray-400">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span>Loading wallets...</span>
+              </div>
+            ) : allWallets && allWallets.length > 0 ? (
+              <div className="space-y-2.5 max-h-[260px] sm:max-h-[300px] overflow-y-auto pr-1.5 custom-scrollbar">
+                {allWallets.map((w, idx) => {
+                  const isActive = (selectedWalletId || solWallet) === w.walletId || (selectedWalletId === null && idx === 0);
+                  return (
+                    <div
+                      key={w.walletId}
+                      onClick={() => selectWallet(w.walletId)}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                        isActive
+                          ? "bg-panel-elev border-primary/60 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-primary/40"
+                          : "bg-panel-elev/40 border-gray-800/60 hover:border-gray-700 hover:bg-panel-elev/80"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-white truncate">
+                              {w.walletName || `Solana Wallet #${idx + 1}`}
+                            </span>
+                            {isActive ? (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 bg-primary/20 text-primary border border-primary/40 rounded-full flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                ACTIVE
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-gray-500 hover:text-white transition-colors">
+                                Click to Activate
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] font-mono text-gray-400 truncate mt-0.5">
+                            {w.address}
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            copyToClipboard(w.address, w.walletId);
+                          }}
+                          className="p-1 hover:bg-panel rounded transition-colors text-gray-400 hover:text-white"
+                          title="Copy address"
+                        >
+                          {copied === w.walletId ? (
+                            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5 text-gray-400" />
+                          )}
+                        </button>
+                      </div>
+
+                      {isActive && (
+                        <div className="flex items-center justify-between text-xs pt-2 mt-2 border-t border-gray-800/50">
+                          <span className="text-gray-400">Active Balance:</span>
+                          {isLoadingPortfolio ? (
+                            <Loader2 className="w-3 h-3 animate-spin text-gray-400" />
+                          ) : (
+                            <div className="text-right font-semibold text-primary">
+                              {formatNumber(solBalance)} SOL ({formatCurrency(solBalanceUsd)})
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="p-4 bg-panel-elev/40 rounded-xl border border-yellow-500/20 text-center text-xs text-yellow-400">
+                No Turnkey wallet found. Click &quot;Create Wallet&quot; below to generate one.
+              </div>
+            )}
           </div>
 
           {/* Action Buttons */}

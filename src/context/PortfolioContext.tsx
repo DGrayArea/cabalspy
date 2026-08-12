@@ -38,8 +38,9 @@ type PortfolioContextType = PortfolioData & {
 const PortfolioContext = React.createContext<PortfolioContextType | null>(null);
 
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
-  const { address: walletAddress } = useTurnkeySolana();
+  const { address: turnkeyAddress } = useTurnkeySolana();
   const { user } = useAuth();
+  const walletAddress = turnkeyAddress || user?.walletAddress || null;
   // BNB address from session — only used when BSC is enabled
   const bnbAddress = env.NEXT_PUBLIC_ENABLE_BSC ? user?.bnbWalletAddress ?? null : null;
   const [portfolio, setPortfolio] = React.useState<PortfolioData>({
@@ -161,10 +162,22 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       const result = data.result;
 
       // Extract SOL balance
-      const solBalance =
+      let solBalance =
         result?.nativeBalance?.lamports !== undefined
           ? result.nativeBalance.lamports / 1e9
           : 0;
+
+      // Fast Direct RPC fallback for SOL balance if nativeBalance wasn't in searchAssets response
+      if (solBalance === 0 && heliusRpcUrl) {
+        try {
+          const conn = new Connection(heliusRpcUrl, "confirmed");
+          const pubkey = new PublicKey(walletAddress);
+          const lamports = await conn.getBalance(pubkey);
+          solBalance = lamports / 1e9;
+        } catch (e) {
+          // ignore fast fallback error
+        }
+      }
 
       // Fetch SOL price for USD conversion
       const solPrice = await fetchSolPrice();
@@ -583,9 +596,17 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [bnbAddress, fetchBSCPortfolio]);
 
-  // Auto-fetch when wallet address changes
+  // Auto-fetch when wallet address changes (instantly reset state & trigger fetch)
   React.useEffect(() => {
     if (walletAddress) {
+      setPortfolio((prev) => ({
+        ...prev,
+        solBalance: 0,
+        solBalanceUsd: 0,
+        tokenBalances: [],
+        totalValueUsd: 0,
+        isLoading: true,
+      }));
       fetchPortfolio();
     }
   }, [walletAddress, fetchPortfolio]);

@@ -50,10 +50,12 @@ export function computeTradeExtras(params: {
   }
 
   let feesSOL: number | undefined;
-  if (feeBps && feeBps > 0 && feeMint === SOL_MINT) {
-    const solLeg = direction === "buy" ? amountIn : outAmount;
-    if (solLeg > 0) feesSOL = (feeBps / 10000) * solLeg;
+  const solLeg = direction === "buy" ? amountIn : outAmount;
+  if (solLeg > 0) {
+    // Jupiter Ultra charges feeBps (125 bps), but protocol receives 80% (100 bps = 1.0%)
+    const netPlatformBps = feeBps && feeBps > 0 ? feeBps * 0.8 : 100;
+    feesSOL = (netPlatformBps / 10000) * solLeg;
   }
 
-  return { outAmountUsd, feesSOL, feesBps: feeBps };
+  return { outAmountUsd, feesSOL, feesBps: feeBps ?? 125 };
 }

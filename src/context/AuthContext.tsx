@@ -226,6 +226,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             avatar: data.user.avatar,
             accessLevel: data.user.accessLevel,
             roles: data.user.roles,
+            walletAddress: data.wallet?.address,
+            bnbWalletAddress: data.bnbWallet?.address,
             createdAt: new Date(),
           });
         }

@@ -10,6 +10,7 @@ import {
 } from "@solana/web3.js";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import { TurnkeySigner } from "@turnkey/solana";
+import { useAuth } from "./AuthContext";
 import { Buffer } from "buffer";
 
 // Types matching Turnkey's wallet structure
@@ -46,6 +47,15 @@ type TTurnkeySolanaContextValue = {
   connection: Connection | null;
   walletId: string | null;
   walletName: string | null;
+  // Multi-wallet support
+  allWallets: Array<{
+    walletId: string;
+    walletName: string;
+    address: string;
+    accountId?: string;
+  }>;
+  selectedWalletId: string | null;
+  selectWallet: (walletId: string) => void;
   // The raw wallet account object (needed for signing)
   walletAccount: SolanaWalletAccount | null;
   // State
@@ -99,78 +109,74 @@ export function TurnkeySolanaContextProvider(props: {
     }
   }, []);
 
-  // Derive embedded Solana wallet directly from useTurnkey wallets
-  // Filter: source === "embedded" (or no source) AND has ADDRESS_FORMAT_SOLANA account
-  const embeddedSolanaWallet = React.useMemo(() => {
-    if (!wallets || wallets.length === 0) {
-      return null;
+  const [selectedWalletId, setSelectedWalletIdState] = React.useState<string | null>(null);
+
+  // Load active wallet selection from localStorage on mount
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("cabalspy_active_wallet_id");
+      if (saved) setSelectedWalletIdState(saved);
     }
+  }, []);
 
-    // console.log("🔍 TurnkeySolanaContext - Searching wallets:", {
-    //   totalWallets: wallets.length,
-    //   wallets: wallets.map((w: TurnkeyWallet) => ({
-    //     walletId: w.walletId,
-    //     walletName: w.walletName,
-    //     source: w.source,
-    //     imported: w.imported,
-    //     accountsCount: w.accounts?.length || 0,
-    //     solanaAccounts: w.accounts
-    //       ?.filter((acc) => acc.addressFormat === "ADDRESS_FORMAT_SOLANA")
-    //       .map((acc) => acc.address),
-    //   })),
-    // });
+  const selectWallet = React.useCallback((id: string) => {
+    setSelectedWalletIdState(id);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("cabalspy_active_wallet_id", id);
+    }
+  }, []);
 
-    // Find wallet with source: "embedded" (or no source) that has a Solana account
+  // Derive ALL embedded Solana wallets
+  const allSolanaWalletsItems = React.useMemo(() => {
+    if (!wallets || wallets.length === 0) return [];
+    const items: Array<{
+      wallet: TurnkeyWallet;
+      account: TurnkeyAccount;
+      address: string;
+      walletId: string;
+      walletName: string;
+      accountId: string;
+      organizationId?: string;
+    }> = [];
+
     for (const wallet of wallets as TurnkeyWallet[]) {
-      // Must be embedded (not connected/imported)
       const isEmbedded = wallet.source === "embedded" || !wallet.source;
-      if (!isEmbedded) continue;
+      if (!isEmbedded || wallet.imported || wallet.source === "imported" || wallet.source === "connected") continue;
+      if (wallet.walletId === "solflare" || wallet.walletName?.toLowerCase() === "solflare") continue;
 
-      // Exclude explicitly imported wallets
-      if (wallet.imported || wallet.source === "imported") continue;
-
-      // Exclude connected wallets like Solflare
-      if (wallet.source === "connected") continue;
-      if (
-        wallet.walletId === "solflare" ||
-        wallet.walletName?.toLowerCase() === "solflare"
-      )
-        continue;
-
-      // Find Solana account with ADDRESS_FORMAT_SOLANA
       const solanaAccount = wallet.accounts?.find(
         (acc) => acc.addressFormat === "ADDRESS_FORMAT_SOLANA"
       );
 
       if (solanaAccount?.address) {
-        // console.log("✅ Found embedded Solana wallet:", {
-        //   walletId: wallet.walletId,
-        //   walletName: wallet.walletName,
-        //   address: solanaAccount.address,
-        //   addressFormat: solanaAccount.addressFormat,
-        // });
-
-        return {
+        items.push({
           wallet,
           account: solanaAccount,
           address: solanaAccount.address,
           walletId: wallet.walletId,
-          walletName: wallet.walletName,
-          accountId:
-            (solanaAccount as any).walletAccountId || solanaAccount.accountId, // Use walletAccountId if available
-          organizationId: solanaAccount.organizationId, // Get org ID from wallet account
-        };
+          walletName: wallet.walletName || "Solana Wallet",
+          accountId: (solanaAccount as any).walletAccountId || solanaAccount.accountId || "",
+          organizationId: solanaAccount.organizationId,
+        });
       }
     }
-
-    // console.log(
-    //   "📭 No embedded Solana wallet found with ADDRESS_FORMAT_SOLANA"
-    // );
-    return null;
+    return items;
   }, [wallets]);
 
+  // Derive currently active embedded Solana wallet
+  const embeddedSolanaWallet = React.useMemo(() => {
+    if (allSolanaWalletsItems.length === 0) return null;
+    if (selectedWalletId) {
+      const found = allSolanaWalletsItems.find((w) => w.walletId === selectedWalletId);
+      if (found) return found;
+    }
+    return allSolanaWalletsItems[0];
+  }, [allSolanaWalletsItems, selectedWalletId]);
+
+  const { user } = useAuth();
+
   // Derived values
-  const address = embeddedSolanaWallet?.address || null;
+  const address = embeddedSolanaWallet?.address || user?.walletAddress || null;
   const walletId = embeddedSolanaWallet?.walletId || null;
   const walletName = embeddedSolanaWallet?.walletName || null;
   const isLoading = clientState === "loading";
@@ -428,12 +434,20 @@ export function TurnkeySolanaContextProvider(props: {
       connection,
       walletId,
       walletName,
+      allWallets: allSolanaWalletsItems.map((item) => ({
+        walletId: item.walletId,
+        walletName: item.walletName,
+        address: item.address,
+        accountId: item.accountId,
+      })),
+      selectedWalletId: embeddedSolanaWallet?.walletId || null,
+      selectWallet,
       walletAccount,
-      error,
+      error: error || null,
       isLoading,
-      signer,
-      signTransaction: walletAccount ? signTransaction : null,
-      signAndSendTransaction: walletAccount ? signAndSendTransaction : null,
+      signer: signer || null,
+      signTransaction: signer ? signTransaction : null,
+      signAndSendTransaction: signer ? signAndSendTransaction : null,
       signSolanaTransaction: signer ? signSolanaTransaction : null,
     }),
     [
@@ -442,6 +456,8 @@ export function TurnkeySolanaContextProvider(props: {
       connection,
       walletId,
       walletName,
+      allSolanaWalletsItems,
+      embeddedSolanaWallet,
       walletAccount,
       error,
       isLoading,

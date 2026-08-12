@@ -74,7 +74,7 @@ export class TurnkeyService {
           ? [
               {
                 curve: "CURVE_ED25519",
-                pathFormat: "PATH_FORMAT_SLIP10",
+                pathFormat: "PATH_FORMAT_BIP32",
                 path: "m/44'/501'/0'/0'",
                 addressFormat: "ADDRESS_FORMAT_SOLANA",
               },
@@ -88,12 +88,16 @@ export class TurnkeyService {
               },
             ];
 
+      const finalWalletName = walletName.includes("(")
+        ? walletName
+        : `${walletName} (${Date.now().toString().slice(-4)})`;
+
       const response = await this.client.createWallet({
         type: "ACTIVITY_TYPE_CREATE_WALLET",
         timestampMs: Date.now().toString(),
         organizationId: process.env.NEXT_PUBLIC_ORGANIZATION_ID || "",
         parameters: {
-          walletName: walletName || `Wallet for ${userId}`,
+          walletName: finalWalletName,
           accounts: accounts.map(acc => ({
             curve: acc.curve as any,
             pathFormat: acc.pathFormat as any,
@@ -364,6 +368,6 @@ export class TurnkeyService {
 export const turnkeyService = new TurnkeyService({
   baseUrl:
     process.env.NEXT_PUBLIC_TURNKEY_BASE_URL || "https://api.turnkey.com",
-  apiKey: process.env.NEXT_PUBLIC_TURNKEY_API_KEY || "",
+  apiKey: process.env.TURNKEY_API_KEY || process.env.NEXT_PUBLIC_TURNKEY_API_KEY || "",
   apiPrivateKey: process.env.TURNKEY_API_PRIVATE_KEY || "",
 });

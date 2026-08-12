@@ -289,14 +289,8 @@ export default function WithdrawModal({ onClose }: WithdrawModalProps) {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="0.0"
-                  className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-2xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent text-white font-bold text-lg transition-colors pr-20"
+                  className="w-full px-4 py-3.5 bg-black/40 border border-white/10 rounded-2xl focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent text-white font-bold text-lg transition-colors"
                 />
-                <button
-                  onClick={handleMax}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
-                >
-                  MAX
-                </button>
               </div>
             </div>
 

@@ -189,7 +189,7 @@ export default function AuthButton() {
               <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/10 group-hover:border-primary/50 transition-colors">
                 {(() => {
                   const seed = displayUser.id || displayUser.name || "user";
-                  const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+                  const avatarUrl = displayUser.avatar || `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(seed)}&backgroundColor=00d492,00b4d8,7209b7,3a0ca3,4361ee,f72585,10b981&radius=50`;
 
                   return (
                     <img
@@ -220,7 +220,7 @@ export default function AuthButton() {
                 <div className="flex items-center gap-4">
                   {(() => {
                     const seed = displayUser.id || displayUser.name || "user";
-                    const avatarUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(seed)}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffd5dc,ffdfbf`;
+                    const avatarUrl = displayUser.avatar || `https://api.dicebear.com/9.x/bottts-neutral/svg?seed=${encodeURIComponent(seed)}&backgroundColor=00d492,00b4d8,7209b7,3a0ca3,4361ee,f72585,10b981&radius=50`;
 
                     return (
                       <div className="relative group/avatar">

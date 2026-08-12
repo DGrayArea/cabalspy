@@ -32,15 +32,9 @@ class CabalSpySocketService extends EventEmitter {
     });
 
     this.socket.on("connect", () => {
-      console.log("✅ [Socket.IO] Connected to signal server");
-      this.isConnected = true;
-      this.emit("status", "connected");
     });
 
     this.socket.on("disconnect", () => {
-      console.log("❌ [Socket.IO] Disconnected from signal server");
-      this.isConnected = false;
-      this.emit("status", "disconnected");
     });
 
     this.socket.on("connect_error", (error) => {
@@ -49,8 +43,6 @@ class CabalSpySocketService extends EventEmitter {
     });
 
     this.socket.on("signal", (data: CabalSpySignal) => {
-      console.log("📡 [Socket.IO] Received signal:", data.name || data.mint);
-      this.emit("signal", data);
     });
   }
 

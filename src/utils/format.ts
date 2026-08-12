@@ -93,28 +93,61 @@ export function formatCurrency(value: number): string {
 }
 
 /**
- * Format a number with appropriate suffix (K, M, B, T)
- * @param value Number to format
- * @returns Formatted string (e.g., "1.23T", "456.78B", "12.34M", "1.23K", "12.34")
+ * Format a number with K/M/B/T suffix for large values, comma separators for
+ * medium values, and smart significant-decimal display for fractions < 1.
+ *
+ * Examples:
+ *   0.000027  → "0.000027"
+ *   0.5       → "0.50"
+ *   1.5       → "1.50"
+ *   1234.56   → "1,234.56"
+ *   12345     → "12,345"
+ *   681006    → "681.01K"
+ *   1234567   → "1.23M"
+ *   17357951  → "17.36M"
+ *   3400000000 → "3.40B"
  */
-export function formatNumber(value: number): string {
+export function formatNumber(value: number, decimals = 2): string {
+  if (!isFinite(value) || isNaN(value)) return "0";
   const absValue = Math.abs(value);
   const sign = value < 0 ? "-" : "";
-  
-  if (absValue >= 1000000000000) {
-    return `${sign}${(absValue / 1000000000000).toFixed(2)}T`;
+
+  if (absValue >= 1_000_000_000_000) {
+    return `${sign}${trimZeros((absValue / 1_000_000_000_000).toFixed(decimals))}T`;
   }
-  if (absValue >= 1000000000) {
-    return `${sign}${(absValue / 1000000000).toFixed(2)}B`;
+  if (absValue >= 1_000_000_000) {
+    return `${sign}${trimZeros((absValue / 1_000_000_000).toFixed(decimals))}B`;
   }
-  if (absValue >= 1000000) {
-    return `${sign}${(absValue / 1000000).toFixed(2)}M`;
+  if (absValue >= 1_000_000) {
+    return `${sign}${trimZeros((absValue / 1_000_000).toFixed(decimals))}M`;
   }
-  if (absValue >= 1000) {
-    return `${sign}${(absValue / 1000).toFixed(2)}K`;
+  if (absValue >= 1_000) {
+    return `${sign}${trimZeros((absValue / 1_000).toFixed(decimals))}K`;
   }
-  return value.toFixed(2);
+  if (absValue >= 1) {
+    // Add comma separators for hundreds that don't hit the K threshold
+    return `${sign}${addCommas(absValue.toFixed(decimals))}`;
+  }
+  // Fractions: use smart significant-decimal display
+  return `${sign}${formatSmallNumber(absValue)}`;
 }
+
+/** Remove trailing zeros after decimal (but keep at least one decimal place if there's a dot) */
+function trimZeros(str: string): string {
+  if (!str.includes(".")) return str;
+  return str.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+}
+
+/** Add comma thousands separators to a numeric string */
+function addCommas(str: string): string {
+  const [int, dec] = str.split(".");
+  const withCommas = int.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return dec !== undefined ? `${withCommas}.${dec}` : withCommas;
+}
+
+/** Alias for explicit token amount contexts */
+export const formatTokenAmount = formatNumber;
+
 
 /**
  * Format a percentage with appropriate suffix for large values

@@ -248,8 +248,6 @@ export class MultiChainTokenService {
       };
 
       this.bscWs.onclose = () => {
-        console.log("BSC WebSocket disconnected, reconnecting...");
-        setTimeout(() => this.connectBSC(), 3000);
       };
     } catch (error) {
       logger.error("Failed to connect to BSC feed", error);

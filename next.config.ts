@@ -9,6 +9,17 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
 
+  // Suppress verbose dev-server request timing logs (GET /api/... 200 in Xms)
+  logging: {
+    fetches: {
+      fullUrl: false,
+      hmrRefreshes: false,
+    },
+  },
+
+  // Explicitly mark OpenTelemetry instrumentation hooks as external packages for Turbopack & Sentry
+  serverExternalPackages: ["import-in-the-middle", "require-in-the-middle"],
+
   compiler: {
     // Strip console.log/info/debug from production builds. Several call sites
     // print wallet objects, balances and trade payloads, which should not land

@@ -32,10 +32,10 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(trades);
-  } catch (error) {
-    logger.error("Failed to fetch trades:", error);
+  } catch (error: any) {
+    console.error("GET /api/trades error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: error?.message || "Internal Server Error" },
       { status: 500 }
     );
   }
@@ -117,10 +117,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(tradeItem);
-  } catch (error) {
-    logger.error("Failed to save trade:", error);
+  } catch (error: any) {
+    console.error("POST /api/trades error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: error?.message || "Internal Server Error" },
       { status: 500 }
     );
   }

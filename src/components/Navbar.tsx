@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Search, RefreshCw, Wallet, Menu, User, ArrowLeft } from "lucide-react";
+import { Search, RefreshCw, Wallet, Menu, User, ArrowLeft, ShieldCheck } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import { useAuth } from "@/context/AuthContext";
 import { useViewport } from "@/context/ViewportContext";
@@ -42,90 +42,96 @@ export default function Navbar({
   const pathname = usePathname();
   const { user, turnkeyUser, turnkeySession } = useAuth();
   const isAuthenticated = user || turnkeyUser || turnkeySession;
+  const isAdmin = user?.accessLevel === "admin";
   const { isDesktop, isMobile } = useViewport();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   return (
-    <header className="border-b border-primary/20 bg-panel/80 backdrop-blur-xl sticky top-0 z-50 w-full shadow-[0_4px_20px_-5px_rgba(var(--primary-rgb),0.2)] h-14 sm:h-16 flex items-center">
-      <div className="w-full px-2 sm:px-4">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
+    <header className="border-b border-primary/20 bg-panel/80 backdrop-blur-xl sticky top-0 z-50 w-full shadow-[0_4px_20px_-5px_rgba(var(--primary-rgb),0.2)] h-16 sm:h-20 flex items-center">
+      <div className="w-full px-4 sm:px-8 lg:px-12">
+        <div className="flex items-center justify-between gap-4">
           {/* Left: Logo and Navigation */}
-          <div className="flex items-center gap-2 sm:gap-4 md:gap-6 min-w-0 flex-1">
+          <div className="flex items-center min-w-0 flex-1">
             {showBackButton && onBackClick && (
               <button
                 onClick={onBackClick}
-                className="p-1.5 sm:p-2 hover:bg-panel-elev rounded-lg transition-colors cursor-pointer active:scale-95 flex-shrink-0"
+                className="mr-3 p-2 hover:bg-panel-elev rounded-xl transition-colors cursor-pointer active:scale-95 flex-shrink-0"
                 title="Go back"
               >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                <ArrowLeft className="w-5 h-5" />
               </button>
             )}
             <Link
               href="/"
-              className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0 cursor-pointer group"
+              className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer group pr-4"
             >
               <div className="relative">
                 <Image
                   src="/logo.jpg"
                   alt="Cabalspy Logo"
-                  width={32}
-                  height={32}
-                  className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover ring-2 ring-primary/20 flex-shrink-0 transition-all group-hover:ring-primary/50"
+                  width={36}
+                  height={36}
+                  className="w-7 h-7 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-primary/30 flex-shrink-0 transition-all group-hover:ring-primary/60"
                   unoptimized
                 />
                 <div className="absolute inset-0 rounded-full bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-xl font-bold tracking-tight whitespace-nowrap">
+              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-lg sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">
                 CABALSPY
               </span>
             </Link>
-            {/* Desktop Navigation - Show on lg and above */}
-            <nav className="hidden lg:flex items-center gap-6">
+
+            {/* Navigation Links - Pushed away from logo with ml */}
+            <nav className="flex items-center gap-6 sm:gap-8 md:gap-10 ml-6 sm:ml-10 md:ml-14">
               <Link
                 href="/"
-                className={`text-sm font-semibold transition-all hover:text-primary cursor-pointer ${
-                  pathname === "/" ? "text-primary" : "text-muted"
+                className={`text-sm sm:text-base font-bold tracking-wide transition-all hover:text-primary cursor-pointer ${
+                  pathname === "/" ? "text-primary border-b-2 border-primary pb-0.5" : "text-muted hover:text-white"
                 }`}
               >
                 Home
               </Link>
               <Link
                 href="/portfolio"
-                className={`text-sm font-semibold transition-all hover:text-primary cursor-pointer ${
-                  pathname === "/portfolio" ? "text-primary" : "text-muted"
+                className={`text-sm sm:text-base font-bold tracking-wide transition-all hover:text-primary cursor-pointer ${
+                  pathname === "/portfolio" ? "text-primary border-b-2 border-primary pb-0.5" : "text-muted hover:text-white"
                 }`}
               >
                 Portfolio
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`text-sm sm:text-base font-bold tracking-wide transition-all hover:text-[#f59e0b] cursor-pointer flex items-center gap-1.5 ${
+                    pathname === "/admin" ? "text-[#f59e0b] border-b-2 border-[#f59e0b] pb-0.5" : "text-[#f59e0b]/80 hover:text-[#f59e0b]"
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#f59e0b]" />
+                  Admin
+                </Link>
+              )}
             </nav>
           </div>
 
-          {/* Desktop: Action Buttons - Show on desktop (md and above) */}
-          <div
-            style={{
-              display: isDesktop ? "flex" : "none",
-              alignItems: "center",
-              gap: "0.75rem",
-              flexShrink: 0,
-            }}
-          >
+          {/* Action Buttons & Auth */}
+          <div className="flex items-center gap-3 sm:gap-4 shrink-0">
             {showSearch && onSearchClick && (
               <button
                 onClick={onSearchClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-all cursor-pointer active:scale-95 text-muted hover:text-primary border border-transparent hover:border-primary/20"
+                className="p-2.5 hover:bg-white/5 rounded-xl transition-all cursor-pointer active:scale-95 text-muted hover:text-primary border border-white/5 hover:border-primary/30"
                 title="Search Token"
               >
-                <Search className="w-4 h-4 cursor-pointer" />
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 cursor-pointer" />
               </button>
             )}
             {showRefresh && onRefreshClick && (
               <button
                 onClick={onRefreshClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-all cursor-pointer active:scale-95 text-muted hover:text-primary border border-transparent hover:border-primary/20"
+                className="p-2.5 hover:bg-white/5 rounded-xl transition-all cursor-pointer active:scale-95 text-muted hover:text-primary border border-white/5 hover:border-primary/30"
                 title="Refresh"
               >
                 <RefreshCw
-                  className={`w-4 h-4 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
+                  className={`w-4 h-4 sm:w-5 sm:h-5 cursor-pointer ${isLoading ? "animate-spin" : ""}`}
                 />
               </button>
             )}
@@ -133,20 +139,18 @@ export default function Navbar({
             {showWalletSettings && onWalletSettingsClick && isAuthenticated && (
               <button
                 onClick={onWalletSettingsClick}
-                className="p-2 hover:bg-panel-elev rounded-lg transition-all flex items-center gap-1 cursor-pointer active:scale-95 text-muted hover:text-primary border border-transparent hover:border-primary/20"
+                className="p-2.5 hover:bg-white/5 rounded-xl transition-all flex items-center gap-1 cursor-pointer active:scale-95 text-muted hover:text-primary border border-white/5 hover:border-primary/30"
                 title="Wallet Settings"
               >
-                <Wallet className="w-4 h-4 cursor-pointer" />
+                <Wallet className="w-4 h-4 sm:w-5 sm:h-5 cursor-pointer" />
               </button>
             )}
             {/* Auth Button */}
             <AuthButton />
           </div>
 
-          {/* Mobile: Hamburger Menu and Wallet - Show only on mobile (below md breakpoint) */}
-          <div
-            className="lg:hidden flex items-center gap-2"
-          >
+          {/* Mobile: Hamburger Menu - Show ONLY on mobile screens (below md breakpoint) */}
+          <div className="hidden max-md:flex items-center gap-2">
             {showSearch && onSearchClick && (
               <button
                 onClick={onSearchClick}
@@ -179,26 +183,38 @@ export default function Navbar({
                   {/* Content */}
                   <div className="flex flex-col py-2">
                     {/* Navigation Links */}
-                    <nav className="flex flex-col px-2">
-                      <Link
-                        href="/"
-                        onClick={() => setShowMobileMenu(false)}
-                        className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                      >
-                        <span className="group-hover:translate-x-1 transition-transform">
-                          Home
-                        </span>
-                      </Link>
-                      <Link
-                        href="/portfolio"
-                        onClick={() => setShowMobileMenu(false)}
-                        className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
-                      >
-                        <span className="group-hover:translate-x-1 transition-transform">
-                          Portfolio
-                        </span>
-                      </Link>
-                    </nav>
+                      <nav className="flex flex-col px-2">
+                        <Link
+                          href="/"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                        >
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            Home
+                          </span>
+                        </Link>
+                        <Link
+                          href="/portfolio"
+                          onClick={() => setShowMobileMenu(false)}
+                          className="flex items-center gap-4 px-4 py-4 text-base font-medium text-gray-300 hover:text-white hover:bg-panel-elev/50 rounded-xl transition-all cursor-pointer group"
+                        >
+                          <span className="group-hover:translate-x-1 transition-transform">
+                            Portfolio
+                          </span>
+                        </Link>
+                        {isAdmin && (
+                          <Link
+                            href="/admin"
+                            onClick={() => setShowMobileMenu(false)}
+                            className="flex items-center gap-4 px-4 py-4 text-base font-medium text-[#f59e0b] hover:bg-[#f59e0b]/10 rounded-xl transition-all cursor-pointer group border border-[#f59e0b]/20"
+                          >
+                            <ShieldCheck className="w-5 h-5 text-[#f59e0b]" />
+                            <span className="group-hover:translate-x-1 transition-transform font-bold">
+                              Admin Console
+                            </span>
+                          </Link>
+                        )}
+                      </nav>
 
                     {/* Action Buttons */}
                     <div className="px-2 pt-2 pb-2">

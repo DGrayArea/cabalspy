@@ -484,17 +484,7 @@ export class PumpFunService {
     // Check if there's already a pending request for this endpoint
     const pending = this.pendingRequests.get(cacheKey);
     if (pending) {
-      console.log(`⏳ Waiting for existing request to ${cacheKey}...`);
       return pending;
-    }
-    
-    // Throttle requests - ensure minimum interval between requests to same endpoint
-    const lastRequest = this.lastRequestTime.get(cacheKey) || 0;
-    const timeSinceLastRequest = Date.now() - lastRequest;
-    if (timeSinceLastRequest < this.MIN_REQUEST_INTERVAL) {
-      const waitTime = this.MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-      console.log(`⏸️ Throttling request to ${cacheKey}, waiting ${waitTime}ms...`);
-      await new Promise(resolve => setTimeout(resolve, waitTime));
     }
     
     // Create the request promise

@@ -103,8 +103,8 @@ export default function RootLayout({
       >
         <ViewportProvider>
           <TurnKeyProvider>
-            <TurnkeySolanaContextProvider>
-              <AuthProvider>
+            <AuthProvider>
+              <TurnkeySolanaContextProvider>
                 <PortfolioProvider>
                   <WatchlistProvider>
                     <SettingsProvider>
@@ -114,8 +114,8 @@ export default function RootLayout({
                     </SettingsProvider>
                   </WatchlistProvider>
                 </PortfolioProvider>
-              </AuthProvider>
-            </TurnkeySolanaContextProvider>
+              </TurnkeySolanaContextProvider>
+            </AuthProvider>
           </TurnKeyProvider>
         </ViewportProvider>
         <Toaster />

@@ -1270,25 +1270,7 @@ export class ProtocolService {
       if (result.status === 'fulfilled') {
         const tokens = result.value;
         if (tokens.length > 0) {
-          console.log(`✅ ${protocol}: Fetched ${tokens.length} tokens`);
-          // CRITICAL: Tokens from graduated endpoints are ALWAYS migrated
-          // Normalize protocol names and mark tokens from graduated endpoints
-          const normalizedTokens = tokens.map(token => {
-            const prot = protocol as string;
-            const isFromGraduatedEndpoint = prot === 'moonit-api-graduated';
-            const normalizedProtocol = (prot === 'moonit-jupiter' || prot === 'moonit-api' || prot === 'moonit-api-graduated') 
-              ? 'moonit' 
-              : protocol;
-            
-            return { 
-              ...token, 
-              protocol: normalizedProtocol,
-              // Force migrated status if from graduated endpoint (no need to check API fields)
-              isMigrated: isFromGraduatedEndpoint || token.isMigrated,
-              bondingProgress: isFromGraduatedEndpoint ? 1.0 : token.bondingProgress,
-            };
-          });
-          allTokens.push(...normalizedTokens);
+          allTokens.push(...tokens);
         } else {
           console.warn(`⚠️ ${protocol}: No tokens returned (API may be down or endpoint incorrect)`);
         }

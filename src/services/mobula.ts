@@ -29,17 +29,6 @@ const MIN_REQUEST_INTERVAL = 1000; // Minimum 1 second between requests (1 reque
 async function waitForQueueAndLock(): Promise<void> {
   // Wait for any pending request to complete
   if (globalRequestQueue) {
-    console.log(`⏳ Mobula: Waiting for previous request in queue...`);
-    try {
-      await globalRequestQueue;
-    } catch (e) {
-      // Ignore errors from previous request
-    }
-  }
-
-  // Wait for lock to be released (in case another request is setting up)
-  while (queueLock) {
-    await sleep(50);
   }
 
   // Acquire lock
@@ -82,13 +71,6 @@ async function retryRequest<T>(
       ) {
         if (attempt < maxRetries) {
           const delay = baseDelay * Math.pow(2, attempt); // Exponential backoff
-          console.log(
-            `🔄 Mobula: Retrying after ${delay}ms (attempt ${attempt + 1}/${maxRetries})`,
-            {
-              status,
-              error: error.message,
-            }
-          );
           await sleep(delay);
           continue;
         }
@@ -180,12 +162,6 @@ export class MobulaService {
       const chainId = options?.chainId || ["solana:solana"];
       const limit = options?.limit || 100;
 
-      console.log("🌐 Mobula Service: Fetching tokens...", {
-        viewName,
-        chainId,
-        limit,
-        method: "GET (primary)",
-      });
 
       // PRIMARY: Try GET method first (simpler, more reliable)
       // GET method returns all views (new, bonding, bonded) automatically
@@ -199,19 +175,11 @@ export class MobulaService {
         try {
           return await this.fetchTokensGET(viewName, limit);
         } catch (getError: any) {
-          console.log("⚠️ Mobula GET failed, falling back to POST", {
-            error: getError.message,
-          });
           // Fall through to POST method
         }
       }
 
       // FALLBACK: Use POST method for advanced filtering or custom views
-      console.log("🔄 Mobula: Using POST method (advanced filtering)", {
-        viewName,
-        hasFilters: !!options?.filters,
-        hasCustomSort: !!options?.sortBy,
-      });
       return await this.fetchTokensPOST(options);
     } catch (error) {
       logger.error("Error fetching tokens from Mobula:", error);
@@ -239,8 +207,6 @@ export class MobulaService {
     const timeSinceLastRequest = now - lastGlobalRequest;
     if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
       const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-      console.log(`⏳ Mobula: Rate limiting, waiting ${waitTime}ms...`);
-      await sleep(waitTime);
     }
 
     // Build GET URL with assetMode for token-based analytics
@@ -255,9 +221,6 @@ export class MobulaService {
 
     // Try primary API key first with retry logic
     const makeRequest = async () => {
-      console.log("🔑 Mobula GET: Trying primary API key...", {
-        view: viewName,
-      });
       try {
         return await retryRequest(async () => {
           return await axios.get(url, {
@@ -278,29 +241,20 @@ export class MobulaService {
     let response: AxiosResponse<any>;
     try {
       response = await globalRequestQueue;
-      console.log("✅ Mobula GET: Primary key worked!", {
-        status: response.status,
-        view: viewName,
-      });
       globalRequestQueue = null;
     } catch (error: any) {
       globalRequestQueue = null;
-      console.log("⚠️ Mobula GET: Primary key failed", {
-        status: error.response?.status,
-        message: error.message,
-      });
 
       // Try fallback API key if primary fails with auth error
       if (
         (error.response?.status === 401 || error.response?.status === 403) &&
         process.env.NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY
       ) {
-        console.log("🔄 Mobula GET: Trying fallback API key...");
-        const fallbackNow = Date.now();
         const lastGlobalRequest = Math.max(
           lastRequestTime["GET"] || 0,
           lastRequestTime["POST"] || 0
         );
+        const fallbackNow = Date.now();
         const fallbackTimeSinceLastRequest = fallbackNow - lastGlobalRequest;
         if (fallbackTimeSinceLastRequest < MIN_REQUEST_INTERVAL) {
           const waitTime = MIN_REQUEST_INTERVAL - fallbackTimeSinceLastRequest;
@@ -326,10 +280,6 @@ export class MobulaService {
         globalRequestQueue = fallbackRequest();
         try {
           response = await globalRequestQueue;
-          console.log("✅ Mobula GET: Fallback key worked!", {
-            status: response.status,
-            view: viewName,
-          });
           globalRequestQueue = null;
         } catch (fallbackError: any) {
           globalRequestQueue = null;
@@ -352,11 +302,6 @@ export class MobulaService {
       this.transformToTokenData(mobulaToken)
     );
 
-    console.log("📦 Mobula GET: Transformed tokens", {
-      count: tokens.length,
-      view: viewName,
-      firstTokenSymbol: tokens[0]?.symbol,
-    });
 
     // Cache the result
     const cacheKey = JSON.stringify({ view: viewName, limit, method: "GET" });
@@ -450,16 +395,11 @@ export class MobulaService {
       const timeSinceLastRequest = now - lastGlobalRequest;
       if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
         const waitTime = MIN_REQUEST_INTERVAL - timeSinceLastRequest;
-        console.log(`⏳ Mobula POST: Rate limiting, waiting ${waitTime}ms...`);
-        await sleep(waitTime);
       }
 
       // Try primary API key first
       let response: AxiosResponse<MobulaPulseResponse>;
       const makeRequest = async () => {
-        console.log("🔑 Mobula POST: Trying primary API key...", {
-          view: viewName,
-        });
         try {
           return await retryRequest(async () => {
             return await axios.post<MobulaPulseResponse>(
@@ -483,30 +423,20 @@ export class MobulaService {
 
       try {
         response = await globalRequestQueue;
-        console.log("✅ Mobula POST: Primary key worked!", {
-          status: response.status,
-          viewData: Object.keys(response.data),
-          view: viewName,
-        });
         globalRequestQueue = null;
       } catch (error: any) {
         globalRequestQueue = null;
-        console.log("⚠️ Mobula POST: Primary key failed", {
-          status: error.response?.status,
-          message: error.message,
-        });
 
         // Try fallback API key if primary fails with auth error
         if (
           (error.response?.status === 401 || error.response?.status === 403) &&
           process.env.NEXT_PUBLIC_MOBULA_FALLBACK_API_KEY
         ) {
-          console.log("🔄 Mobula POST: Trying fallback API key...");
-          const fallbackNow = Date.now();
           const lastGlobalRequest = Math.max(
             lastRequestTime["GET"] || 0,
             lastRequestTime["POST"] || 0
           );
+          const fallbackNow = Date.now();
           const fallbackTimeSinceLastRequest = fallbackNow - lastGlobalRequest;
           if (fallbackTimeSinceLastRequest < MIN_REQUEST_INTERVAL) {
             const waitTime =
@@ -537,10 +467,6 @@ export class MobulaService {
           globalRequestQueue = fallbackRequest();
           try {
             response = await globalRequestQueue;
-            console.log("✅ Mobula POST: Fallback key worked!", {
-              status: response.status,
-              view: viewName,
-            });
             globalRequestQueue = null;
           } catch (fallbackError: any) {
             globalRequestQueue = null;
@@ -561,11 +487,6 @@ export class MobulaService {
         this.transformToTokenData(mobulaToken)
       );
 
-      console.log("📦 Mobula POST: Transformed tokens", {
-        count: tokens.length,
-        view: viewName,
-        firstTokenSymbol: tokens[0]?.symbol,
-      });
 
       // Cache the result
       const cacheKey = JSON.stringify(options);

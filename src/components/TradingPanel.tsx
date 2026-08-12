@@ -406,9 +406,13 @@ export default function TradingPanel({
                     <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
                   </button>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="decimal"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) setAmount(val);
+                    }}
                     placeholder="0"
                     className="flex-1 bg-transparent text-right text-2xl sm:text-3xl font-bold text-white focus:outline-none placeholder-gray-600 truncate"
                   />
@@ -504,10 +508,13 @@ export default function TradingPanel({
                     </button>
                   ))}
                   <input
-                    type="number"
-                    step="0.1"
+                    type="text"
+                    inputMode="decimal"
                     value={slippage}
-                    onChange={(e) => setSlippage(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^[0-9]*\.?[0-9]*$/.test(val)) setSlippage(val);
+                    }}
                     placeholder="Auto"
                     className="w-16 text-[10px] px-2 py-1 bg-white/5 rounded-md text-right text-white focus:outline-none focus:ring-1 focus:ring-primary font-mono"
                   />

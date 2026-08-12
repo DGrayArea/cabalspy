@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
           id: true,
           direction: true,
           amount: true,
+          output: true,
           priceUsd: true,
           feesSOL: true,
           symbol: true,
@@ -149,11 +150,12 @@ export async function GET(req: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
-    // 10. Volume (total amount strings parsed as floats, in SOL)
+    // 10. Volume in SOL: for BUY, amount is SOL spent; for SELL, output is SOL received.
     let totalVolumeSol = 0;
     for (const trade of allTrades) {
       if (trade.status === "success") {
-        const parsed = parseFloat(trade.amount);
+        const solVal = trade.direction === "buy" ? trade.amount : trade.output;
+        const parsed = parseFloat(solVal || "0");
         if (!isNaN(parsed)) totalVolumeSol += parsed;
       }
     }
@@ -161,13 +163,21 @@ export async function GET(req: NextRequest) {
     // 11. Volume by day
     const volumeByDay = buildDailyVolumeBuckets(allTrades, days30Ago, now);
 
-    // Fees: prefer actual recorded referral fees (feesSOL, tracked per trade);
-    // fall back to a 1% estimate of volume for older trades without the field.
-    const collectedFeesSol = allTrades.reduce(
-      (sum, t) => sum + (t.status === "success" && t.feesSOL ? t.feesSOL : 0),
-      0
-    );
-    const FEE_RATE = 0.01; // matches the 125bps referral fee net of Jupiter's cut
+    // Fees: sum actual net referral fees (feesSOL, 1% net rate) for successful trades.
+    // Ignores any legacy corrupted entries where feesSOL exceeded the SOL leg.
+    const collectedFeesSol = allTrades.reduce((sum, t) => {
+      if (t.status !== "success") return sum;
+      const solVal = t.direction === "buy" ? t.amount : t.output;
+      const solLeg = parseFloat(solVal || "0");
+      if (isNaN(solLeg) || solLeg <= 0) return sum;
+      const tradeFee =
+        t.feesSOL && t.feesSOL > 0 && t.feesSOL < solLeg
+          ? t.feesSOL
+          : solLeg * 0.01;
+      return sum + tradeFee;
+    }, 0);
+
+    const FEE_RATE = 0.01; // 100 bps net platform share (80% of 125 bps)
     const estimatedFeeSol = totalVolumeSol * FEE_RATE;
 
     return NextResponse.json({
@@ -206,9 +216,9 @@ export async function GET(req: NextRequest) {
         topTokens,
       },
     });
-  } catch (error) {
-    console.error("[ADMIN_METRICS]", error);
-    return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+  } catch (error: any) {
+    console.error("[ADMIN_METRICS_ERROR]", error);
+    return NextResponse.json({ error: error?.message || "Internal Error" }, { status: 500 });
   }
 }
 
@@ -230,7 +240,7 @@ function buildDailyBuckets(dates: Date[], from: Date, to: Date): { date: string;
 }
 
 function buildDailyVolumeBuckets(
-  trades: { timestamp: Date; amount: string; status: string; direction: string }[],
+  trades: { timestamp: Date; amount: string; output: string; status: string; direction: string }[],
   from: Date,
   to: Date
 ): { date: string; volume: number }[] {
@@ -245,7 +255,8 @@ function buildDailyVolumeBuckets(
     if (t.status !== "success") continue;
     const key = new Date(t.timestamp).toISOString().split("T")[0];
     if (buckets[key] !== undefined) {
-      const v = parseFloat(t.amount);
+      const solVal = t.direction === "buy" ? t.amount : t.output;
+      const v = parseFloat(solVal || "0");
       if (!isNaN(v)) buckets[key] += v;
     }
   }

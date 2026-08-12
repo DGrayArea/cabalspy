@@ -15,6 +15,9 @@ import {
   TrendingUp,
   BarChart3,
   Search,
+  ChevronDown,
+  Plus,
+  Check,
 } from "lucide-react";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { useTurnkeySolana } from "@/context/TurnkeySolanaContext";
@@ -43,7 +46,7 @@ export default function PortfolioPage() {
   const { user, turnkeyUser } = useAuth();
   const isAuthenticated = user || turnkeyUser;
   const { isAuthorizing } = useRequireAccess();
-  const { address: walletAddress } = useTurnkeySolana();
+  const { address: walletAddress, allWallets, selectedWalletId, selectWallet } = useTurnkeySolana();
   const {
     solBalance,
     solBalanceUsd,
@@ -63,6 +66,7 @@ export default function PortfolioPage() {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showWalletSettings, setShowWalletSettings] = useState(false);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [realized, setRealized] = useState<{
     totalPnLUsd: number;
     totalPnLPercent: number;
@@ -160,19 +164,110 @@ export default function PortfolioPage() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Portfolio</h1>
             {walletAddress && (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-gray-500 font-mono">
-                  {walletAddress.slice(0, 6)}...{walletAddress.slice(-6)}
-                </span>
+              <div className="relative flex flex-wrap items-center gap-2 mt-2">
+                {allWallets && allWallets.length > 0 ? (
+                  <div className="relative">
+                    <button
+                      onClick={() => setDropdownOpen(!dropdownOpen)}
+                      className="flex items-center gap-2 bg-panel-elev/90 hover:bg-panel-elev border border-gray-800 hover:border-gray-700 rounded-xl px-3.5 py-1.5 shadow-md transition-all cursor-pointer group"
+                    >
+                      <span className="w-2 h-2 rounded-full bg-primary animate-pulse flex-shrink-0" />
+                      <span className="text-xs font-semibold text-white max-w-[180px] sm:max-w-[280px] truncate">
+                        {allWallets.find((w) => w.walletId === selectedWalletId)?.walletName || "Solana Wallet"}
+                      </span>
+                      <span className="text-xs text-gray-400 font-mono hidden sm:inline">
+                        ({walletAddress.slice(0, 4)}...{walletAddress.slice(-4)})
+                      </span>
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-gray-400 group-hover:text-white transition-transform duration-200 ${
+                          dropdownOpen ? "rotate-180 text-primary" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* Custom Dropdown Menu */}
+                    {dropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setDropdownOpen(false)}
+                        />
+                        <div className="absolute left-0 top-full mt-2 w-72 sm:w-80 bg-panel border border-gray-800 rounded-2xl shadow-2xl z-50 overflow-hidden animate-scale-in">
+                          <div className="px-3.5 py-2.5 border-b border-gray-800/60 bg-panel-elev/50 flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                              Select Trading Wallet ({allWallets.length})
+                            </span>
+                            <span className="text-[10px] text-primary bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 font-mono">
+                              Turnkey
+                            </span>
+                          </div>
+
+                          <div className="p-1.5 space-y-1 max-h-60 overflow-y-auto custom-scrollbar">
+                            {allWallets.map((w, idx) => {
+                              const isSelected = (selectedWalletId || walletAddress) === w.walletId || (selectedWalletId === null && idx === 0);
+                              return (
+                                <button
+                                  key={w.walletId}
+                                  onClick={() => {
+                                    selectWallet(w.walletId);
+                                    setDropdownOpen(false);
+                                  }}
+                                  className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between gap-2 transition-all cursor-pointer ${
+                                    isSelected
+                                      ? "bg-primary/10 border border-primary/40 text-white"
+                                      : "hover:bg-panel-elev/80 border border-transparent text-gray-300 hover:text-white"
+                                  }`}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-xs font-bold truncate flex items-center gap-1.5">
+                                      {w.walletName || `Wallet #${idx + 1}`}
+                                      {isSelected && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] font-mono text-gray-400 truncate">
+                                      {w.address}
+                                    </div>
+                                  </div>
+                                  {isSelected && (
+                                    <Check className="w-4 h-4 text-primary flex-shrink-0" />
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="p-1.5 border-t border-gray-800/60 bg-panel-elev/30">
+                            <button
+                              onClick={() => {
+                                setDropdownOpen(false);
+                                setShowWalletSettings(true);
+                              }}
+                              className="w-full py-2 px-3 bg-panel-elev hover:bg-panel border border-gray-700/60 hover:border-gray-600 rounded-xl text-xs font-bold text-gray-200 hover:text-white flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5 text-primary" />
+                              <span>Manage / Create Wallets</span>
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-400 font-mono bg-panel-elev px-2 py-1 rounded-md border border-white/5">
+                    {walletAddress.slice(0, 6)}...{walletAddress.slice(-6)}
+                  </span>
+                )}
+
                 <button
                   onClick={copyAddress}
-                  className="p-0.5 hover:bg-panel-elev rounded transition-colors"
+                  className="p-2 hover:bg-white/10 rounded-xl transition-colors border border-white/5 cursor-pointer text-gray-400 hover:text-white"
                   title="Copy address"
                 >
                   {copied ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
                   ) : (
-                    <Copy className="w-3.5 h-3.5 text-gray-500" />
+                    <Copy className="w-3.5 h-3.5" />
                   )}
                 </button>
               </div>

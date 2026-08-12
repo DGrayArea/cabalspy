@@ -468,16 +468,22 @@ export default function AdminDashboard() {
       <div className="fixed top-0 left-1/4 w-[600px] h-[400px] bg-[#00ff9d]/5 blur-[120px] rounded-full pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[400px] bg-[#bd00ff]/5 blur-[120px] rounded-full pointer-events-none" />
 
-      <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-8 py-8">
+      {/* Top Left Back Arrow */}
+      <Link
+        href="/"
+        className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-2 text-[#64748b] hover:text-white transition-colors group z-20"
+        title="Back to Terminal"
+      >
+        <div className="p-2 sm:p-2.5 rounded-2xl bg-white/5 border border-white/10 group-hover:border-white/30 transition-all">
+          <ArrowLeft className="w-4 h-4" />
+        </div>
+      </Link>
+
+      <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-8 py-8 pt-16 sm:pt-8">
 
         {/* ── Header ───────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
-            <Link href="/" className="flex items-center gap-2 text-[#64748b] hover:text-white transition-colors group">
-              <div className="p-2 rounded-xl bg-white/5 border border-white/10 group-hover:border-white/20 transition-all">
-                <ArrowLeft className="w-4 h-4" />
-              </div>
-            </Link>
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <div className="p-1.5 rounded-lg bg-[#00ff9d]/10 border border-[#00ff9d]/20">
