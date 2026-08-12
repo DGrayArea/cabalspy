@@ -458,6 +458,7 @@ export function TurnkeySolanaContextProvider(props: {
       walletName,
       allSolanaWalletsItems,
       embeddedSolanaWallet,
+      selectWallet,
       walletAccount,
       error,
       isLoading,

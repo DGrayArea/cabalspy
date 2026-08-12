@@ -116,14 +116,16 @@ export function TelegramLoginWidget({
       origError.apply(console, args);
     };
 
-    // Clear any previous widget before injecting
-    containerRef.current.innerHTML = "";
-    containerRef.current.appendChild(script);
+    const container = containerRef.current;
+    if (container) {
+      container.innerHTML = "";
+      container.appendChild(script);
+    }
 
     return () => {
       // Cleanup
-      if (containerRef.current) {
-        containerRef.current.innerHTML = "";
+      if (container) {
+        container.innerHTML = "";
       }
       delete (window as any).onTelegramAuth;
       console.error = origError;

@@ -73,9 +73,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         .then((res) => res.json())
         .then((data) => {
           if (data && typeof data === "object" && !data.error) {
-            setDisplaySettingsState((prev) => ({ ...prev, ...data }));
-            // Also update LocalStorage to match DB
-            localStorage.setItem("cabalspy_settings", JSON.stringify({ ...displaySettings, ...data }));
+            setDisplaySettingsState((prev) => {
+              const next = { ...prev, ...data };
+              localStorage.setItem("cabalspy_settings", JSON.stringify(next));
+              return next;
+            });
           }
         })
         .catch((err) => console.error("Failed to sync settings from DB", err))

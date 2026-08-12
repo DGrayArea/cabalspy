@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { useTurnkeySolana } from "./TurnkeySolanaContext";
 import { useAuth } from "./AuthContext";
 import { env } from "@/lib/env";

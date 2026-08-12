@@ -33,6 +33,7 @@ import {
   MessageCircle,
   Loader2,
   Settings,
+  ShieldCheck,
   ArrowUpRight,
   ChevronRight,
 } from "lucide-react";
@@ -238,7 +239,7 @@ function TokenDetailContent() {
         })
         .catch(() => {});
     }
-  }, [activeTab, tokenAddress]);
+  }, [activeTab, tokenAddress, holders.length, holdersLoading]);
 
   const tokenDecimals = tokenDecimalsFromParams
     ? parseInt(tokenDecimalsFromParams)

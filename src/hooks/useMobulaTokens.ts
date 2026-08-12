@@ -43,6 +43,8 @@ export const useMobulaTokens = (options: UseMobulaTokensOptions = {}) => {
   const [error, setError] = useState<string | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  const filterKey = JSON.stringify(filters);
+
   const fetchTokens = useCallback(async () => {
     if (!enabled) {
       console.log("🔴 Mobula disabled - skipping fetch");
@@ -79,7 +81,7 @@ export const useMobulaTokens = (options: UseMobulaTokensOptions = {}) => {
     } finally {
       setIsLoading(false);
     }
-  }, [enabled, view, chainId, limit, sortBy, JSON.stringify(filters)]);
+  }, [enabled, view, chainId, limit, sortBy, filters, filterKey]);
 
   useEffect(() => {
     console.log("🔵 Mobula hook mounted", { enabled, view });

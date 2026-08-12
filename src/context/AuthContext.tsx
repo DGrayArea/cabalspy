@@ -434,7 +434,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       events.forEach(event => window.removeEventListener(event, resetTimer));
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [user, turnkeyUser]);
+  }, [user, turnkeyUser, logout]);
 
   // While logging out, treat the user as still "authenticated" so the auth page
   // does NOT flash during the sign-out transition.

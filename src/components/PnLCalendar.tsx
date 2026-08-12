@@ -79,7 +79,7 @@ export function PnLCalendar({ data: propData, title = "PERFORMANCE CALENDAR" }: 
 
   useEffect(() => {
     fetchHistory();
-  }, [walletAddress]); // re-fetch when wallet changes
+  }, [walletAddress, fetchHistory]); // re-fetch when wallet changes
 
   // ── Active dataset ────────────────────────────────────────────────────────
   const allData: DayPnL[] = propData ?? fetchedData;
