@@ -11,27 +11,30 @@ import { TurnkeyErrorCodes } from "@turnkey/sdk-types";
 /**
  * Where Google sends the user back to.
  *
- * This must be /auth, not the origin root. With openOauthInPage the browser
- * returns with the OAuth response in the URL, and Turnkey reads it on mount.
- * Landing on "/" meant the home page's access guard saw an unauthenticated
- * user (Turnkey hadn't consumed the response yet), redirected to /auth, and
- * destroyed the callback params mid-flight — so sign-in silently bounced back
- * to the start. Being a race, it occasionally succeeded, which is why
- * retrying appeared to "sometimes work".
+ * MUST exactly match an "Authorized redirect URI" in the Google Cloud Console
+ * OAuth client, or Google rejects the request with 400 redirect_uri_mismatch
+ * before the user ever reaches the app. The origin root is what is registered,
+ * so that is what we send.
  *
- * /auth has no access guard, so the SDK can finish undisturbed.
+ * The original sign-in bounce (landing on "/" and being redirected to /auth
+ * before Turnkey consumed the OAuth response) is fixed in useRequireAccess,
+ * which now holds its redirect while an OAuth response is present in the URL.
+ * That fix is independent of which path we return to.
+ *
+ * To return somewhere other than the root, register that exact URI in the
+ * Google console first, then set NEXT_PUBLIC_REDIRECT_URI to match it.
  */
 const getRedirectUri = () => {
   if (process.env.NEXT_PUBLIC_REDIRECT_URI) {
     return process.env.NEXT_PUBLIC_REDIRECT_URI;
   }
   if (typeof window !== "undefined") {
-    return `${window.location.origin}/auth`;
+    return window.location.origin;
   }
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return `${process.env.NEXT_PUBLIC_APP_URL}/auth`;
+    return process.env.NEXT_PUBLIC_APP_URL;
   }
-  return "https://cabalspy-pi.vercel.app/auth";
+  return "https://cabalspy-pi.vercel.app";
 };
 
 const turnkeyCallbacks: TurnkeyCallbacks = {
