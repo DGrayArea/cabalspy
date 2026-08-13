@@ -61,16 +61,22 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --radius: var(--radius);
+}
 
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
-  }
+/* These keyframes used to live inside @theme. Tailwind v4 only allows custom
+   property declarations there — a nested at-rule invalidates the whole block,
+   so the default theme (including --breakpoint-sm/md/lg) never registered and
+   NO responsive variants were generated. Every sm:/md:/lg: class in the app
+   was silently inert, which is why the site rendered mobile styles at every
+   width. Keep at-rules out of @theme. */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+}
 
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.4; filter: blur(40px); }
-    50% { opacity: 0.6; filter: blur(60px); }
-  }
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; filter: blur(40px); }
+  50% { opacity: 0.6; filter: blur(60px); }
 }
 
 html {
