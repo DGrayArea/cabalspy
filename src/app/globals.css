@@ -302,3 +302,38 @@ h1, h2, h3, h4, h5, h6 {
 .flash-down {
   animation: flashDown 1s ease-out forwards;
 }
+
+/* ── Responsive display fix ──────────────────────────────────────────
+   @turnkey/react-wallet-kit ships its own compiled Tailwind build
+   (node_modules/@turnkey/react-wallet-kit/dist/styles.css) containing
+   UNCONDITIONAL base utilities: .hidden{display:none}, .flex, .block.
+   It is injected after our stylesheet, so at equal specificity its
+   `.hidden` beat our `.md\:flex` inside @media(min-width:48rem) — the
+   later rule wins. That silently disabled every `hidden md:flex` /
+   `flex md:hidden` pair in the app, which is why the mobile hamburger
+   kept showing at desktop widths.
+
+   The SDK's stylesheet cannot be imported directly to reorder it (the
+   package does not export dist/styles.css), so we win on specificity
+   instead: `html` prefix = (0,1,1) vs the SDK's (0,1,0). Scoped to the
+   display utilities that actually collide. */
+@media (min-width: 48rem) {
+  html .md\:flex { display: flex; }
+  html .md\:hidden { display: none; }
+  html .md\:block { display: block; }
+  html .md\:grid { display: grid; }
+  html .md\:inline-flex { display: inline-flex; }
+}
+@media (min-width: 64rem) {
+  html .lg\:flex { display: flex; }
+  html .lg\:hidden { display: none; }
+  html .lg\:block { display: block; }
+  html .lg\:grid { display: grid; }
+}
+@media (min-width: 40rem) {
+  html .sm\:flex { display: flex; }
+  html .sm\:hidden { display: none; }
+  html .sm\:block { display: block; }
+  html .sm\:grid { display: grid; }
+  html .sm\:inline { display: inline; }
+}
