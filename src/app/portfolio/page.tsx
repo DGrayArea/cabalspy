@@ -327,7 +327,10 @@ export default function PortfolioPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-6 pt-4 border-t border-gray-800/50">
+            {/* 2x2 grid on phones — four stats side by side at 375px made the
+                labels wrap into each other once Realized PnL and Win Rate
+                were added. */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:flex sm:items-center sm:gap-6 pt-4 border-t border-gray-800/50">
               <div>
                 <div className="text-[11px] text-gray-500 mb-0.5">
                   SOL Balance
@@ -409,12 +412,13 @@ export default function PortfolioPage() {
         </div>
 
         {/* ── Tabs ────────────────────────────────────────────────────────── */}
-        <div className="flex border-b border-white/10 mb-8 bg-black/20 rounded-t-2xl overflow-hidden">
+        {/* overflow-x-auto so the third tab isn't clipped on narrow screens */}
+        <div className="flex border-b border-white/10 mb-4 sm:mb-8 bg-black/20 rounded-t-2xl overflow-x-auto scrollbar-hide">
           {(["assets", "history", "watchlist"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex-1 sm:flex-none px-10 py-4 text-[11px] sm:text-xs font-bold tracking-[0.2em] transition-all cursor-pointer uppercase relative ${
+              className={`flex-1 sm:flex-none px-2 sm:px-10 py-4 text-[10px] sm:text-xs font-bold tracking-[0.1em] sm:tracking-[0.2em] whitespace-nowrap transition-all cursor-pointer uppercase relative ${
                 activeTab === tab
                   ? "text-primary bg-white/5"
                   : "text-muted hover:text-white hover:bg-white/5"
