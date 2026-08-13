@@ -68,12 +68,18 @@ export function TokenChart({
       window.clearTimeout(timeoutRef.current);
     }
 
-    // Give current source 3.5 seconds to respond before trying fallback source
+    // DexScreener/GeckoTerminal embeds are heavy third-party pages. 3.5s was
+    // routinely exceeded on mobile, so the chart would abandon a source that
+    // was still loading, fall through to the next, exceed it again, and land
+    // on the error state — the chart "failing" on phones was usually just an
+    // impatient timeout. handleIframeLoaded clears this as soon as a source
+    // responds, so a longer budget costs nothing when things are healthy.
+    const loadBudgetMs = typeof navigator !== "undefined" &&
+      /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ? 15000 : 10000;
+
     timeoutRef.current = window.setTimeout(() => {
-      if (!iframeLoaded) {
-        handleSourceError();
-      }
-    }, 3500);
+      handleSourceError();
+    }, loadBudgetMs);
 
     return () => {
       if (timeoutRef.current) {
