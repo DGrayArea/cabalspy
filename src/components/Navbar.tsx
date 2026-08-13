@@ -61,9 +61,11 @@ export default function Navbar({
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
+            {/* min-w-0 (not flex-shrink-0) so the wordmark can truncate on
+                narrow screens instead of being overlapped by the controls. */}
             <Link
               href="/"
-              className="flex items-center gap-2.5 flex-shrink-0 cursor-pointer group pr-4"
+              className="flex items-center gap-2 sm:gap-2.5 min-w-0 cursor-pointer group pr-2 sm:pr-4"
             >
               <div className="relative">
                 <Image
@@ -76,7 +78,7 @@ export default function Navbar({
                 />
                 <div className="absolute inset-0 rounded-full bg-primary/20 blur-md opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
-              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-lg sm:text-2xl font-extrabold tracking-tight whitespace-nowrap">
+              <span className="bg-linear-to-r from-primary to-secondary bg-clip-text text-transparent text-base sm:text-2xl font-extrabold tracking-tight truncate">
                 CABALSPY
               </span>
             </Link>

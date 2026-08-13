@@ -178,7 +178,7 @@ export default function ProfilePage() {
         onBackClick={() => router.back()}
       />
 
-      <main className="relative z-10 max-w-7xl mx-auto px-4 py-12">
+      <main className="relative z-10 max-w-7xl mx-auto px-3 sm:px-4 py-5 sm:py-10">
         <div className="flex flex-col gap-12">
           {/* Profile Hero Section */}
           <section className="glass rounded-2xl p-6 md:p-10 relative overflow-hidden group">

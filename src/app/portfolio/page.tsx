@@ -158,7 +158,7 @@ export default function PortfolioPage() {
         onWalletSettingsClick={() => setShowWalletSettings(!showWalletSettings)}
       />
 
-      <div className="w-full max-w-5xl mx-auto px-4 pt-5 sm:pt-24 pb-20">
+      <div className="w-full max-w-5xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-20">
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div className="flex items-center justify-between mb-6">
           <div>

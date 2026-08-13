@@ -1858,7 +1858,9 @@ function TokenDetailContent() {
 function TokenDetailPageSkeleton() {
   return (
     <div className="min-h-screen bg-app text-white animate-pulse">
-      <div className="max-w-screen-2xl mx-auto px-4 pt-24 pb-20 space-y-4">
+      {/* pt-24 pushed content 96px down on every screen to clear a header that
+          is sticky, not fixed — dead space, worst on mobile. */}
+      <div className="max-w-screen-2xl mx-auto px-3 sm:px-4 pt-4 sm:pt-6 pb-20 space-y-4">
         <div className="h-20 bg-white/5 rounded-3xl" />
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_380px] gap-4">
           <div className="space-y-4">

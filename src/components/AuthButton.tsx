@@ -183,7 +183,7 @@ export default function AuthButton() {
         <Popover>
           <PopoverTrigger asChild>
             <button
-              className="group flex items-center gap-2 px-1 py-1 pr-3 rounded-full bg-panel-elev border border-white/5 hover:border-primary/30 transition-all cursor-pointer active:scale-95 shadow-lg"
+              className="group flex items-center gap-2 p-1 sm:pr-3 rounded-full bg-panel-elev border border-white/5 hover:border-primary/30 transition-all cursor-pointer active:scale-95 shadow-lg shrink-0"
               title={displayUser.name}
             >
               <div className="relative w-8 h-8 rounded-full overflow-hidden border border-white/10 group-hover:border-primary/50 transition-colors">
@@ -200,7 +200,10 @@ export default function AuthButton() {
                   );
                 })()}
               </div>
-              <span className="text-xs font-bold text-muted group-hover:text-primary transition-colors truncate max-w-[80px]">
+              {/* Name is hidden on phones — the avatar identifies the user and
+                  this reclaims ~90px, which is what pushed the nav controls
+                  over the logo at 375px. */}
+              <span className="hidden sm:block text-xs font-bold text-muted group-hover:text-primary transition-colors truncate max-w-[80px]">
                 {displayUser.name.split(" ")[0]}
               </span>
             </button>

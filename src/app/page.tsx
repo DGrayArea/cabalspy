@@ -317,7 +317,10 @@ export default function Home() {
       <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none" />
 
       {/* Overall Terminal Container - Full Fluid Width */}
-      <div className="relative z-10 w-full px-2 sm:px-6 pt-20 sm:pt-24 pb-8">
+      {/* The navbar is sticky, not fixed, so it already takes layout space —
+          the old pt-20/pt-24 was compensating for a fixed header that doesn't
+          exist and left ~80px of dead space above the fold on mobile. */}
+      <div className="relative z-10 w-full px-2 sm:px-6 pt-4 sm:pt-6 pb-8">
         <div className="flex flex-col gap-4">
           {/* Chain & Metric Filters - Edge-to-Edge Alignment */}
           <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-6 mb-8 w-full">
@@ -381,7 +384,7 @@ export default function Home() {
         </div>
 
         {/* Top Featured Tokens Marquee */}
-        <div className="mb-8 sm:mb-16 animate-fade-in mt-4 sm:mt-8">
+        <div className="mb-4 sm:mb-16 animate-fade-in mt-2 sm:mt-8">
           <div className="px-4 mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3">
             <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
             <h2 className="text-lg sm:text-xl font-bold tracking-tight">
@@ -398,7 +401,7 @@ export default function Home() {
         </div>
 
         {/* Filter Tabs with Counts - Sticky below Navbar - Full Width Expansion */}
-        <div className="mb-12 w-full sticky top-14 sm:top-16 bg-app/90 backdrop-blur-2xl z-40 py-2 -mx-2 sm:-mx-6 px-2 sm:px-6 border-y border-white/5 shadow-2xl overflow-hidden">
+        <div className="mb-4 sm:mb-12 w-full sticky top-14 sm:top-16 bg-app/90 backdrop-blur-2xl z-40 py-2 -mx-2 sm:-mx-6 px-2 sm:px-6 border-y border-white/5 shadow-2xl overflow-hidden">
           <div className="w-full flex items-center justify-between gap-4 h-12">
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide snap-x px-2 h-full">
               {[
@@ -510,7 +513,7 @@ export default function Home() {
         </div>
 
         {/* Icons and Display dropdown */}
-        <div className="mb-8 flex items-center gap-4 justify-end px-4">
+        <div className="mb-4 sm:mb-8 flex items-center gap-2 sm:gap-4 justify-end px-2 sm:px-4">
           <div className="flex items-center gap-2 glass p-1.5 rounded-2xl border-white/5">
             {[
               { icon: Bell, title: "Notifications" },
