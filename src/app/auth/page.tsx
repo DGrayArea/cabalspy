@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useTurnkey } from "@turnkey/react-wallet-kit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, ArrowLeft, ShieldCheck, Zap, Globe, Mail } from "lucide-react";
+import { Loader2, ShieldCheck, Zap, Globe, Mail } from "lucide-react";
 import { Hero } from "@/components/Hero";
 // Telegram login is disabled (email OTP replaces it) — re-enable by
 // uncommenting this and the widget block further down.
@@ -104,13 +104,9 @@ function AuthContent() {
             <span className="text-[9px] text-muted font-mono tracking-widest uppercase">Market Intel</span>
           </div>
         </Link>
-        <Link
-          href="/"
-          className="flex items-center gap-2 text-xs font-bold text-gray-300 hover:text-white bg-panel-elev hover:bg-panel border border-white/10 rounded-xl px-3.5 py-2 transition-all cursor-pointer shadow-sm active:scale-95"
-        >
-          <ArrowLeft className="w-3.5 h-3.5 text-primary" />
-          <span>BACK TO TERMINAL</span>
-        </Link>
+        {/* "Back to terminal" used to sit here, linking to "/" — but "/" is
+            gated, so from the sign-in page it just bounced straight back here.
+            The logo already links home for anyone who is signed in. */}
       </header>
 
       {/* Main Content Grid */}

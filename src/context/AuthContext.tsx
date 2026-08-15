@@ -347,14 +347,48 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     pendingLogoutRef.current = true;
     setIsLoggingOut(true);
 
-    // Nuke Turnkey localStorage FIRST so the old session cannot be replayed
-    // if the page re-renders before turnkeyLogout() resolves
+    // Nuke every Turnkey-owned store FIRST so the old session cannot be
+    // replayed if the page re-renders before turnkeyLogout() resolves.
+    //
+    // This used to remove "@turnkey/session/v2" and "@turnkey/client", but
+    // @turnkey/core 1.14 keeps the session under "@turnkey/session/v3" plus
+    // "@turnkey/active-session-key" / "@turnkey/all-session-keys", and also
+    // uses IndexedDB. Clearing only the old v2 keys deleted nothing that
+    // mattered: the SDK restored the session on the next load and
+    // syncBackendSession minted a fresh server session, so logging out
+    // appeared to do nothing no matter how many times you tried.
+    // Enumerate instead of hardcoding, so an SDK bump can't silently
+    // reintroduce this.
     try {
-      localStorage.removeItem("@turnkey/session/v2");
-      localStorage.removeItem("@turnkey/client");
+      for (const store of [localStorage, sessionStorage]) {
+        const keys: string[] = [];
+        for (let i = 0; i < store.length; i++) {
+          const k = store.key(i);
+          if (k && k.startsWith("@turnkey/")) keys.push(k);
+        }
+        keys.forEach((k) => store.removeItem(k));
+      }
       localStorage.removeItem("lastActive");
     } catch {
       // ignore storage errors
+    }
+
+    // Turnkey also persists to IndexedDB; without this the session survives.
+    try {
+      const dbs = (await indexedDB.databases?.()) ?? [];
+      await Promise.all(
+        dbs
+          .filter((d) => d.name?.toLowerCase().includes("turnkey"))
+          .map(
+            (d) =>
+              new Promise<void>((resolve) => {
+                const req = indexedDB.deleteDatabase(d.name!);
+                req.onsuccess = req.onerror = req.onblocked = () => resolve();
+              }),
+          ),
+      );
+    } catch {
+      // indexedDB.databases() is unsupported in some browsers — non-fatal
     }
 
     try {
