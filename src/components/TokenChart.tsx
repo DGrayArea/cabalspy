@@ -36,19 +36,30 @@ export function TokenChart({
   const dexChain = chainId === "sol" || chainId === "solana" ? "solana" : chainId;
   const geckoNetwork = chainId === "sol" || chainId === "solana" ? "solana" : chainId === "bsc" ? "bsc" : "solana";
 
-  // Build ordered list of available chart providers
+  // Both embeds address a POOL/PAIR, not a token mint. Falling back to the
+  // mint made DexScreener sit on its own "Loading pair…" spinner forever
+  // while it tried to resolve something that endpoint doesn't accept —
+  // which is what made charts appear to hang on illiquid tokens.
+  //
+  // The parent only mounts this component after pair resolution has
+  // finished, so a missing pairAddress means there genuinely is no pair.
+  // Offer only the providers we can actually address.
+  const geckoPool = geckoTerminalPairAddress || pairAddress;
   const chartSources = [
-    {
+    pairAddress && {
       name: "DexScreener",
-      embedUrl: `https://dexscreener.com/${dexChain}/${pairAddress || mintAddress}?embed=1&theme=dark&trades=0&info=0`,
-      publicUrl: `https://dexscreener.com/${dexChain}/${pairAddress || mintAddress}`,
+      embedUrl: `https://dexscreener.com/${dexChain}/${pairAddress}?embed=1&theme=dark&trades=0&info=0`,
+      publicUrl: `https://dexscreener.com/${dexChain}/${pairAddress}`,
     },
-    {
+    geckoPool && {
       name: "GeckoTerminal",
-      embedUrl: `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoTerminalPairAddress || pairAddress || mintAddress}?embed=1&footer=0&info=0&swaps=0&grayscale=0&light_chart=0`,
-      publicUrl: `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoTerminalPairAddress || pairAddress || mintAddress}`,
+      embedUrl: `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoPool}?embed=1&footer=0&info=0&swaps=0&grayscale=0&light_chart=0`,
+      publicUrl: `https://www.geckoterminal.com/${geckoNetwork}/pools/${geckoPool}`,
     },
-  ];
+  ].filter(Boolean) as { name: string; embedUrl: string; publicUrl: string }[];
+
+  // No pool anywhere — say so immediately instead of spinning.
+  const hasNoChartSource = chartSources.length === 0;
 
   const currentSource = chartSources[sourceIndex] || chartSources[0];
 
@@ -97,6 +108,31 @@ export function TokenChart({
     }
     setShowFallback(false);
   };
+
+  // Nothing to embed — tell the user straight away rather than showing a
+  // spinner that can never resolve. Also guards currentSource below.
+  if (hasNoChartSource) {
+    return (
+      <div className="absolute inset-0 w-full h-full bg-panel flex flex-col items-center justify-center gap-3 px-6 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+          <span className="text-xl">📉</span>
+        </div>
+        <p className="text-sm font-bold text-white">No chart available</p>
+        <p className="text-[11px] text-muted max-w-[260px] leading-relaxed">
+          {tokenSymbol} has no liquidity pool indexed yet, so there is nothing
+          to chart. It will appear once a pool is created.
+        </p>
+        <a
+          href={`https://dexscreener.com/${dexChain}/${mintAddress}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-1 text-[10px] font-bold uppercase tracking-widest text-primary hover:underline"
+        >
+          Search on DexScreener ↗
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div className="absolute inset-0 w-full h-full bg-panel">
