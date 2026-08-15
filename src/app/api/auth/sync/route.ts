@@ -23,19 +23,23 @@ export async function POST(request: NextRequest) {
 
     logger.info("Syncing Turnkey user", { tkUserId, email });
 
-    // 1. Find or create user — look up by googleId FIRST (exact match),
-    //    then by email as a secondary fallback. Using an OR across both
-    //    fields can silently return the wrong user if two accounts share
-    //    an email address or if Turnkey reuses cached credentials.
+    // Turnkey only hands us an email for Google sign-in; email-OTP users
+    // arrive with just an auto-generated username, so treat the presence of
+    // an email as the signal for which method was used.
+    const method = email ? "google" : "email";
+
+    // 1. Find or create user — match on the Turnkey user id first (exact),
+    //    then email as a secondary fallback. Using an OR across both fields
+    //    can silently return the wrong user if two accounts share an email.
     let user = await db.user.findFirst({
-      where: { googleId: tkUserId }
+      where: { turnkeyUserId: tkUserId }
     });
 
     if (!user && email) {
-      // Only fall back to email lookup if there is no googleId-linked user
-      user = await db.user.findFirst({
-        where: { email, googleId: null } // only match unlinked email users
-      });
+      // Same person signing in the other way (Google <-> email OTP) — link to
+      // the existing account rather than creating a duplicate with its own
+      // wallets. This is what the whitelisted Google client id enables.
+      user = await db.user.findFirst({ where: { email } });
     }
 
     if (!user) {
@@ -43,18 +47,26 @@ export async function POST(request: NextRequest) {
         data: {
           name: name || email || "Anonymous",
           email: email || null,
-          googleId: tkUserId,
+          turnkeyUserId: tkUserId,
+          authMethod: method,
+          // googleId means "a real Google identity", not "any Turnkey user".
+          googleId: email ? tkUserId : null,
           avatar: avatar || null,
         }
       });
-      logger.info("Created new user via Turnkey sync", { userId: user.id });
-    } else if (!user.googleId) {
-      // Link Google ID if it wasn't linked yet
-      user = await db.user.update({
-        where: { id: user.id },
-        data: { googleId: tkUserId }
-      });
-      logger.info("Linked Google ID to existing user", { userId: user.id });
+      logger.info("Created new user via Turnkey sync", { userId: user.id, method });
+    } else {
+      // Backfill identifiers on an existing account without clobbering
+      // anything already set (e.g. a Discord link).
+      const patch: Record<string, unknown> = {};
+      if (!user.turnkeyUserId) patch.turnkeyUserId = tkUserId;
+      if (!user.authMethod) patch.authMethod = method;
+      if (!user.googleId && email) patch.googleId = tkUserId;
+      if (!user.email && email) patch.email = email;
+      if (Object.keys(patch).length > 0) {
+        user = await db.user.update({ where: { id: user.id }, data: patch });
+        logger.info("Updated identifiers on existing user", { userId: user.id, fields: Object.keys(patch) });
+      }
     }
 
     // The super admin is always an admin — enforce on every sign-in.

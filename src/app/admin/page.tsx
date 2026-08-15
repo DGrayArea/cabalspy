@@ -27,7 +27,7 @@ interface AdminMetrics {
     signupsByDay: { date: string; count: number }[];
     tradesByDay: { date: string; count: number }[];
     volumeByDay: { date: string; volume: number }[];
-    authBreakdown: { google: number; discord: number; telegram: number };
+    authBreakdown: { google: number; discord: number; telegram: number; email: number };
     accessBreakdown: { user: number; holder: number; admin: number };
     buySellBreakdown: { buys: number; sells: number };
     topTokens: { symbol: string; count: number }[];
@@ -449,6 +449,7 @@ export default function AdminDashboard() {
   const c = metrics?.charts;
   const authPieData = c ? [
     { name: "Google", value: c.authBreakdown.google },
+    { name: "Email", value: c.authBreakdown.email ?? 0 },
     { name: "Discord", value: c.authBreakdown.discord },
     { name: "Telegram", value: c.authBreakdown.telegram },
   ] : [];

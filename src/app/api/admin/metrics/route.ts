@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
         select: {
           id: true,
           accessLevel: true,
+          authMethod: true,
           googleId: true,
           discordId: true,
           telegramId: true,
@@ -111,10 +112,18 @@ export async function GET(req: NextRequest) {
     );
 
     // 5. Auth provider breakdown
+    // Prefer the recorded authMethod; fall back to inferring from the
+    // identifiers for rows created before that column existed. Email-OTP
+    // users previously matched none of these and vanished from the chart.
+    const methodOf = (u: { authMethod?: string | null; googleId?: string | null; discordId?: string | null; telegramId?: string | null }) =>
+      u.authMethod ??
+      (u.discordId ? "discord" : u.telegramId ? "telegram" : u.googleId ? "google" : "email");
+
     const authBreakdown = {
-      google: allUsers.filter((u) => u.googleId && !u.discordId && !u.telegramId).length,
-      discord: allUsers.filter((u) => u.discordId).length,
-      telegram: allUsers.filter((u) => u.telegramId && !u.discordId).length,
+      google: allUsers.filter((u) => methodOf(u) === "google").length,
+      discord: allUsers.filter((u) => methodOf(u) === "discord").length,
+      telegram: allUsers.filter((u) => methodOf(u) === "telegram").length,
+      email: allUsers.filter((u) => methodOf(u) === "email").length,
     };
 
     // 6. Access level breakdown

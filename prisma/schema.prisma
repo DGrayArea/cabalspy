@@ -16,6 +16,12 @@ model User {
   id          String   @id @default(uuid())
   email       String?  @unique
   telegramId  String?  @unique
+  // The Turnkey sub-organisation user id. This used to be crammed into
+  // googleId regardless of how the person signed up, which made googleId
+  // meaningless and "how did this user sign up?" unanswerable from the DB.
+  turnkeyUserId String? @unique
+  // "google" | "email" | "discord" | "telegram" — how the account was created.
+  authMethod  String?
   googleId    String?  @unique
   discordId   String?  @unique
   name        String
