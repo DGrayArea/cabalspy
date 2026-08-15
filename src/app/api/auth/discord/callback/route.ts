@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (!code) {
       logger.warn("Missing code in Discord callback");
       return NextResponse.redirect(
-        new URL("/?error=missing_code", request.url),
+        new URL("/access-denied?error=missing_code", request.url),
       );
     }
 
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
     if (!clientId || !clientSecret || !guildId || !botToken) {
       logger.error("Discord auth configuration missing");
       return NextResponse.redirect(
-        new URL("/?error=server_configuration", request.url),
+        new URL("/access-denied?error=server_configuration", request.url),
       );
     }
 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         error: errorText,
       });
       return NextResponse.redirect(
-        new URL("/?error=invalid_code", request.url),
+        new URL("/access-denied?error=invalid_code", request.url),
       );
     }
 
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
     if (!userResponse.ok) {
       logger.error("Failed to fetch Discord user info");
       return NextResponse.redirect(
-        new URL("/?error=user_fetch_failed", request.url),
+        new URL("/access-denied?error=user_fetch_failed", request.url),
       );
     }
 
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest) {
     if (memberResponse.status === 404) {
       logger.warn(`User ${userData.id} is not a member of guild ${guildId}`);
       return NextResponse.redirect(
-        new URL("/?error=not_in_server", request.url),
+        new URL("/access-denied?error=not_in_server", request.url),
       );
     }
 
@@ -123,7 +123,7 @@ export async function GET(request: NextRequest) {
         status: memberResponse.status,
       });
       return NextResponse.redirect(
-        new URL("/?error=member_fetch_failed", request.url),
+        new URL("/access-denied?error=member_fetch_failed", request.url),
       );
     }
 
@@ -283,6 +283,6 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     logger.error("Discord callback error", error);
-    return NextResponse.redirect(new URL("/?error=server_error", request.url));
+    return NextResponse.redirect(new URL("/access-denied?error=server_error", request.url));
   }
 }

@@ -18,13 +18,31 @@ function AccessDeniedContent() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    if (error === "missing_role") {
-      setErrorMsg("Verification Failed: Required Discord roles not found.");
-    } else if (error === "not_in_server") {
-      setErrorMsg("Verification Failed: You must be in the CabalSpy Discord server.");
-    } else if (error === "already_linked") {
-      setErrorMsg("Verification Failed: This Discord account is already linked to another user.");
-    }
+    // Every Discord callback failure lands here now. Previously most of them
+    // redirected to "/" with an ?error= that nothing rendered, so a user whose
+    // verification failed was bounced with no explanation at all and simply
+    // reported "it doesn't work".
+    const messages: Record<string, string> = {
+      missing_role:
+        "Verification Failed: your Discord account doesn't have the Holder or Pre-Sale role.",
+      not_in_server:
+        "Verification Failed: you must join the CabalSpy Discord server before verifying.",
+      already_linked:
+        "Verification Failed: this Discord account is already linked to another CabalSpy user.",
+      invalid_code:
+        "Verification Failed: that Discord sign-in link expired. Please try again.",
+      missing_code:
+        "Verification Failed: Discord didn't return a sign-in code. Please try again.",
+      user_fetch_failed:
+        "Verification Failed: we couldn't read your Discord profile. Please try again.",
+      member_fetch_failed:
+        "Verification Failed: we couldn't check your roles in the server. Please try again shortly.",
+      server_configuration:
+        "Discord verification is temporarily unavailable. Please contact the team.",
+      server_error:
+        "Something went wrong during verification. Please try again shortly.",
+    };
+    setErrorMsg(error ? (messages[error] ?? null) : null);
   }, [error]);
 
   const onLinkDiscord = async () => {
