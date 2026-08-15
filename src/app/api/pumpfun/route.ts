@@ -73,6 +73,22 @@ export async function GET(request: NextRequest) {
         endpoint.startsWith(dead)
       );
 
+      // 404 means "this token isn't on pump.fun", which is the normal case for
+      // most of the feed — not an error. Previously it fell through to the
+      // throw below and came back as a 502, flooding the console with hundreds
+      // of failures per page load. Answer with null so the caller treats it as
+      // "no data" and moves on.
+      if (response.status === 404) {
+        return NextResponse.json(null, {
+          status: 200,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "X-Upstream-Status": "404",
+            "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          },
+        });
+      }
+
       // Treat an upstream outage the same way: degrade to an empty result so
       // the feed renders instead of throwing a 502 into the browser console.
       // The status is surfaced in a header and logged for diagnosis.
